@@ -123,8 +123,8 @@ export default function FormIscrizione() {
     }
   }
 
-  const handleConfermaFirma = async () => {
-    // 1. Controllo di sicurezza!
+    const handleConfermaFirma = async () => {
+    // 1. Controllo di sicurezza OTP
     if (codiceOtpInserito !== codiceOtpGenerato) {
       return alert("Il codice OTP inserito non è corretto. Riprova o richiedine uno nuovo.");
     }
@@ -132,6 +132,22 @@ export default function FormIscrizione() {
     setIsSubmitting(true);
 
     try {
+      // --- NOVITÀ: RECUPERO L'IP REALE ---
+      let clientIp = '127.0.0.1';
+      try {
+        const ipRes = await fetch('/api/get-ip');
+        const ipData = await ipRes.json();
+        clientIp = ipData.ip;
+      } catch (e) {
+        console.warn("Impossibile recuperare IP", e);
+      }
+
+      // --- NOVITÀ: DEFINISCO LE VERSIONI LEGALI ---
+      const versioneRegolamento = "v1.0_2026";
+      const versioneStatuto = "v1.0_2026";
+      const versionePrivacy = "v1.0_2026";
+
+      // 2. Caricamento del Certificato Medico su Storage
       let certificatoUrl = '';
       if (formData.fileCertificato) {
         const fileExt = formData.fileCertificato.name.split('.').pop();
@@ -141,6 +157,7 @@ export default function FormIscrizione() {
         certificatoUrl = data.path;
       }
 
+      // 3. Salvataggio in tabella Soci
       const { data: socioData, error: socioError } = await supabase.from('soci').insert([{
         nome: formData.nome, cognome: formData.cognome, sesso: formData.sesso, cf: formData.codiceFiscale,
         data_nascita: formData.dataNascita, luogo_nascita: formData.luogoNascita, provincia_nascita: formData.provinciaNascita, cittadinanza: formData.cittadinanza,
@@ -149,25 +166,76 @@ export default function FormIscrizione() {
         genitore_nome: under18 ? formData.genitoreNome : null, cognome_genitore: under18 ? formData.genitoreCognome : null,
         genitore_contatto_preferito: under18 ? formData.genitoreContattoScelta : null, genitore_recapito: under18 ? formData.genitoreContatto : null,
       }]).select().single();
+      
       if (socioError) throw new Error(socioError.message);
 
+      // 4. Salvataggio in tabella Tesseramenti con IP vero e versioni documenti!
+      const dataFirma = new Date().toISOString(); // Salviamo il momento esatto
+
       const { error: tesseramentoError } = await supabase.from('tesseramenti_annuali').insert([{
-        socio_id: socioData.id, anno_sportivo: '2026/2027', data_scadenza_certificato: formData.dataCertificato,
-        url_certificato_pdf: certificatoUrl, stato_firma: 'firmato', otp_generato: '123456', ip_firma: '127.0.0.1',
-        timestamp_firma: new Date().toISOString(), 
+        socio_id: socioData.id, 
+        anno_sportivo: '2026/2027', 
+        data_scadenza_certificato: formData.dataCertificato,
+        url_certificato_pdf: certificatoUrl, 
+        stato_firma: 'firmato', 
+        otp_generato: codiceOtpGenerato, // Salviamo il codice OTP usato!
+        ip_firma: clientIp,              // Salviamo l'IP reale!
+        timestamp_firma: dataFirma, 
         consensi: { 
           salute: formData.consensoSalute, 
           regolamento: formData.consensoRegolamento, 
+          versione_regolamento: versioneRegolamento,
+          versione_statuto: versioneStatuto,
           privacy: formData.consensoPrivacy, 
+          versione_privacy: versionePrivacy,
           videosorveglianza: formData.consensoVideosorveglianza
         }
       }]);
-      if (tesseramentoError) throw new Error(tesseramentoError.message);
 
+            if (tesseramentoError) throw new Error(tesseramentoError.message);
+
+      // --- FASE 3: CHIAMIAMO LA STAMPANTE PDF ---
+      try {
+        // Raccogliamo tutti i dati da stampare
+        const datiPdf = {
+          ...formData,
+          ip: clientIp,
+          otp: codiceOtpGenerato,
+          minorenne: under18
+        };
+
+        const resPdf = await fetch('/api/genera-pdf', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(datiPdf),
+        });
+
+        if (resPdf.ok) {
+          // Creiamo un link temporaneo nel browser per scaricare il file PDF
+          const arrayBuffer = await resPdf.arrayBuffer(); // Usiamo arrayBuffer invece di blob diretto
+          const blob = new Blob([arrayBuffer], { type: 'application/pdf' }); // Forziamo il tipo PDF!
+          
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `Iscrizione_${formData.cognome}_${formData.nome}.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          window.URL.revokeObjectURL(url);
+        } else {
+          console.error("Errore nella generazione del PDF dalla rotta API.");
+        }
+      } catch (pdfError) {
+        console.error("Errore durante la richiesta del PDF:", pdfError);
+      }        
+        
       setIscrizioneCompletata(true);
     } catch (error: any) {
       alert(error.message || "Si è verificato un errore.");
-    } finally { setIsSubmitting(false); }
+    } finally { 
+      setIsSubmitting(false); 
+    }
   }
 
   const getInputClass = (name: string) => {
@@ -232,7 +300,6 @@ export default function FormIscrizione() {
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6">
         
-        {/* HEADER: Pulito, senza ombre strane o neri aggressivi */}
         <div className="text-center mb-12">
           <img 
             src="/logo-asd-monesiglio.png" 
@@ -276,7 +343,7 @@ export default function FormIscrizione() {
                 
                 {/* BOTTONI SESSO: Larghi, puliti, effetto chiaro */}
                 <div className="md:col-span-2 my-2">
-                  <label className="block text-sm font-bold text-gray-700 mb-3 uppercase tracking-wide">Genere *</label>
+                  <label className="block text-sm font-bold text-gray-700 mb-3 tracking-wide">Genere *</label>
                   <div className={`flex w-full gap-4 ${touched.sesso && errors.sesso ? 'p-2 bg-red-50 rounded-xl border border-red-200' : ''}`}>
                     <label className="flex-1 cursor-pointer relative">
                       <input type="radio" name="sesso" value="M" checked={formData.sesso === 'M'} onChange={handleChange} onBlur={() => setTouched(prev => ({...prev, sesso: true}))} className="peer sr-only" />
