@@ -27,17 +27,13 @@ export async function GET() {
       
       // Dati Anagrafici (Utente o Minore)
       nomeCognome: "Mario Rossi",
-      luogoNascita: "Torino",
-      dataNascita: "15/04/2010",
-      provNascita: "TO",
+      luogoDataNascita: "Torino (TO), 15/04/2010",
       codiceFiscale: "RSSMRA10D15L219X",
       cittadinanza: "Italiana",
       
       // Residenza
       indirizzo: "Via Roma, 123",
-      citta: "Monesiglio",
-      provResidenza: "CN",
-      cap: "12077",
+      citta: "Monesiglio (CN)",
       
       // Contatti
       email: "mario.rossi@email.com",
@@ -55,55 +51,51 @@ export async function GET() {
     // Dimensione base per i testi compilati
     const textSize = 12; 
 
-        // ==========================================
+    // ==========================================
     // 2. POSIZIONAMENTO CALCOLATO 
     // ==========================================
     
     // Intestazione
     // Anno Sportivo (vicino alla scritta "Anno Sportivo")
-    firstPage.drawText(datiTest.annoSportivo, { x: 323, y: 539, size: 17, font });
+    firstPage.drawText(datiTest.annoSportivo, { x: 320, y: 539, size: 17, font });
 
     // Anno Sportivo nella richiesta prima dei dati anagrafici
-    firstPage.drawText(datiTest.annoSportivo, { x: 231, y: 464, size: 12, font: fontObl });
+    firstPage.drawText(datiTest.annoSportivo, { x: 230, y: 464, size: 12, font: fontObl });
 
     // Sezione 1: Dati Anagrafici
     // Riga 1: Nome e Cognome
-    firstPage.drawText(datiTest.nomeCognome, { x: 190, y: 432, size: textSize, font });
+    firstPage.drawText(datiTest.nomeCognome, { x: 210, y: 441, size: textSize, font });
     
     // Riga 2: Luogo, Data e Prov
-    firstPage.drawText(datiTest.luogoNascita, { x: 215, y: 412, size: textSize, font });
-    firstPage.drawText(datiTest.dataNascita, { x: 420, y: 412, size: textSize, font });
-    firstPage.drawText(datiTest.provNascita, { x: 505, y: 412, size: textSize, font });
+    firstPage.drawText(datiTest.luogoDataNascita, { x: 240, y: 424, size: textSize, font });
     
     // Riga 3: Codice Fiscale
-    firstPage.drawText(datiTest.codiceFiscale, { x: 190, y: 393, size: textSize, font });
+    firstPage.drawText(datiTest.codiceFiscale, { x: 191, y: 407, size: textSize, font });
     
     // Riga 4: Cittadinanza
-    firstPage.drawText(datiTest.cittadinanza, { x: 190, y: 373, size: textSize, font });
+    firstPage.drawText(datiTest.cittadinanza, { x: 182, y: 391, size: textSize, font });
 
     // Sezione 2: Residenza e Contatti
     // Riga 5: Via/Piazza
-    firstPage.drawText(datiTest.indirizzo, { x: 230, y: 353, size: textSize, font });
+    firstPage.drawText(datiTest.indirizzo, { x: 247, y: 374, size: textSize, font });
     
     // Riga 6: Città e Prov
-    firstPage.drawText(datiTest.citta, { x: 155, y: 333, size: textSize, font });
-    // Ho stimato che ci sia un CAP da qualche parte, ma nel tuo modulo c'è solo "Prov:"
-    firstPage.drawText(datiTest.provResidenza, { x: 440, y: 333, size: textSize, font });
+    firstPage.drawText(datiTest.citta, { x: 140, y: 358, size: textSize, font });
 
     // Riga 7: Email e Cellulare
-    firstPage.drawText(datiTest.email, { x: 160, y: 313, size: textSize, font });
-    firstPage.drawText(datiTest.cellulare, { x: 440, y: 313, size: textSize, font });
+    firstPage.drawText(datiTest.email, { x: 145, y: 342, size: textSize, font });
+    firstPage.drawText(datiTest.cellulare, { x: 447, y: 342, size: textSize, font });
 
         // Sezione 4: Privacy, Data e Firme
     
     // Consenso Foto/Video (Facoltativo) - Lo posizioniamo sotto il paragrafo delle foto
     const consensoFoto = true; // Cambia a false per testare "NON ACCONSENTE"
     const testoConsenso = consensoFoto ? "ACCONSENTE all'uso delle immagini" : "NON ACCONSENTE all'uso delle immagini";
-    firstPage.drawText(testoConsenso, { x: 85, y: 195, size: 10, font: fontBold }); 
+    firstPage.drawText(testoConsenso, { x: 71, y: 121, size: 10, font: fontBold }); 
 
     // Luogo e data in fondo (sulla riga apposita)
     const luogoData = `${datiTest.luogoCompilazione}, ${datiTest.dataCompilazione}`;
-    firstPage.drawText(luogoData, { x: 170, y: 155, size: textSize, font });
+    firstPage.drawText(luogoData, { x: 148, y: 101, size: textSize, font });
 
     // Firma Elettronica (OTP) - Al posto dello scarabocchio a penna
     const codiceOTP = "847291";
@@ -115,8 +107,8 @@ export async function GET() {
     
     // Lo posizioniamo sulla riga "Firma del Socio (o Genitore):"
     firstPage.drawText(testoFirmaOTP, { 
-      x: 250, 
-      y: 140, // Partiamo leggermente più in alto perché sono 3 righe
+      x: 230, 
+      y: 85, // Partiamo leggermente più in alto perché sono 3 righe
       size: 9, 
       font: font,
       lineHeight: 12 // Spazio tra una riga e l'altra
