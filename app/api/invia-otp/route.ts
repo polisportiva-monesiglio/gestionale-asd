@@ -1,57 +1,49 @@
-// app/api/invia-otp/route.ts
 import { NextResponse } from 'next/server';
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 
-export async function POST(request: Request) {
+// Inizializza il postino con la tua chiave segreta
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+export async function POST(req: Request) {
   try {
-    // 1. Leggiamo a chi dobbiamo mandare l'email
-    const body = await request.json();
-    const { emailDestinatario, nome } = body;
+    const { emailDestinatario, nome } = await req.json();
 
     if (!emailDestinatario) {
       return NextResponse.json({ error: 'Email mancante' }, { status: 400 });
     }
 
-    // 2. Generiamo un codice OTP di 6 cifre casuale
-    const codiceOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    // Genera l'OTP a 6 cifre
+    const otpGenerato = Math.floor(100000 + Math.random() * 900000).toString();
 
-    // 3. Prepariamo il "postino" con i dati di Gmail
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-    });
-
-    // 4. Creiamo il contenuto della email
-    const mailOptions = {
-      from: `"ASD Polisportiva Monesiglio" <${process.env.EMAIL_USER}>`,
-      to: emailDestinatario,
-      subject: 'Il tuo Codice di Firma - Iscrizione ASD',
+    // Spedisce la mail!
+    const data = await resend.emails.send({
+      from: 'Polisportiva Monesiglio <onboarding@resend.dev>', // IMPORTANTE: Lascia questo mittente finché sei nel piano gratuito!
+      to: emailDestinatario, // L'email che l'utente ha inserito nel form
+      subject: 'Codice OTP Tesseramento - ASD Monesiglio',
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
-          <h2 style="color: #333; text-align: center;">Codice di Sicurezza (OTP)</h2>
-          <p style="color: #555; font-size: 16px;">Ciao <strong>${nome || 'Atleta'}</strong>,</p>
-          <p style="color: #555; font-size: 16px;">Usa il codice qui sotto per firmare digitalmente il tuo modulo di iscrizione alla Polisportiva Monesiglio.</p>
-          
-          <div style="background-color: #f8f9fa; border-left: 4px solid #FBBF24; padding: 20px; text-align: center; margin: 30px 0;">
-            <span style="font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #111;">${codiceOtp}</span>
+        <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+          <h2 style="color: #facc15;">Polisportiva Monesiglio</h2>
+          <p>Ciao ${nome || 'Socio'},</p>
+          <p>Ecco il tuo codice OTP per firmare l'iscrizione:</p>
+          <div style="background-color: #facc15; font-size: 32px; font-weight: bold; text-align: center; padding: 20px; border-radius: 10px; color: #111827;">
+            ${otpGenerato}
           </div>
-          
-          <p style="color: #888; font-size: 14px;"><em>Se non hai richiesto questo codice, ignora questa email.</em></p>
         </div>
       `,
-    };
+    });
 
-    // 5. Spediamo!
-    await transporter.sendMail(mailOptions);
+    if (data.error) {
+      console.error("Errore Resend:", data.error);
+      return NextResponse.json({ error: data.error.message }, { status: 400 });
+    }
 
-    // 6. Restituiamo il codice generato al nostro sito (così sa cosa controllare)
-    return NextResponse.json({ success: true, codiceOtp });
+    return NextResponse.json({ 
+      success: true, 
+      codiceOtp: otpGenerato 
+    });
 
-  } catch (error: any) {
-    console.error('Errore invio email:', error);
-    return NextResponse.json({ error: 'Errore durante l\'invio dell\'email' }, { status: 500 });
+  } catch (error) {
+    console.error("Errore generico API OTP:", error);
+    return NextResponse.json({ error: "Errore interno del server" }, { status: 500 });
   }
 }
