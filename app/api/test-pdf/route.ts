@@ -27,7 +27,7 @@ export async function GET() {
       
       // Dati Anagrafici (Utente o Minore)
       nomeCognome: "Mario Rossi",
-      luogoDataNascita: "Torino (TO), 15/04/2010",
+      luogoDataNascita: "15/04/2010, Torino (TO)",
       codiceFiscale: "RSSMRA10D15L219X",
       cittadinanza: "Italiana",
       
@@ -46,6 +46,12 @@ export async function GET() {
       // Varie
       luogoCompilazione: "Monesiglio",
       dataCompilazione: "27/04/2026",
+
+      // Genitore (solo se minorenne)
+      genitoreNome: "Giuseppe",
+      genitoreCognome: "Rossi",
+      genitoreContattoScelta: "Email", // O "Cellulare"
+      genitoreContatto: "giuseppe.rossi@email.com"
     };
 
     // Dimensione base per i testi compilati
@@ -60,42 +66,68 @@ export async function GET() {
     firstPage.drawText(datiTest.annoSportivo, { x: 320, y: 539, size: 17, font });
 
     // Anno Sportivo nella richiesta prima dei dati anagrafici
-    firstPage.drawText(datiTest.annoSportivo, { x: 230, y: 464, size: 12, font: fontObl });
+    firstPage.drawText(datiTest.annoSportivo, { x: 230, y: 490, size: 12, font: fontObl });
 
     // Sezione 1: Dati Anagrafici
     // Riga 1: Nome e Cognome
-    firstPage.drawText(datiTest.nomeCognome, { x: 210, y: 441, size: textSize, font });
+    firstPage.drawText(datiTest.nomeCognome, { x: 210, y: 468, size: textSize, font });
     
     // Riga 2: Luogo, Data e Prov
-    firstPage.drawText(datiTest.luogoDataNascita, { x: 240, y: 424, size: textSize, font });
+    firstPage.drawText(datiTest.luogoDataNascita, { x: 240, y: 451, size: textSize, font });
     
     // Riga 3: Codice Fiscale
-    firstPage.drawText(datiTest.codiceFiscale, { x: 191, y: 407, size: textSize, font });
+    firstPage.drawText(datiTest.codiceFiscale, { x: 191, y: 434, size: textSize, font });
     
     // Riga 4: Cittadinanza
-    firstPage.drawText(datiTest.cittadinanza, { x: 182, y: 391, size: textSize, font });
+    firstPage.drawText(datiTest.cittadinanza, { x: 182, y: 418, size: textSize, font });
 
     // Sezione 2: Residenza e Contatti
     // Riga 5: Via/Piazza
-    firstPage.drawText(datiTest.indirizzo, { x: 247, y: 374, size: textSize, font });
+    firstPage.drawText(datiTest.indirizzo, { x: 247, y: 401, size: textSize, font });
     
     // Riga 6: Città e Prov
-    firstPage.drawText(datiTest.citta, { x: 140, y: 358, size: textSize, font });
+    firstPage.drawText(datiTest.citta, { x: 140, y: 385, size: textSize, font });
 
     // Riga 7: Email e Cellulare
-    firstPage.drawText(datiTest.email, { x: 145, y: 342, size: textSize, font });
-    firstPage.drawText(datiTest.cellulare, { x: 447, y: 342, size: textSize, font });
+    firstPage.drawText(datiTest.email, { x: 145, y: 369, size: textSize, font });
+    firstPage.drawText(datiTest.cellulare, { x: 447, y: 369, size: textSize, font });
 
-        // Sezione 4: Privacy, Data e Firme
+    // --- SEZIONE 3: DATI GENITORE (SOLO SE MINORENNE) ---
+    // Nel tuo form React, quando l'età è < 18, compaiono e vengono inviati 'genitoreNome' e 'genitoreCognome'
+    
+    if (datiTest.genitoreNome && datiTest.genitoreCognome) {
+
+      // 1. Scritta di avviso (TESSERATO MINORENNE) in grassetto
+      firstPage.drawText("TESSERATO MINORENNE", { 
+        x: 109, 
+        y: 340, 
+        size: 10, 
+        font: fontBold 
+      });
+
+      // Stampiamo una piccola etichetta "Dati Genitore/Tutore:" seguita da Nome e Cognome
+      const datiGenitore = `Genitore/Tutore: ${datiTest.genitoreNome} ${datiTest.genitoreCognome}`;
+      
+      // La posizioniamo nello spazio bianco sotto i contatti 
+      firstPage.drawText(datiGenitore, { x: 109, y: 325, size: 11, font: fontBold });
+      
+      // Se nel form c'è anche il contatto del genitore, lo stampiamo sotto 
+      if (datiTest.genitoreContatto) {
+        const contattoGenitore = `Recapito Genitore (${datiTest.genitoreContattoScelta || 'Email'}): ${datiTest.genitoreContatto}`;
+        firstPage.drawText(contattoGenitore, { x: 109, y: 310, size: textSize, font });
+      }
+    }
+
+    // Sezione 4: Privacy, Data e Firme
     
     // Consenso Foto/Video (Facoltativo) - Lo posizioniamo sotto il paragrafo delle foto
     const consensoFoto = true; // Cambia a false per testare "NON ACCONSENTE"
     const testoConsenso = consensoFoto ? "ACCONSENTE all'uso delle immagini" : "NON ACCONSENTE all'uso delle immagini";
-    firstPage.drawText(testoConsenso, { x: 71, y: 121, size: 10, font: fontBold }); 
+    firstPage.drawText(testoConsenso, { x: 71, y: 140, size: 10, font: fontBold }); 
 
     // Luogo e data in fondo (sulla riga apposita)
     const luogoData = `${datiTest.luogoCompilazione}, ${datiTest.dataCompilazione}`;
-    firstPage.drawText(luogoData, { x: 148, y: 101, size: textSize, font });
+    firstPage.drawText(luogoData, { x: 148, y: 118, size: textSize, font });
 
     // Firma Elettronica (OTP) - Al posto dello scarabocchio a penna
     const codiceOTP = "847291";
@@ -108,7 +140,7 @@ export async function GET() {
     // Lo posizioniamo sulla riga "Firma del Socio (o Genitore):"
     firstPage.drawText(testoFirmaOTP, { 
       x: 230, 
-      y: 85, // Partiamo leggermente più in alto perché sono 3 righe
+      y: 102, 
       size: 9, 
       font: font,
       lineHeight: 12 // Spazio tra una riga e l'altra

@@ -25,99 +25,106 @@ export async function POST(req: Request) {
     // ==========================================
     const textSize = 12; 
 
-        // Intestazione (Anno Sportivo Calcolato Automaticamente)
-    // Se il mese è da Gennaio (0) a Luglio (6), la stagione è "AnnoPrecedente/AnnoCorrente"
-    // Se il mese è da Agosto (7) a Dicembre (11), la stagione è "AnnoCorrente/AnnoSuccessivo"
+    // --- INTESTAZIONE (Anno Sportivo) ---
     const oggi = new Date();
     const mese = oggi.getMonth(); // 0 = Gennaio, 7 = Agosto
     const annoCorrente = oggi.getFullYear();
     
     let annoSportivoDinamico = "";
     if (mese < 7) { 
-      // Fino a Luglio (es. Aprile 2026 -> 2025/2026)
       annoSportivoDinamico = `${annoCorrente - 1}/${annoCorrente}`;
     } else {
-      // Da Agosto in poi (es. Agosto 2026 -> 2026/2027)
       annoSportivoDinamico = `${annoCorrente}/${annoCorrente + 1}`;
     }
-
-    // Se dal form (dati) viene forzato un anno, usiamo quello, altrimenti usiamo il calcolatore dinamico
     const annoSportivo = dati.annoSportivo || annoSportivoDinamico;
     
     // Anno Sportivo (vicino alla scritta "Anno Sportivo")
     firstPage.drawText(annoSportivo, { x: 320, y: 539, size: 17, font });
     // Anno Sportivo nella richiesta prima dei dati anagrafici
-    firstPage.drawText(annoSportivo, { x: 230, y: 464, size: 12, font: fontObl });
+    firstPage.drawText(annoSportivo, { x: 230, y: 490, size: 12, font: fontObl });
 
     // --- SEZIONE 1: DATI ANAGRAFICI ---
     // Riga 1: Nome e Cognome
     const nomeCognome = `${dati.nome || ''} ${dati.cognome || ''}`.trim();
-    firstPage.drawText(nomeCognome, { x: 210, y: 441, size: textSize, font });
+    firstPage.drawText(nomeCognome, { x: 210, y: 468, size: textSize, font });
     
-    // Riga 2: Luogo, Data e Prov di Nascita
+    // Riga 2: Data, Luogo e Prov (Es: 15/04/2010, Torino (TO))
     let dataNascitaFormattata = dati.dataNascita || '';
     if (dataNascitaFormattata.includes('-')) {
       const [anno, mese, giorno] = dataNascitaFormattata.split('-');
       dataNascitaFormattata = `${giorno}/${mese}/${anno}`;
     }
-    const luogoDataNascita = `${dati.luogoNascita || ''} (${dati.provinciaNascita || ''}), ${dataNascitaFormattata}`;
-    firstPage.drawText(luogoDataNascita, { x: 240, y: 424, size: textSize, font });
+    const luogoDataNascita = `${dataNascitaFormattata}, ${dati.luogoNascita || ''} (${dati.provinciaNascita || ''})`;
+    firstPage.drawText(luogoDataNascita, { x: 240, y: 451, size: textSize, font });
     
     // Riga 3: Codice Fiscale
-    firstPage.drawText(dati.codiceFiscale || '', { x: 191, y: 407, size: textSize, font });
+    firstPage.drawText(dati.codiceFiscale || '', { x: 191, y: 434, size: textSize, font });
     
     // Riga 4: Cittadinanza
     const cittadinanza = dati.cittadinanza || "Italiana";
-    firstPage.drawText(cittadinanza, { x: 182, y: 391, size: textSize, font });
+    firstPage.drawText(cittadinanza, { x: 182, y: 418, size: textSize, font });
 
     // --- SEZIONE 2: RESIDENZA E CONTATTI ---
     // Riga 5: Via/Piazza
-    firstPage.drawText(dati.indirizzoResidenza || '', { x: 247, y: 374, size: textSize, font });
+    firstPage.drawText(dati.indirizzoResidenza || '', { x: 247, y: 401, size: textSize, font });
     
-    // Riga 6: Città e Prov di Residenza
+    // Riga 6: Città e Prov
     const cittaCompleta = `${dati.cittaResidenza || ''} (${dati.provinciaResidenza || ''})`;
-    firstPage.drawText(cittaCompleta, { x: 140, y: 358, size: textSize, font });
+    firstPage.drawText(cittaCompleta, { x: 140, y: 385, size: textSize, font });
 
-    // Riga 7: Email e Telefono
-    firstPage.drawText(dati.email || '', { x: 145, y: 342, size: textSize, font });
-    firstPage.drawText(dati.telefono || '', { x: 447, y: 342, size: textSize, font });
+    // Riga 7: Email e Telefono/Cellulare
+    firstPage.drawText(dati.email || '', { x: 145, y: 369, size: textSize, font });
+    const numeroTel = dati.telefono || dati.tel || dati.cellulare || '';
+    firstPage.drawText(numeroTel, { x: 447, y: 369, size: textSize, font });
+
+    // --- SEZIONE 3: DATI GENITORE (SOLO SE MINORENNE) ---
+    if (dati.genitoreNome && dati.genitoreCognome) {
+      // 1. Scritta di avviso (TESSERATO MINORENNE) in grassetto
+      firstPage.drawText("TESSERATO MINORENNE", { x: 109, y: 340, size: 10, font: fontBold });
+
+      // 2. Dati Genitore
+      const datiGenitore = `Genitore/Tutore: ${dati.genitoreNome} ${dati.genitoreCognome}`;
+      firstPage.drawText(datiGenitore, { x: 109, y: 325, size: 11, font: fontBold });
+      
+      // 3. Recapito Genitore
+      if (dati.genitoreContatto) {
+        const contattoGenitore = `Recapito Genitore (${dati.genitoreContattoScelta || 'Email'}): ${dati.genitoreContatto}`;
+        firstPage.drawText(contattoGenitore, { x: 109, y: 310, size: textSize, font });
+      }
+    }
 
     // --- SEZIONE 4: PRIVACY, DATA E FIRME ---
-    
     // Consenso Foto/Video (Facoltativo)
     const haAcconsentito = 
       dati.consensoPrivacy === true || 
       dati.consensoPrivacy === "true" || 
       dati.consensoPrivacy === "on";
-
-    const testoConsenso = haAcconsentito  === true 
+      
+    const testoConsenso = haAcconsentito 
       ? "ACCONSENTE all'uso delle immagini" 
       : "NON ACCONSENTE all'uso delle immagini";
-    firstPage.drawText(testoConsenso, { x: 71, y: 121, size: 10, font: fontBold }); 
+    firstPage.drawText(testoConsenso, { x: 71, y: 140, size: 10, font: fontBold }); 
 
-    // Luogo e data in fondo (sulla riga apposita)
+    // Luogo e data in fondo
     const dataOdierna = new Date().toLocaleDateString('it-IT');
-    const luogoCompilazione = dati.cittaResidenza || "Monesiglio"; // Usa la città come luogo di firma
+    const luogoCompilazione = dati.cittaResidenza || "Monesiglio";
     const luogoData = `${luogoCompilazione}, ${dataOdierna}`;
-    firstPage.drawText(luogoData, { x: 148, y: 101, size: textSize, font });
+    firstPage.drawText(luogoData, { x: 148, y: 118, size: textSize, font });
 
-    // Firma Elettronica (OTP) - Al posto dello scarabocchio a penna
+    // Firma Elettronica (OTP)
     const codiceOTP = dati.otp || "Non fornito";
     const ipFirma = dati.ip || "IP non tracciato";
     const dataOraFirma = new Date().toLocaleString('it-IT');
     
-    // Creiamo un blocco testo a più righe per la validità legale
     const testoFirmaOTP = `Firma elettronica validata tramite OTP: ${codiceOTP}\nApposta il: ${dataOraFirma}\nIndirizzo IP: ${ipFirma}`;
     
-    // Lo posizioniamo sulla riga "Firma del Socio (o Genitore):"
     firstPage.drawText(testoFirmaOTP, { 
       x: 230, 
-      y: 85, 
+      y: 102, 
       size: 9, 
       font: font,
       lineHeight: 12 
     });
-
     // ==========================================
 
     // 4. Salva e restituisce il PDF finale
@@ -127,7 +134,6 @@ export async function POST(req: Request) {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
-        // 'attachment' fa scaricare il file, 'inline' lo mostra nel browser se possibile
         'Content-Disposition': `attachment; filename="Iscrizione_${dati.cognome || 'Socio'}.pdf"`,
       },
     });
