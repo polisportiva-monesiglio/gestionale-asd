@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
+import crypto from 'crypto';
 
 // Inizializza il postino con la tua chiave segreta
 const resend = new Resend(process.env.RESEND_API_KEY);
+
+const DURATA_OTP_MS = 10 * 60 * 1000; // 10 minuti
 
 export async function POST(req: Request) {
   try {
@@ -12,8 +15,23 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Email mancante' }, { status: 400 });
     }
 
+    const secret = process.env.OTP_SECRET;
+    if (!secret) {
+      console.error("OTP_SECRET non configurato");
+      return NextResponse.json({ error: 'Configurazione del server incompleta' }, { status: 500 });
+    }
+
     // Genera l'OTP a 6 cifre
     const otpGenerato = Math.floor(100000 + Math.random() * 900000).toString();
+    const scadenza = Date.now() + DURATA_OTP_MS;
+
+    // Firma HMAC del codice: il client riceverà solo questo token, non l'OTP in chiaro
+    const firma = crypto
+      .createHmac('sha256', secret)
+      .update(`${emailDestinatario}:${scadenza}:${otpGenerato}`)
+      .digest('hex');
+
+    const token = Buffer.from(`${emailDestinatario}:${scadenza}:${firma}`).toString('base64');
 
     // Spedisce la mail!
     const data = await resend.emails.send({
@@ -28,6 +46,7 @@ export async function POST(req: Request) {
           <div style="background-color: #facc15; font-size: 32px; font-weight: bold; text-align: center; padding: 20px; border-radius: 10px; color: #111827;">
             ${otpGenerato}
           </div>
+          <p style="font-size: 12px; color: #888; margin-top: 16px;">Il codice è valido per 10 minuti.</p>
         </div>
       `,
     });
@@ -37,9 +56,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: data.error.message }, { status: 400 });
     }
 
-    return NextResponse.json({ 
-      success: true, 
-      codiceOtp: otpGenerato 
+    return NextResponse.json({
+      success: true,
+      token,
     });
 
   } catch (error) {

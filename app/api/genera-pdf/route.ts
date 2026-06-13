@@ -112,11 +112,11 @@ export async function POST(req: Request) {
     firstPage.drawText(luogoData, { x: 148, y: 118, size: textSize, font });
 
     // Firma Elettronica (OTP)
-    const codiceOTP = dati.otp || "Non fornito";
+    const hashOTP = dati.otpHash ? String(dati.otpHash).slice(0, 16) : "Non fornito";
     const ipFirma = dati.ip || "IP non tracciato";
     const dataOraFirma = new Date().toLocaleString('it-IT');
-    
-    const testoFirmaOTP = `Firma elettronica validata tramite OTP: ${codiceOTP}\nApposta il: ${dataOraFirma}\nIndirizzo IP: ${ipFirma}`;
+
+    const testoFirmaOTP = `Firma elettronica validata tramite codice OTP (rif. ${hashOTP})\nApposta il: ${dataOraFirma}\nIndirizzo IP: ${ipFirma}`;
     
     firstPage.drawText(testoFirmaOTP, { 
       x: 230, 

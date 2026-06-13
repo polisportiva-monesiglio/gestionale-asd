@@ -44,7 +44,7 @@ export default function FormIscrizione() {
   // Stati per OTP e invio
   const [otpInviato, setOtpInviato] = useState(false)
   const [codiceOtpInserito, setCodiceOtpInserito] = useState('')
-  const [codiceOtpGenerato, setCodiceOtpGenerato] = useState('')
+  const [otpToken, setOtpToken] = useState('')
   const [isInviandoOtp, setIsInviandoOtp] = useState(false)
   const [iscrizioneCompletata, setIscrizioneCompletata] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -134,13 +134,18 @@ export default function FormIscrizione() {
     setStep(prev => prev - 1)
   }
 
+  // Email a cui viene inviato (e con cui viene verificato) il codice OTP
+  const getEmailOtp = () => {
+    return under18 && formData.genitoreContattoScelta === 'email'
+      ? formData.genitoreContatto
+      : formData.email
+  }
+
   // INVIO OTP
   const handleInviaOtp = async () => {
     setIsInviandoOtp(true)
-    
-    const emailDestinatario = under18 && formData.genitoreContattoScelta === 'email' 
-      ? formData.genitoreContatto 
-      : formData.email
+
+    const emailDestinatario = getEmailOtp()
 
     if (!emailDestinatario || !emailDestinatario.includes('@')) {
       alert("Attenzione: Inserisci un'email valida nello Step 1 prima di richiedere il codice.")
@@ -152,7 +157,7 @@ export default function FormIscrizione() {
       const response = await fetch('/api/invia-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
             emailDestinatario: emailDestinatario,
             nome: under18 ? formData.genitoreNome : formData.nome
         }),
@@ -161,7 +166,7 @@ export default function FormIscrizione() {
       const data = await response.json()
 
       if (response.ok) {
-        setCodiceOtpGenerato(data.codiceOtp)
+        setOtpToken(data.token)
         setOtpInviato(true)
         alert(`Un codice di 6 cifre è stato inviato a ${emailDestinatario}`)
       } else {
@@ -177,12 +182,27 @@ export default function FormIscrizione() {
 
   // CONFERMA FIRMA E SALVATAGGIO
   const handleConfermaFirma = async () => {
-    if (codiceOtpInserito !== codiceOtpGenerato) {
-      return alert("Il codice OTP inserito non è corretto. Riprova o richiedine uno nuovo.")
-    }
-
     setIsSubmitting(true)
     try {
+        // --- VERIFICA OTP LATO SERVER ---
+        const resVerifica = await fetch('/api/verifica-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: getEmailOtp(),
+            codice: codiceOtpInserito,
+            token: otpToken,
+          }),
+        })
+        const verifica = await resVerifica.json()
+
+        if (!resVerifica.ok || !verifica.valid) {
+          alert(verifica.error || "Il codice OTP inserito non è corretto. Riprova o richiedine uno nuovo.")
+          setIsSubmitting(false)
+          return
+        }
+
+        const otpHash = verifica.otpHash as string
         // --- RECUPERO L'IP REALE ---
         let clientIp = '127.0.0.1'
         try {
@@ -251,7 +271,7 @@ export default function FormIscrizione() {
             data_scadenza_certificato: formData.dataCertificato,
             url_certificato_pdf: certificatoUrl,
             stato_firma: 'firmato',
-            otp_generato: codiceOtpGenerato,
+            otp_generato: otpHash,
             ip_firma: clientIp,
             timestamp_firma: dataFirma,
             consensi: { 
@@ -274,7 +294,7 @@ export default function FormIscrizione() {
             const datiPdf = {
                 ...formData,
                 ip: clientIp,
-                otp: codiceOtpGenerato,
+                otpHash: otpHash,
                 minorenne: under18
             }
 
