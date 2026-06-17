@@ -29,7 +29,7 @@ export default async function AreaSocioPage() {
       .maybeSingle(),
     supabase
       .from('abbonamenti_soci')
-      .select('id, stato_pagamento, importo_tesseramento_uisp, note_socio, data_acquisto, catalogo_attivita(nome_attivita, prezzo_base)')
+      .select('id, stato_pagamento, importo_tesseramento_uisp, note_socio, data_acquisto, catalogo_attivita(nome_attivita, prezzo_base), pagamenti_ricevute(id, numero_ricevuta)')
       .eq('socio_id', socio?.id ?? '')
       .eq('anno_sportivo', annoSportivo)
       .order('data_acquisto', { ascending: false }),
@@ -57,12 +57,14 @@ export default async function AreaSocioPage() {
     note_socio: string | null
     data_acquisto: string | null
     catalogo_attivita: { nome_attivita: string; prezzo_base: number | null }[] | { nome_attivita: string; prezzo_base: number | null } | null
+    pagamenti_ricevute: { id: string; numero_ricevuta: string | null }[] | null
   }
 
   const abbonamentiFlattenati = ((abbonamenti ?? []) as unknown as RawAb[]).map(ab => {
     const act = Array.isArray(ab.catalogo_attivita)
       ? ab.catalogo_attivita[0] ?? null
       : ab.catalogo_attivita
+    const ricevuta = ab.pagamenti_ricevute?.[0] ?? null
     return {
       id: ab.id,
       stato_pagamento: ab.stato_pagamento,
@@ -71,6 +73,8 @@ export default async function AreaSocioPage() {
       data_acquisto: ab.data_acquisto,
       nome_attivita: act?.nome_attivita ?? null,
       prezzo_base: act?.prezzo_base ?? null,
+      ricevutaId: ricevuta?.id ?? null,
+      numeroRicevuta: ricevuta?.numero_ricevuta ?? null,
     }
   })
 

@@ -33,9 +33,7 @@ export default function RichiestaAbbonamentoForm({ attivita, uispApplicabile }: 
         </div>
         <p className="text-sm font-extrabold text-green-800">Richiesta inviata!</p>
         <p className="text-sm text-green-700 mt-1.5 leading-relaxed">
-          Recati in sede per effettuare il pagamento:
-          <br />
-          lo staff attiverà subito il tuo abbonamento.
+          La segreteria confermerà il tuo abbonamento a breve.
         </p>
       </div>
     )

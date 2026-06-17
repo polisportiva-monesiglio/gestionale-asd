@@ -12,6 +12,8 @@ export type AbbonamentoFlat = {
   data_acquisto: string | null
   nome_attivita: string | null
   prezzo_base: number | null
+  ricevutaId: string | null
+  numeroRicevuta: string | null
 }
 
 export type AttivitaOption = {
@@ -194,22 +196,37 @@ export default function AreaSocioTabs({
                     }`}
                   >
                     <div className="flex items-center justify-between gap-3">
-                      <div>
+                      <div className="min-w-0">
                         <p className="text-sm font-bold text-gray-900">
                           {ab.nome_attivita ?? '—'}
                         </p>
                         <p className="text-xs text-gray-500 mt-0.5">
                           Richiesto il {formatData(ab.data_acquisto)}
-                          {' · '}
-                          <span className="font-semibold text-gray-700">
-                            Da versare in sede: €{totale}
-                          </span>
-                          {Number(ab.importo_tesseramento_uisp) > 0 && (
-                            <span className="text-gray-400">
-                              {' '}(incl. €{ab.importo_tesseramento_uisp} UISP)
-                            </span>
+                          {isPagato ? null : (
+                            <>
+                              {' · '}
+                              <span className="font-semibold text-gray-700">
+                                Totale: €{totale}
+                              </span>
+                              {Number(ab.importo_tesseramento_uisp) > 0 && (
+                                <span className="text-gray-400">
+                                  {' '}(incl. €{ab.importo_tesseramento_uisp} UISP)
+                                </span>
+                              )}
+                            </>
                           )}
                         </p>
+                        {isPagato && ab.ricevutaId && (
+                          <a
+                            href={`/api/ricevuta-download?abbonamento_id=${encodeURIComponent(ab.id)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-block mt-1.5 text-xs font-semibold text-green-700 underline underline-offset-2"
+                          >
+                            ↗ Scarica ricevuta
+                            {ab.numeroRicevuta ? ` (${ab.numeroRicevuta})` : ''}
+                          </a>
+                        )}
                       </div>
                       <span
                         className={`shrink-0 rounded-full px-3 py-1 text-xs font-bold ${
@@ -218,7 +235,7 @@ export default function AreaSocioTabs({
                             : 'bg-yellow-200 text-yellow-800'
                         }`}
                       >
-                        {isPagato ? 'Confermato ✓' : 'In attesa'}
+                        {isPagato ? 'Pagato ✓' : 'In attesa'}
                       </span>
                     </div>
                   </div>
@@ -234,9 +251,7 @@ export default function AreaSocioTabs({
                 Richiesta in attesa di conferma
               </p>
               <p className="text-sm text-yellow-700 mt-2 leading-relaxed">
-                Recati in sede per effettuare il pagamento.
-                <br />
-                Lo staff attiverà subito il tuo abbonamento.
+                La segreteria confermerà il tuo abbonamento a breve.
               </p>
             </div>
           ) : (
@@ -257,7 +272,7 @@ export default function AreaSocioTabs({
                     </h3>
                   </div>
                   <p className="text-xs text-gray-400 mb-5 pl-4">
-                    Il pagamento avverrà in sede. Riceverai conferma dallo staff.
+                    Scegli l'abbonamento e il metodo di pagamento. Riceverai conferma dalla segreteria.
                   </p>
                   <RichiestaAbbonamentoForm
                     attivita={attivita}
