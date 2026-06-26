@@ -1,9 +1,8 @@
 import { redirect } from 'next/navigation'
-import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { getAnnoSportivo } from '@/lib/stagione'
 import { ConfermaButton } from './ConfermaButton'
-import { CodiceCassettaForm } from './CodiceCassettaForm'
+import { MenuDrawer } from './MenuDrawer'
 
 function formatData(d: string | null) {
   if (!d) return '—'
@@ -36,7 +35,7 @@ export default async function AreaGestoriPage() {
 
   const { data: gestore } = await supabase
     .from('gestori')
-    .select('nome')
+    .select('nome, is_admin')
     .eq('user_id', user.id)
     .eq('attivo', true)
     .maybeSingle()
@@ -141,19 +140,7 @@ export default async function AreaGestoriPage() {
                   </p>
                 </div>
               </div>
-              <div className="flex flex-col items-end gap-2">
-                <Link
-                  href="/area-gestori/soci"
-                  className="text-xs font-semibold text-blue-600 hover:text-blue-800 transition-colors px-3 py-1.5 border border-blue-200 rounded-xl"
-                >
-                  Lista soci →
-                </Link>
-                <form action="/auth/logout" method="post">
-                  <button className="text-xs font-semibold text-gray-400 hover:text-gray-700 transition-colors">
-                    Esci
-                  </button>
-                </form>
-              </div>
+              <MenuDrawer codiceAttuale={impostazione?.valore ?? null} isAdmin={!!gestore.is_admin} />
             </div>
           </div>
 
@@ -254,15 +241,6 @@ export default async function AreaGestoriPage() {
           </div>
 
           </div>{/* fine grid affiancato */}
-
-          {/* Codice cassetta */}
-          <div className="bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-3xl border border-gray-100 p-6 sm:p-8">
-            <h2 className="text-base font-bold text-gray-900 mb-1">Codice cassetta chiavi</h2>
-            <p className="text-xs text-gray-400 mb-4">
-              Viene inviato automaticamente il 5 di ogni mese ai soci con abbonamento attivo.
-            </p>
-            <CodiceCassettaForm codiceAttuale={impostazione?.valore ?? null} />
-          </div>
 
         </div>
       </main>
