@@ -23,6 +23,13 @@ export type AttivitaOption = {
   prezzo_base: number | null
 }
 
+export type StoricoCertificato = {
+  id: string
+  dataScadenza: string | null
+  caricatoIl: string
+  url: string | null
+}
+
 type Props = {
   tesseramento: {
     id: string
@@ -30,6 +37,7 @@ type Props = {
     url_certificato_pdf: string | null
   } | null
   certificatoUrl: string | null
+  storicoCertificati: StoricoCertificato[]
   abbonamenti: AbbonamentoFlat[]
   attivita: AttivitaOption[]
   hasPending: boolean
@@ -52,6 +60,7 @@ function statoScadenza(scadenza: string | null | undefined) {
 export default function AreaSocioTabs({
   tesseramento,
   certificatoUrl,
+  storicoCertificati,
   abbonamenti,
   attivita,
   hasPending,
@@ -171,6 +180,42 @@ export default function AreaSocioTabs({
                 </p>
                 <UploadCertificatoForm hasExisting={!!tesseramento.url_certificato_pdf} />
               </div>
+
+              {/* Storico caricamenti precedenti */}
+              {storicoCertificati.length > 0 && (
+                <div className="pt-2">
+                  <h3 className="text-xs font-extrabold text-gray-400 uppercase tracking-wide mb-3">
+                    Storico caricamenti
+                  </h3>
+                  <div className="space-y-2">
+                    {storicoCertificati.map(c => (
+                      <div
+                        key={c.id}
+                        className="flex items-center justify-between gap-3 rounded-xl border border-gray-100 bg-gray-50 px-4 py-2.5"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-xs text-gray-600">
+                            Caricato il {formatData(c.caricatoIl)}
+                          </p>
+                          <p className="text-xs text-gray-400">
+                            Scadenza: {formatData(c.dataScadenza)}
+                          </p>
+                        </div>
+                        {c.url && (
+                          <a
+                            href={c.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="shrink-0 text-xs font-semibold text-gray-500 underline underline-offset-2 hover:text-gray-700"
+                          >
+                            ↗ Visualizza
+                          </a>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </>
           )}
         </div>
@@ -180,9 +225,54 @@ export default function AreaSocioTabs({
       {tab === 'abbonamento' && (
         <div className="space-y-5">
 
-          {/* Abbonamenti stagione corrente */}
-          {abbonamenti.length > 0 && (
+          {/* Blocco richiesta: sempre in alto, è l'azione principale del tab */}
+          {hasPending ? (
+            <div className="rounded-2xl bg-yellow-50 border border-yellow-200 px-5 py-6 text-center">
+              <p className="text-sm font-extrabold text-yellow-800">
+                Richiesta in attesa di conferma
+              </p>
+              <p className="text-sm text-yellow-700 mt-2 leading-relaxed">
+                La segreteria confermerà il tuo abbonamento a breve.
+              </p>
+            </div>
+          ) : (
+            <>
+              {attivita.length > 0 ? (
+                <div className="bg-gray-50 rounded-2xl p-5 sm:p-6">
+                  <div className="flex items-center mb-1">
+                    <div className="w-1.5 h-5 bg-yellow-400 rounded-full mr-2.5 shrink-0" />
+                    <h3 className="text-sm font-extrabold text-gray-900 tracking-tight">
+                      {abbonamenti.length > 0
+                        ? 'Richiedi un nuovo abbonamento'
+                        : 'Scegli il tuo abbonamento'}
+                    </h3>
+                  </div>
+                  <p className="text-xs text-gray-400 mb-5 pl-4">
+                    Scegli l&apos;abbonamento e il metodo di pagamento. Riceverai conferma dalla segreteria.
+                  </p>
+                  <RichiestaAbbonamentoForm
+                    attivita={attivita}
+                    uispApplicabile={uispApplicabile}
+                  />
+                </div>
+              ) : (
+                <p className="text-sm text-gray-400 text-center py-4">
+                  Nessun abbonamento disponibile al momento. Contatta la segreteria.
+                </p>
+              )}
+            </>
+          )}
+
+          {/* Storico abbonamenti stagione corrente */}
+          {abbonamenti.length === 0 ? (
+            <p className="text-sm text-gray-400 text-center">
+              Non hai ancora un abbonamento per la stagione {annoSportivo}.
+            </p>
+          ) : (
             <div className="space-y-3">
+              <h3 className="text-xs font-extrabold text-gray-400 uppercase tracking-wide">
+                Storico abbonamenti
+              </h3>
               {abbonamenti.map(ab => {
                 const totale = (ab.prezzo_base ?? 0) + Number(ab.importo_tesseramento_uisp ?? 0)
                 const isPagato = ab.stato_pagamento === 'pagato'
@@ -242,49 +332,6 @@ export default function AreaSocioTabs({
                 )
               })}
             </div>
-          )}
-
-          {/* Blocco richiesta */}
-          {hasPending ? (
-            <div className="rounded-2xl bg-yellow-50 border border-yellow-200 px-5 py-6 text-center">
-              <p className="text-sm font-extrabold text-yellow-800">
-                Richiesta in attesa di conferma
-              </p>
-              <p className="text-sm text-yellow-700 mt-2 leading-relaxed">
-                La segreteria confermerà il tuo abbonamento a breve.
-              </p>
-            </div>
-          ) : (
-            <>
-              {abbonamenti.length === 0 && (
-                <p className="text-sm text-gray-400 text-center">
-                  Non hai ancora un abbonamento per la stagione {annoSportivo}.
-                </p>
-              )}
-              {attivita.length > 0 ? (
-                <div className="bg-gray-50 rounded-2xl p-5 sm:p-6">
-                  <div className="flex items-center mb-1">
-                    <div className="w-1.5 h-5 bg-yellow-400 rounded-full mr-2.5 shrink-0" />
-                    <h3 className="text-sm font-extrabold text-gray-900 tracking-tight">
-                      {abbonamenti.length > 0
-                        ? 'Richiedi un nuovo abbonamento'
-                        : 'Scegli il tuo abbonamento'}
-                    </h3>
-                  </div>
-                  <p className="text-xs text-gray-400 mb-5 pl-4">
-                    Scegli l'abbonamento e il metodo di pagamento. Riceverai conferma dalla segreteria.
-                  </p>
-                  <RichiestaAbbonamentoForm
-                    attivita={attivita}
-                    uispApplicabile={uispApplicabile}
-                  />
-                </div>
-              ) : (
-                <p className="text-sm text-gray-400 text-center py-4">
-                  Nessun abbonamento disponibile al momento. Contatta la segreteria.
-                </p>
-              )}
-            </>
           )}
         </div>
       )}

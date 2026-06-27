@@ -20,6 +20,7 @@ export default async function AreaSocioPage() {
     { data: tesseramento },
     { data: abbonamenti },
     { data: attivita },
+    { data: storicoCertificati },
   ] = await Promise.all([
     supabase
       .from('tesseramenti_annuali')
@@ -38,6 +39,11 @@ export default async function AreaSocioPage() {
       .select('id, nome_attivita, tipo, prezzo_base')
       .eq('attivo', true)
       .order('nome_attivita'),
+    supabase
+      .from('certificati_medici_storico')
+      .select('id, url_certificato_pdf, data_scadenza_certificato, caricato_il')
+      .eq('socio_id', socio?.id ?? '')
+      .order('caricato_il', { ascending: false }),
   ])
 
   // URL firmato per il certificato corrente (valido 1h)
@@ -48,6 +54,23 @@ export default async function AreaSocioPage() {
       .createSignedUrl(tesseramento.url_certificato_pdf, 3600)
     certificatoUrl = data?.signedUrl ?? null
   }
+
+  // URL firmati per lo storico caricamenti (esclude quello già mostrato come "corrente")
+  const storicoCertificatiConUrl = await Promise.all(
+    (storicoCertificati ?? [])
+      .filter(c => c.url_certificato_pdf !== tesseramento?.url_certificato_pdf)
+      .map(async c => {
+        const { data } = await supabase.storage
+          .from('certificati-medici')
+          .createSignedUrl(c.url_certificato_pdf, 3600)
+        return {
+          id: c.id,
+          dataScadenza: c.data_scadenza_certificato,
+          caricatoIl: c.caricato_il,
+          url: data?.signedUrl ?? null,
+        }
+      })
+  )
 
   // Appiattisce il join catalogo_attivita per passare dati serializzabili al client
   type RawAb = {
@@ -122,6 +145,7 @@ export default async function AreaSocioPage() {
             <AreaSocioTabs
               tesseramento={tesseramento ?? null}
               certificatoUrl={certificatoUrl}
+              storicoCertificati={storicoCertificatiConUrl}
               abbonamenti={abbonamentiFlattenati}
               attivita={attivita ?? []}
               hasPending={hasPending}

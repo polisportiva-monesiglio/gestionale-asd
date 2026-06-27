@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import crypto from 'crypto';
+import { hashDatiFirma } from '@/lib/firmaHash';
 
 // Inizializza il postino con la tua chiave segreta
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -9,7 +10,7 @@ const DURATA_OTP_MS = 10 * 60 * 1000; // 10 minuti
 
 export async function POST(req: Request) {
   try {
-    const { emailDestinatario, nome } = await req.json();
+    const { emailDestinatario, nome, dati } = await req.json();
 
     if (!emailDestinatario) {
       return NextResponse.json({ error: 'Email mancante' }, { status: 400 });
@@ -25,13 +26,18 @@ export async function POST(req: Request) {
     const otpGenerato = Math.floor(100000 + Math.random() * 900000).toString();
     const scadenza = Date.now() + DURATA_OTP_MS;
 
+    // Hash del contenuto dichiarato al momento dell'invio: lega l'OTP ai dati
+    // attuali, non solo all'email. Se i dati cambiano prima della conferma,
+    // la verifica fallirà (vedi /api/verifica-otp).
+    const datiHash = hashDatiFirma(dati ?? {});
+
     // Firma HMAC del codice: il client riceverà solo questo token, non l'OTP in chiaro
     const firma = crypto
       .createHmac('sha256', secret)
-      .update(`${emailDestinatario}:${scadenza}:${otpGenerato}`)
+      .update(`${emailDestinatario}:${scadenza}:${otpGenerato}:${datiHash}`)
       .digest('hex');
 
-    const token = Buffer.from(`${emailDestinatario}:${scadenza}:${firma}`).toString('base64');
+    const token = Buffer.from(`${emailDestinatario}:${scadenza}:${firma}:${datiHash}`).toString('base64');
 
     // Spedisce la mail!
     const data = await resend.emails.send({

@@ -52,9 +52,30 @@ Deno.serve(async (req: Request) => {
     if (socio?.email) destinatari.set(socio.email, socio)
   }
 
+  // Periodo del mese corrente (es. "2026-06"): se la function viene rilanciata
+  // più volte nello stesso mese (retry, doppio trigger manuale), i destinatari
+  // già raggiunti con successo non ricevono una seconda email.
+  const oggi = new Date()
+  const periodo = `${oggi.getFullYear()}-${String(oggi.getMonth() + 1).padStart(2, '0')}`
+
+  const { data: giaInviati } = await supabase
+    .from('invii_codice_cassetta')
+    .select('email')
+    .eq('periodo', periodo)
+    .eq('esito', 'inviato')
+
+  const emailGiaInviate = new Set((giaInviati ?? []).map(r => r.email))
+
   let inviate = 0
-  let errori = 0
+  let saltati = 0
+  const erroriDettaglio: { email: string; messaggio: string }[] = []
+
   for (const socio of destinatari.values()) {
+    if (emailGiaInviate.has(socio.email!)) {
+      saltati++
+      continue
+    }
+
     try {
       const { error } = await resend.emails.send({
         from: 'Polisportiva Monesiglio <onboarding@resend.dev>',
@@ -71,14 +92,30 @@ Deno.serve(async (req: Request) => {
           </div>
         `,
       })
-      if (error) errori++
-      else inviate++
-    } catch {
-      errori++
+
+      if (error) {
+        erroriDettaglio.push({ email: socio.email!, messaggio: error.message })
+        await supabase.from('invii_codice_cassetta').upsert({
+          periodo, email: socio.email!, esito: 'errore', errore_messaggio: error.message, aggiornato_il: new Date().toISOString(),
+        })
+      } else {
+        inviate++
+        await supabase.from('invii_codice_cassetta').upsert({
+          periodo, email: socio.email!, esito: 'inviato', errore_messaggio: null, aggiornato_il: new Date().toISOString(),
+        })
+      }
+    } catch (e) {
+      const messaggio = e instanceof Error ? e.message : 'Errore sconosciuto'
+      erroriDettaglio.push({ email: socio.email!, messaggio })
+      await supabase.from('invii_codice_cassetta').upsert({
+        periodo, email: socio.email!, esito: 'errore', errore_messaggio: messaggio, aggiornato_il: new Date().toISOString(),
+      })
     }
   }
 
-  return new Response(JSON.stringify({ inviate, errori, totale: destinatari.size }), {
+  return new Response(JSON.stringify({
+    inviate, saltati, errori: erroriDettaglio.length, destinatariErrori: erroriDettaglio, totale: destinatari.size,
+  }), {
     headers: { 'Content-Type': 'application/json' },
   })
 })

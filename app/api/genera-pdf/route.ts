@@ -1,6 +1,39 @@
-import { PDFDocument, StandardFonts } from 'pdf-lib';
+import { PDFDocument, StandardFonts, type PDFFont } from 'pdf-lib';
 import fs from 'fs';
 import path from 'path';
+import { supabase } from '@/lib/supabase';
+
+// Intervallo Unicode dei segni diacritici combinanti (costruito da codePoint
+// per evitare ambiguità con sequenze di escape nei letterali regex)
+const SEGNO_DIACRITICO_INIZIO = String.fromCharCode(0x0300);
+const SEGNO_DIACRITICO_FINE = String.fromCharCode(0x036f);
+const SEGNI_DIACRITICI = new RegExp(`[${SEGNO_DIACRITICO_INIZIO}-${SEGNO_DIACRITICO_FINE}]`, 'g');
+
+// Helvetica (StandardFonts) usa la codifica WinAnsi: copre gli accenti
+// italiani/europei comuni (à, è, ç, ñ...) ma non script più ampi (es.
+// turco ğ/ş, romeno ț/ș, polacco ł, cirillico, ecc). Senza questo controllo
+// pdf-lib lancia un errore e l'intera generazione del documento fallisce
+// per un singolo carattere non rappresentabile in un nome o un comune.
+function testoCompatibile(font: PDFFont, valore: unknown): string {
+  const testo = valore == null ? '' : String(valore);
+  if (!testo) return testo;
+  try {
+    font.widthOfTextAtSize(testo, 10);
+    return testo;
+  } catch {
+    return testo
+      .normalize('NFKD')
+      .replace(SEGNI_DIACRITICI, '')
+      .replace(/[^\x00-\x7F]/g, '?');
+  }
+}
+
+const CAMPI_TESTO_PDF = [
+  'nome', 'cognome', 'dataNascita', 'luogoNascita', 'provinciaNascita',
+  'codiceFiscale', 'cittadinanza', 'indirizzoResidenza', 'cittaResidenza',
+  'provinciaResidenza', 'email', 'telefono', 'tel', 'cellulare',
+  'genitoreNome', 'genitoreCognome', 'genitoreContattoScelta', 'genitoreContatto',
+] as const;
 
 export async function POST(req: Request) {
   try {
@@ -16,7 +49,14 @@ export async function POST(req: Request) {
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const fontObl = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
     const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-    
+
+    // Sanitizza i campi testuali prima di disegnarli, così un singolo
+    // carattere non supportato degrada elegantemente invece di far
+    // fallire tutta la generazione del PDF.
+    for (const campo of CAMPI_TESTO_PDF) {
+      if (dati[campo] != null) dati[campo] = testoCompatibile(font, dati[campo]);
+    }
+
     const pages = pdfDoc.getPages();
     const firstPage = pages[0];
 
@@ -129,6 +169,30 @@ export async function POST(req: Request) {
 
     // 4. Salva e restituisce il PDF finale
     const pdfBytes = await pdfDoc.save();
+
+    // Conserva una copia del modulo firmato lato server: senza questo,
+    // l'ASD non avrebbe alcuna prova del documento effettivamente firmato
+    // in caso di contestazione (il download va solo al browser dell'utente).
+    if (dati.tesseramentoId) {
+      try {
+        const storagePath = `${annoSportivo}/${dati.cognome || 'socio'}-${dati.nome || ''}-${dati.tesseramentoId}.pdf`
+        const { error: uploadErr } = await supabase.storage
+          .from('moduli-firmati')
+          .upload(storagePath, pdfBytes, { contentType: 'application/pdf' })
+
+        if (uploadErr) {
+          console.error('Upload modulo firmato fallito:', uploadErr.message)
+        } else {
+          const { data: collegato, error: rpcErr } = await supabase
+            .rpc('collega_modulo_firmato', { p_tesseramento_id: dati.tesseramentoId, p_path: storagePath })
+          if (rpcErr || !collegato) {
+            console.error('Collegamento modulo firmato fallito:', rpcErr?.message ?? 'nessuna riga aggiornata')
+          }
+        }
+      } catch (archivioError) {
+        console.error('Errore archiviazione modulo firmato:', archivioError)
+      }
+    }
 
     return new Response(pdfBytes as any, {
       status: 200,

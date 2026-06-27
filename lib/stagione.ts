@@ -9,3 +9,9 @@ export function getAnnoSportivo(date: Date = new Date()): string {
   }
   return `${year - 1}/${year}`
 }
+
+export function getStagionePrecedente(stagione: string): string {
+  const [primoAnno] = stagione.split('/')
+  const anno = parseInt(primoAnno, 10) - 1
+  return `${anno}/${anno + 1}`
+}

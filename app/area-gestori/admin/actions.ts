@@ -20,6 +20,22 @@ async function getGestoreAdmin(supabase: Awaited<ReturnType<typeof createClient>
   return { ...data, userId: user.id }
 }
 
+// Conta gli admin attivi diversi da escludiId: usato per impedire di
+// disattivare/rimuovere/de-promuovere l'ultimo amministratore attivo,
+// che lascerebbe il sistema senza nessuno in grado di gestire i gestori.
+async function contaAltriAdminAttivi(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  escludiId: string
+) {
+  const { count } = await supabase
+    .from('gestori')
+    .select('id', { count: 'exact', head: true })
+    .eq('is_admin', true)
+    .eq('attivo', true)
+    .neq('id', escludiId)
+  return count ?? 0
+}
+
 export async function invitaGestore(
   _prev: AdminResult | null,
   formData: FormData
@@ -57,6 +73,22 @@ export async function aggiornaGestore(
   if (id === admin.id) return { ok: false, error: 'Non puoi modificare il tuo stesso account.' }
   if (!['attivo', 'is_admin'].includes(campo)) return { ok: false, error: 'Campo non valido.' }
 
+  if (!valore) {
+    const { data: target } = await supabase
+      .from('gestori')
+      .select('is_admin, attivo')
+      .eq('id', id)
+      .maybeSingle()
+
+    const rimuoveUnAdminAttivo = target?.is_admin && target?.attivo
+    if (rimuoveUnAdminAttivo) {
+      const altriAdmin = await contaAltriAdminAttivi(supabase, id)
+      if (altriAdmin === 0) {
+        return { ok: false, error: 'Deve rimanere almeno un amministratore attivo: promuovi un altro gestore prima di procedere.' }
+      }
+    }
+  }
+
   const { error } = await supabase
     .from('gestori')
     .update({ [campo]: valore })
@@ -78,6 +110,19 @@ export async function rimuoviGestore(
 
   const id = formData.get('id') as string
   if (id === admin.id) return { ok: false, error: 'Non puoi rimuovere il tuo stesso account.' }
+
+  const { data: target } = await supabase
+    .from('gestori')
+    .select('is_admin, attivo')
+    .eq('id', id)
+    .maybeSingle()
+
+  if (target?.is_admin && target?.attivo) {
+    const altriAdmin = await contaAltriAdminAttivi(supabase, id)
+    if (altriAdmin === 0) {
+      return { ok: false, error: 'Deve rimanere almeno un amministratore attivo: promuovi un altro gestore prima di rimuovere questo account.' }
+    }
+  }
 
   const { error } = await supabase.from('gestori').delete().eq('id', id)
   if (error) return { ok: false, error: `Rimozione fallita: ${error.message}` }

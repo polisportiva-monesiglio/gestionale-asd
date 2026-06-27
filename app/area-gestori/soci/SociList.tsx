@@ -12,6 +12,8 @@ type Socio = {
   scadenzaCert: string | null
   statoAbbonamento: string | null
   nomeAttivita: string | null
+  tesseramentoId: string | null
+  nuovoIscritto: boolean
 }
 
 function formatData(d: string | null) {
@@ -68,8 +70,13 @@ export function SociList({ soci }: { soci: Socio[] }) {
                 <div key={s.id} className="rounded-2xl border border-gray-100 px-4 py-3 bg-gray-50">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="font-bold text-sm text-gray-900">
+                      <p className="font-bold text-sm text-gray-900 flex items-center gap-1.5">
                         {s.cognome} {s.nome}
+                        {s.nuovoIscritto && (
+                          <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-blue-100 text-blue-700 shrink-0">
+                            🆕 Nuovo iscritto
+                          </span>
+                        )}
                       </p>
                       <p className="text-xs text-gray-400 truncate">{s.email ?? '—'}</p>
                       {s.telefono && <p className="text-xs text-gray-400">{s.telefono}</p>}
@@ -96,6 +103,16 @@ export function SociList({ soci }: { soci: Socio[] }) {
                       <span className="text-[10px] px-2 py-0.5 bg-white border border-gray-200 rounded-lg text-gray-400">
                         Cert. scade {formatData(s.scadenzaCert)}
                       </span>
+                    )}
+                    {s.tesseramentoId && (
+                      <a
+                        href={`/api/modulo-download?tesseramento_id=${encodeURIComponent(s.tesseramentoId)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[10px] px-2 py-0.5 bg-blue-50 border border-blue-200 rounded-lg text-blue-700 font-semibold hover:bg-blue-100 transition-colors"
+                      >
+                        📄 Modulo firmato
+                      </a>
                     )}
                   </div>
                 </div>

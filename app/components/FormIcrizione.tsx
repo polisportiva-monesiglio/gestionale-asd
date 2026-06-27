@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { getAnnoSportivo } from '@/lib/stagione'
 
 export default function FormIscrizione() {
   const [step, setStep] = useState(1)
@@ -141,6 +142,35 @@ export default function FormIscrizione() {
       : formData.email
   }
 
+  // Snapshot dei dati che costituiscono il contenuto dichiarato/firmato
+  // (anagrafica + consensi). Il server ne calcola l'hash e lo lega all'OTP:
+  // se qualcosa cambia prima della conferma, la firma non è più valida.
+  const buildDatiFirma = () => ({
+    nome: formData.nome,
+    cognome: formData.cognome,
+    sesso: formData.sesso,
+    dataNascita: formData.dataNascita,
+    luogoNascita: formData.luogoNascita,
+    provinciaNascita: formData.provinciaNascita,
+    cittadinanza: formData.cittadinanza,
+    codiceFiscale: formData.codiceFiscale,
+    indirizzoResidenza: formData.indirizzoResidenza,
+    cittaResidenza: formData.cittaResidenza,
+    capResidenza: formData.capResidenza,
+    provinciaResidenza: formData.provinciaResidenza,
+    email: formData.email,
+    telefono: formData.telefono,
+    genitoreNome: formData.genitoreNome,
+    genitoreCognome: formData.genitoreCognome,
+    genitoreContattoScelta: formData.genitoreContattoScelta,
+    genitoreContatto: formData.genitoreContatto,
+    consensoSalute: formData.consensoSalute,
+    consensoRegolamento: formData.consensoRegolamento,
+    consensoVideosorveglianza: formData.consensoVideosorveglianza,
+    consensoInformativaPrivacy: formData.consensoInformativaPrivacy,
+    consensoPrivacy: formData.consensoPrivacy,
+  })
+
   // INVIO OTP
   const handleInviaOtp = async () => {
     setIsInviandoOtp(true)
@@ -159,7 +189,8 @@ export default function FormIscrizione() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
             emailDestinatario: emailDestinatario,
-            nome: under18 ? formData.genitoreNome : formData.nome
+            nome: under18 ? formData.genitoreNome : formData.nome,
+            dati: buildDatiFirma(),
         }),
       })
 
@@ -192,6 +223,7 @@ export default function FormIscrizione() {
             email: getEmailOtp(),
             codice: codiceOtpInserito,
             token: otpToken,
+            dati: buildDatiFirma(),
           }),
         })
         const verifica = await resVerifica.json()
@@ -263,29 +295,31 @@ export default function FormIscrizione() {
 
         // 4. Salvataggio in tabella 'Tesseramenti'
         const dataFirma = new Date().toISOString()
-        const { error: tesseramentoError } = await supabase
+        const { data: tesseramentoData, error: tesseramentoError } = await supabase
           .from('tesseramenti_annuali')
           .insert({
             socio_id: socioData.id,
-            anno_sportivo: '2026/2027',
+            anno_sportivo: getAnnoSportivo(),
             data_scadenza_certificato: formData.dataCertificato,
             url_certificato_pdf: certificatoUrl,
             stato_firma: 'firmato',
             otp_generato: otpHash,
             ip_firma: clientIp,
             timestamp_firma: dataFirma,
-            consensi: { 
-              consensi_salute: formData.consensoSalute, 
-              regolamento: formData.consensoRegolamento, 
+            consensi: {
+              consensi_salute: formData.consensoSalute,
+              regolamento: formData.consensoRegolamento,
               versione_regolamento: versioneRegolamento,
               versione_statuto: versioneStatuto,
               consensi_videosorveglianza: formData.consensoVideosorveglianza,
               consenso_informativa_privacy: formData.consensoInformativaPrivacy,
-              consenso_privacy: formData.consensoPrivacy, 
+              consenso_privacy: formData.consensoPrivacy,
               versione_privacy: versionePrivacy,
               consenso_immagini_facoltativo: formData.consensoPrivacy,
             },
           })
+          .select('id')
+          .single()
 
         if (tesseramentoError) throw new Error(tesseramentoError.message)
 
@@ -295,7 +329,9 @@ export default function FormIscrizione() {
                 ...formData,
                 ip: clientIp,
                 otpHash: otpHash,
-                minorenne: under18
+                minorenne: under18,
+                tesseramentoId: tesseramentoData?.id,
+                annoSportivo: getAnnoSportivo(),
             }
 
             const resPdf = await fetch('/api/genera-pdf', {
@@ -616,27 +652,7 @@ export default function FormIscrizione() {
             <div className={`animate-fade-in ${step === 2 ? 'block' : 'hidden'}`}>
               <div className="flex items-center mb-8 border-b border-gray-100 pb-4">
                  <div className="w-2 h-6 bg-yellow-400 rounded-full mr-3"></div>
-                 <h2 className="text-2xl font-extrabold text-gray-900 tracking-tight">Attività e Certificato Medico</h2>
-              </div>
-
-              <div className="mb-10">
-                <h3 className="text-base font-semibold text-gray-600 mb-4 uppercase tracking-wide">Seleziona le attività d'interesse</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {[
-                    { id: 1, nome: 'Sala Pesi', descrizione: 'Accesso libero agli attrezzi' },
-                    { id: 2, nome: 'Corso Total Body', descrizione: 'Lezioni di gruppo settimanali' }
-                  ].map((attivita) => (
-                    <label key={attivita.id} className="relative bg-gray-50 border border-gray-200 rounded-xl p-5 cursor-pointer hover:border-yellow-400 hover:bg-yellow-50/30 hover:shadow-sm flex items-start transition-all group">
-                      <div className="flex items-center h-6">
-                        <input type="checkbox" className="w-5 h-5 accent-yellow-400 bg-white border-gray-300 rounded cursor-pointer" />
-                      </div>
-                      <div className="ml-4">
-                        <span className="block font-bold text-gray-900 text-lg group-hover:text-black">{attivita.nome}</span>
-                        <span className="block text-sm text-gray-500 mt-1 font-medium">{attivita.descrizione}</span>
-                      </div>
-                    </label>
-                  ))}
-                </div>
+                 <h2 className="text-2xl font-extrabold text-gray-900 tracking-tight">Certificato Medico</h2>
               </div>
 
               <div className="mb-10 bg-gray-50 p-6 md:p-8 rounded-2xl border border-gray-100 relative overflow-hidden">
