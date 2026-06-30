@@ -42,10 +42,10 @@ export default function UploadCertificatoForm({ hasExisting }: { hasExisting: bo
 
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-            Data di scadenza
+            Data del certificato
           </label>
           <input
-            name="data_scadenza"
+            name="data_certificato"
             type="date"
             required
             className={inputClass}

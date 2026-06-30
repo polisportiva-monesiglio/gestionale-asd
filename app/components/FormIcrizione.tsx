@@ -295,12 +295,17 @@ export default function FormIscrizione() {
 
         // 4. Salvataggio in tabella 'Tesseramenti'
         const dataFirma = new Date().toISOString()
+        const scadenzaCertificato = (() => {
+          const d = new Date(formData.dataCertificato)
+          d.setFullYear(d.getFullYear() + 1)
+          return d.toISOString().split('T')[0]
+        })()
         const { data: tesseramentoData, error: tesseramentoError } = await supabase
           .from('tesseramenti_annuali')
           .insert({
             socio_id: socioData.id,
             anno_sportivo: getAnnoSportivo(),
-            data_scadenza_certificato: formData.dataCertificato,
+            data_scadenza_certificato: scadenzaCertificato,
             url_certificato_pdf: certificatoUrl,
             stato_firma: 'firmato',
             otp_generato: otpHash,

@@ -26,6 +26,12 @@ export function AggiungiGestoreForm() {
         placeholder="email@esempio.it"
         className="flex-1 min-w-[200px] px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
       />
+      <input
+        name="telefono"
+        type="tel"
+        placeholder="+39 347 698 6347"
+        className="flex-1 min-w-[160px] px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+      />
       <button
         type="submit"
         disabled={isPending}

@@ -21,7 +21,7 @@ export default async function AdminGestoriPage() {
 
   const { data: gestoriRaw } = await supabase
     .from('gestori')
-    .select('id, user_id, nome, email, attivo, is_admin')
+    .select('id, user_id, nome, email, telefono, attivo, is_admin')
     .order('email')
 
   const gestori = gestoriRaw ?? []
@@ -79,6 +79,7 @@ export default async function AdminGestoriPage() {
                     id={g.id}
                     nome={g.nome}
                     email={g.email}
+                    telefono={g.telefono ?? null}
                     attivo={g.attivo ?? false}
                     isAdmin={g.is_admin ?? false}
                     isSelf={g.id === gestoreCorrente.id}

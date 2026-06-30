@@ -44,13 +44,14 @@ export async function invitaGestore(
   const admin = await getGestoreAdmin(supabase)
   if (!admin) return { ok: false, error: 'Accesso non autorizzato.' }
 
-  const email = (formData.get('email') as string | null)?.trim().toLowerCase()
-  const nome = (formData.get('nome') as string | null)?.trim()
+  const email    = (formData.get('email')    as string | null)?.trim().toLowerCase()
+  const nome     = (formData.get('nome')     as string | null)?.trim() || null
+  const telefono = (formData.get('telefono') as string | null)?.trim().replace(/\s/g, '') || null
   if (!email) return { ok: false, error: 'Inserisci un\'email.' }
 
   const { error } = await supabase
     .from('gestori')
-    .insert({ email, nome: nome || null, attivo: true, is_admin: false })
+    .insert({ email, nome, telefono, attivo: true, is_admin: false })
 
   if (error) return { ok: false, error: `Inserimento fallito: ${error.message}` }
 

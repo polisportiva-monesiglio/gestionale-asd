@@ -7,13 +7,14 @@ type Props = {
   id: string
   nome: string | null
   email: string
+  telefono: string | null
   attivo: boolean
   isAdmin: boolean
   isSelf: boolean
   haClaim: boolean
 }
 
-export function GestoreRow({ id, nome, email, attivo, isAdmin, isSelf, haClaim }: Props) {
+export function GestoreRow({ id, nome, email, telefono, attivo, isAdmin, isSelf, haClaim }: Props) {
   const [, toggleAttivoAction, pendingAttivo] = useActionState(aggiornaGestore, null)
   const [, toggleAdminAction, pendingAdmin] = useActionState(aggiornaGestore, null)
   const [, rimuoviAction, pendingRimuovi] = useActionState(rimuoviGestore, null)
@@ -27,6 +28,7 @@ export function GestoreRow({ id, nome, email, attivo, isAdmin, isSelf, haClaim }
           {nome || '—'} {isSelf && <span className="text-gray-400 font-normal">(tu)</span>}
         </p>
         <p className="text-xs text-gray-400 truncate">{email}</p>
+        {telefono && <p className="text-xs text-gray-400 truncate">{telefono}</p>}
         {!haClaim && (
           <p className="text-[10px] text-orange-500 mt-0.5">In attesa di primo accesso</p>
         )}

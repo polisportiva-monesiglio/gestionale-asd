@@ -1,13 +1,64 @@
-import FormIscrizione from '../app/components/FormIcrizione'
+import Link from 'next/link'
+import { getAnnoSportivo } from '@/lib/stagione'
 
 export default function Home() {
+  const stagione = getAnnoSportivo()
+
   return (
-    <main className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-3xl mx-auto">
-        {/* Qui richiama il Form */}
-        <FormIscrizione />
-        
-      </div>
-    </main>
+    <>
+      <style dangerouslySetInnerHTML={{ __html: `@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap'); body { font-family: 'Inter', sans-serif; }` }} />
+
+      <main className="relative min-h-screen bg-gradient-to-br from-gray-50 via-[#FAFAFA] to-gray-100 flex flex-col items-center justify-center px-4 overflow-hidden">
+
+<div className="relative w-full max-w-sm space-y-8">
+
+          {/* Logo + intestazione */}
+          <div className="text-center space-y-4">
+            <img
+              src="/logo-asd-monesiglio.png"
+              alt="ASD Polisportiva Monesiglio"
+              className="w-44 h-44 object-contain mx-auto"
+            />
+            <div>
+              <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">
+                ASD Polisportiva Monesiglio
+              </h1>
+              <p className="text-sm text-gray-400 mt-1">
+                Stagione {stagione}
+              </p>
+            </div>
+          </div>
+
+          {/* CTA */}
+          <div className="grid grid-cols-2 gap-4">
+            <Link
+              href="/iscrizione"
+              className="flex flex-col items-center justify-center gap-3 px-4 py-8 bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-bold text-sm rounded-3xl shadow-[0_8px_24px_rgba(250,204,21,0.4)] hover:shadow-[0_12px_32px_rgba(250,204,21,0.5)] transition-all text-center"
+            >
+              <span className="text-3xl">📋</span>
+              <span className="leading-tight">Nuova<br/>iscrizione</span>
+            </Link>
+
+            <Link
+              href="/login"
+              className="flex flex-col items-center justify-center gap-3 px-4 py-8 bg-white hover:bg-gray-50 text-gray-800 font-bold text-sm rounded-3xl border border-gray-200 shadow-[0_8px_24px_rgba(0,0,0,0.08)] hover:shadow-[0_12px_32px_rgba(0,0,0,0.12)] transition-all text-center"
+            >
+              <span className="text-3xl">👤</span>
+              <span className="leading-tight">Accedi all&apos;area<br/>personale</span>
+            </Link>
+          </div>
+
+          {/* Footer */}
+          <p className="text-center text-xs text-gray-300">
+            Area riservata ai gestori:{' '}
+            <Link href="/login" className="underline underline-offset-2 hover:text-gray-400 transition-colors">
+              accedi
+            </Link>
+          </p>
+
+        </div>
+      </main>
+
+    </>
   )
 }

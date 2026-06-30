@@ -175,8 +175,8 @@ export default function AreaSocioTabs({
                   </h3>
                 </div>
                 <p className="text-xs text-gray-400 mb-5 pl-4">
-                  Salva il certificato in formato PDF e inserisci la data di scadenza
-                  riportata sul documento.
+                  Salva il certificato in formato PDF e inserisci la data di emissione
+                  riportata sul documento. La scadenza viene calcolata automaticamente (+1 anno).
                 </p>
                 <UploadCertificatoForm hasExisting={!!tesseramento.url_certificato_pdf} />
               </div>

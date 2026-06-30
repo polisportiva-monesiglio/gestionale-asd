@@ -18,10 +18,10 @@ export async function uploadCertificato(
   if (!user) return { ok: false, error: 'Sessione scaduta. Effettua di nuovo il login.' }
 
   const file = formData.get('file') as File | null
-  const dataScadenza = formData.get('data_scadenza') as string | null
+  const dataCertificato = formData.get('data_certificato') as string | null
 
   if (!file || file.size === 0) return { ok: false, error: 'Seleziona un file PDF.' }
-  if (!dataScadenza) return { ok: false, error: 'Inserisci la data di scadenza.' }
+  if (!dataCertificato) return { ok: false, error: 'Inserisci la data del certificato.' }
 
   if (file.type !== 'application/pdf') {
     return { ok: false, error: 'Il file deve essere in formato PDF.' }
@@ -53,11 +53,17 @@ export async function uploadCertificato(
 
   if (uploadError) return { ok: false, error: `Caricamento fallito: ${uploadError.message}` }
 
+  const scadenzaCertificato = (() => {
+    const d = new Date(dataCertificato)
+    d.setFullYear(d.getFullYear() + 1)
+    return d.toISOString().split('T')[0]
+  })()
+
   const { data: tesseramentoAggiornato, error: updateError } = await supabase
     .from('tesseramenti_annuali')
     .update({
       url_certificato_pdf: uploadData.path,
-      data_scadenza_certificato: dataScadenza,
+      data_scadenza_certificato: scadenzaCertificato,
     })
     .eq('socio_id', socio.id)
     .eq('anno_sportivo', annoSportivo)
@@ -75,7 +81,7 @@ export async function uploadCertificato(
       tesseramento_id: tesseramentoAggiornato.id,
       anno_sportivo: annoSportivo,
       url_certificato_pdf: uploadData.path,
-      data_scadenza_certificato: dataScadenza,
+      data_scadenza_certificato: scadenzaCertificato,
     })
 
   if (storicoError) console.error('Salvataggio storico certificato fallito:', storicoError.message)

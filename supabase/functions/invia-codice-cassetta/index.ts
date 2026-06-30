@@ -1,5 +1,4 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
-import { Resend } from 'npm:resend@4'
 
 function getAnnoSportivo(date: Date = new Date()): string {
   const year = date.getFullYear()
@@ -8,6 +7,29 @@ function getAnnoSportivo(date: Date = new Date()): string {
   const isNuovaStagione = month > 8 || (month === 8 && day >= 15)
   if (isNuovaStagione) return `${year}/${year + 1}`
   return `${year - 1}/${year}`
+}
+
+async function sendWhatsApp(
+  accountSid: string,
+  authToken: string,
+  from: string,
+  to: string,
+  body: string
+): Promise<void> {
+  const params = new URLSearchParams({ From: from, To: `whatsapp:${to}`, Body: body })
+  const res = await fetch(
+    `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: 'Basic ' + btoa(`${accountSid}:${authToken}`),
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: params.toString(),
+    }
+  )
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.message ?? 'Errore Twilio')
 }
 
 Deno.serve(async (req: Request) => {
@@ -20,7 +42,9 @@ Deno.serve(async (req: Request) => {
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
   )
-  const resend = new Resend(Deno.env.get('RESEND_API_KEY'))
+  const accountSid = Deno.env.get('TWILIO_ACCOUNT_SID')!
+  const authToken  = Deno.env.get('TWILIO_AUTH_TOKEN')!
+  const from       = Deno.env.get('TWILIO_WHATSAPP_FROM')!
 
   const { data: impostazione, error: errImpostazioni } = await supabase
     .from('impostazioni')
@@ -32,90 +56,75 @@ Deno.serve(async (req: Request) => {
     return new Response(JSON.stringify({ error: 'Codice cassetta non configurato' }), { status: 500 })
   }
   const codiceCassetta = impostazione.valore
+  const annoSportivo   = getAnnoSportivo()
 
-  const annoSportivo = getAnnoSportivo()
-
-  const { data: abbonamenti, error: errAbbonamenti } = await supabase
-    .from('abbonamenti_soci')
-    .select('soci(nome, cognome, email)')
-    .eq('stato_pagamento', 'pagato')
-    .eq('anno_sportivo', annoSportivo)
-
-  if (errAbbonamenti) {
-    return new Response(JSON.stringify({ error: errAbbonamenti.message }), { status: 500 })
-  }
-
-  type Socio = { nome: string; cognome: string; email: string | null }
-  const destinatari = new Map<string, Socio>()
-  for (const row of abbonamenti ?? []) {
-    const socio = row.soci as unknown as Socio | null
-    if (socio?.email) destinatari.set(socio.email, socio)
-  }
-
-  // Periodo del mese corrente (es. "2026-06"): se la function viene rilanciata
-  // più volte nello stesso mese (retry, doppio trigger manuale), i destinatari
-  // già raggiunti con successo non ricevono una seconda email.
-  const oggi = new Date()
+  const oggi    = new Date()
   const periodo = `${oggi.getFullYear()}-${String(oggi.getMonth() + 1).padStart(2, '0')}`
+  const mese    = oggi.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' })
 
   const { data: giaInviati } = await supabase
     .from('invii_codice_cassetta')
-    .select('email')
+    .select('destinatario')
     .eq('periodo', periodo)
     .eq('esito', 'inviato')
+  const giaInviatiSet = new Set((giaInviati ?? []).map((r: { destinatario: string }) => r.destinatario))
 
-  const emailGiaInviate = new Set((giaInviati ?? []).map(r => r.email))
+  type Dest = { nome: string; telefono: string }
+  const destinatari = new Map<string, Dest>()
+
+  // Soci con abbonamento pagato nella stagione corrente
+  const { data: abbonamenti } = await supabase
+    .from('abbonamenti_soci')
+    .select('soci(nome, telefono)')
+    .eq('stato_pagamento', 'pagato')
+    .eq('anno_sportivo', annoSportivo)
+
+  for (const row of abbonamenti ?? []) {
+    const s = row.soci as unknown as { nome: string; telefono: string | null } | null
+    if (s?.telefono) destinatari.set(s.telefono, { nome: s.nome, telefono: s.telefono })
+  }
+
+  // Gestori attivi con numero di telefono
+  const { data: gestori } = await supabase
+    .from('gestori')
+    .select('nome, telefono')
+    .eq('attivo', true)
+    .not('telefono', 'is', null)
+
+  for (const g of gestori ?? []) {
+    if (g.telefono) destinatari.set(g.telefono, { nome: g.nome ?? 'Gestore', telefono: g.telefono })
+  }
 
   let inviate = 0
   let saltati = 0
-  const erroriDettaglio: { email: string; messaggio: string }[] = []
+  const erroriDettaglio: { destinatario: string; messaggio: string }[] = []
 
-  for (const socio of destinatari.values()) {
-    if (emailGiaInviate.has(socio.email!)) {
+  for (const dest of destinatari.values()) {
+    if (giaInviatiSet.has(dest.telefono)) {
       saltati++
       continue
     }
 
     try {
-      const { error } = await resend.emails.send({
-        from: 'Polisportiva Monesiglio <onboarding@resend.dev>',
-        to: socio.email!,
-        subject: 'Codice cassetta chiavi - ASD Monesiglio',
-        html: `
-          <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
-            <h2 style="color: #2563eb;">Polisportiva Monesiglio</h2>
-            <p>Ciao ${socio.nome},</p>
-            <p>Il codice della cassetta chiavi per questo mese è:</p>
-            <div style="background-color: #2563eb; font-size: 32px; font-weight: bold; text-align: center; padding: 20px; border-radius: 10px; color: #ffffff;">
-              ${codiceCassetta}
-            </div>
-          </div>
-        `,
+      await sendWhatsApp(
+        accountSid, authToken, from, dest.telefono,
+        `Ciao ${dest.nome}! 🔑\nIl codice cassetta chiavi di ${mese} è:\n\n*${codiceCassetta}*\n\n— Polisportiva Monesiglio`
+      )
+      inviate++
+      await supabase.from('invii_codice_cassetta').upsert({
+        periodo, destinatario: dest.telefono, esito: 'inviato', errore_messaggio: null, aggiornato_il: new Date().toISOString(),
       })
-
-      if (error) {
-        erroriDettaglio.push({ email: socio.email!, messaggio: error.message })
-        await supabase.from('invii_codice_cassetta').upsert({
-          periodo, email: socio.email!, esito: 'errore', errore_messaggio: error.message, aggiornato_il: new Date().toISOString(),
-        })
-      } else {
-        inviate++
-        await supabase.from('invii_codice_cassetta').upsert({
-          periodo, email: socio.email!, esito: 'inviato', errore_messaggio: null, aggiornato_il: new Date().toISOString(),
-        })
-      }
     } catch (e) {
       const messaggio = e instanceof Error ? e.message : 'Errore sconosciuto'
-      erroriDettaglio.push({ email: socio.email!, messaggio })
+      erroriDettaglio.push({ destinatario: dest.telefono, messaggio })
       await supabase.from('invii_codice_cassetta').upsert({
-        periodo, email: socio.email!, esito: 'errore', errore_messaggio: messaggio, aggiornato_il: new Date().toISOString(),
+        periodo, destinatario: dest.telefono, esito: 'errore', errore_messaggio: messaggio, aggiornato_il: new Date().toISOString(),
       })
     }
   }
 
-  return new Response(JSON.stringify({
-    inviate, saltati, errori: erroriDettaglio.length, destinatariErrori: erroriDettaglio, totale: destinatari.size,
-  }), {
-    headers: { 'Content-Type': 'application/json' },
-  })
+  return new Response(
+    JSON.stringify({ inviate, saltati, errori: erroriDettaglio.length, destinatariErrori: erroriDettaglio, totale: destinatari.size }),
+    { headers: { 'Content-Type': 'application/json' } }
+  )
 })
