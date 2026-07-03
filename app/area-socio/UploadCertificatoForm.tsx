@@ -2,6 +2,7 @@
 
 import { useActionState } from 'react'
 import { uploadCertificato, type ActionResult } from './actions'
+import { Spinner } from '@/app/components/Spinner'
 
 const inputClass = 'w-full p-3.5 rounded-xl border border-gray-200 shadow-sm transition-all focus:outline-none focus:ring-2 bg-white focus:border-yellow-400 focus:ring-yellow-200 text-gray-800 hover:border-gray-300 text-sm'
 
@@ -61,8 +62,9 @@ export default function UploadCertificatoForm({ hasExisting }: { hasExisting: bo
         <button
           type="submit"
           disabled={pending}
-          className="bg-yellow-400 text-gray-900 px-8 py-3.5 rounded-xl font-bold text-sm hover:bg-yellow-500 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          className="bg-yellow-400 text-gray-900 px-8 py-3.5 rounded-xl font-bold text-sm hover:bg-yellow-500 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
         >
+          {pending && <Spinner className="h-4 w-4" />}
           {pending
             ? 'Caricamento in corso...'
             : hasExisting

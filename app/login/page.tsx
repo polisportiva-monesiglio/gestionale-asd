@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { Spinner } from '@/app/components/Spinner'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -65,8 +66,9 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={stato === 'invio'}
-              className="w-full rounded-lg bg-yellow-400 hover:bg-yellow-500 disabled:opacity-60 text-gray-900 font-semibold py-2 transition-colors"
+              className="w-full rounded-lg bg-yellow-400 hover:bg-yellow-500 disabled:opacity-60 text-gray-900 font-semibold py-2 transition-colors inline-flex items-center justify-center gap-2"
             >
+              {stato === 'invio' && <Spinner className="h-4 w-4" />}
               {stato === 'invio' ? 'Invio in corso...' : 'Invia link di accesso'}
             </button>
           </form>

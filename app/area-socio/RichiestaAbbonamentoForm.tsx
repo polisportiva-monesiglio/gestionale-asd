@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from 'react'
 import { richiestaAbbonamento, type ActionResult } from './actions'
+import { Spinner } from '@/app/components/Spinner'
 
 type Attivita = {
   id: string
@@ -156,8 +157,9 @@ export default function RichiestaAbbonamentoForm({ attivita, uispApplicabile }: 
       <button
         type="submit"
         disabled={pending || !selectedId}
-        className="bg-yellow-400 text-gray-900 px-6 py-3.5 rounded-xl font-bold text-sm hover:bg-yellow-500 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed w-full"
+        className="bg-yellow-400 text-gray-900 px-6 py-3.5 rounded-xl font-bold text-sm hover:bg-yellow-500 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed w-full inline-flex items-center justify-center gap-2"
       >
+        {pending && <Spinner className="h-4 w-4" />}
         {pending ? 'Invio in corso...' : 'Invia richiesta di abbonamento'}
       </button>
     </form>

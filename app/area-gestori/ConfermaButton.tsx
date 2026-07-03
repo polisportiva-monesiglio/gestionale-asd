@@ -2,6 +2,7 @@
 
 import { useActionState } from 'react'
 import { confermaPagamento } from './actions'
+import { Spinner } from '@/app/components/Spinner'
 
 export function ConfermaButton({ abbonamentoId }: { abbonamentoId: string }) {
   const [state, action, isPending] = useActionState(confermaPagamento, null)
@@ -33,8 +34,9 @@ export function ConfermaButton({ abbonamentoId }: { abbonamentoId: string }) {
       <button
         type="submit"
         disabled={isPending}
-        className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-colors"
+        className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-colors inline-flex items-center gap-1.5"
       >
+        {isPending && <Spinner className="h-3.5 w-3.5" />}
         {isPending ? 'Conferma in corso…' : 'Conferma pagamento'}
       </button>
     </form>

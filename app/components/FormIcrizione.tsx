@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { getAnnoSportivo } from '@/lib/stagione'
 import { normalizzaTelefono } from '@/lib/telefono'
+import { Spinner } from '@/app/components/Spinner'
 
 export default function FormIscrizione() {
   const [step, setStep] = useState(1)
@@ -787,8 +788,9 @@ export default function FormIscrizione() {
                     <button 
                       onClick={handleInviaOtp} 
                       disabled={!formData.consensoSalute || !formData.consensoRegolamento || !formData.consensoVideosorveglianza || !formData.consensoInformativaPrivacy || isInviandoOtp} 
-                      className="bg-yellow-400 text-gray-900 px-10 py-4 rounded-xl font-bold text-lg hover:bg-yellow-500 disabled:bg-gray-200 disabled:text-gray-400 disabled:border disabled:border-gray-200 transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 disabled:shadow-none disabled:transform-none w-full md:w-auto"
+                      className="bg-yellow-400 text-gray-900 px-10 py-4 rounded-xl font-bold text-lg hover:bg-yellow-500 disabled:bg-gray-200 disabled:text-gray-400 disabled:border disabled:border-gray-200 transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 disabled:shadow-none disabled:transform-none w-full md:w-auto inline-flex items-center justify-center gap-2"
                     >
+                      {isInviandoOtp && <Spinner className="h-5 w-5" />}
                       {isInviandoOtp ? 'Invio in corso...' : 'Invia Codice OTP'}
                     </button>
                     <p className="text-xs text-gray-400 mt-4 font-medium">
@@ -812,8 +814,9 @@ export default function FormIscrizione() {
                     <button 
                       onClick={handleConfermaFirma} 
                       disabled={codiceOtpInserito.length !== 6 || isSubmitting} 
-                      className="bg-gray-900 text-white px-10 py-4 rounded-xl font-bold text-lg hover:bg-gray-800 disabled:bg-gray-200 disabled:text-gray-400 transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 disabled:shadow-none disabled:transform-none w-full md:w-auto"
+                      className="bg-gray-900 text-white px-10 py-4 rounded-xl font-bold text-lg hover:bg-gray-800 disabled:bg-gray-200 disabled:text-gray-400 transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 disabled:shadow-none disabled:transform-none w-full md:w-auto inline-flex items-center justify-center gap-2"
                     >
+                      {isSubmitting && <Spinner className="h-5 w-5" />}
                       {isSubmitting ? 'Salvataggio in corso...' : 'Firma e Concludi'}
                     </button>
                   </div>
