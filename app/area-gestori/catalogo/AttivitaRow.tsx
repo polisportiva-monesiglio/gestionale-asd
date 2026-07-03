@@ -3,6 +3,7 @@
 import { useActionState, useState } from 'react'
 import { aggiornaAttivita, toggleAttivaAttivita } from './actions'
 import { AttivitaForm } from './AttivitaForm'
+import { Spinner } from '@/app/components/Spinner'
 
 type Props = {
   id: string
@@ -84,8 +85,9 @@ export function AttivitaRow(props: Props) {
           <button
             type="submit"
             disabled={pendingToggle}
-            className="text-[10px] font-semibold text-gray-500 hover:text-gray-800 disabled:opacity-50 px-2 py-1 border border-gray-200 rounded-lg"
+            className="text-[10px] font-semibold text-gray-500 hover:text-gray-800 disabled:opacity-50 px-2 py-1 border border-gray-200 rounded-lg inline-flex items-center gap-1"
           >
+            {pendingToggle && <Spinner className="h-3 w-3" />}
             {props.attivo ? 'Disattiva' : 'Attiva'}
           </button>
         </form>

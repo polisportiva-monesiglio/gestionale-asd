@@ -1,6 +1,7 @@
 'use client'
 
 import { useActionState, useEffect, useState } from 'react'
+import { Spinner } from '@/app/components/Spinner'
 
 type Values = {
   nome_attivita: string
@@ -86,8 +87,9 @@ export function AttivitaForm({ action, defaultValues, idAttivita, submitLabel, o
         <button
           type="submit"
           disabled={isPending}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-colors"
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-colors inline-flex items-center gap-1.5"
         >
+          {isPending && <Spinner className="h-3.5 w-3.5" />}
           {isPending ? 'Salvo…' : submitLabel}
         </button>
         {state?.ok && <span className="text-xs text-green-600 font-medium">✓ {state.message}</span>}

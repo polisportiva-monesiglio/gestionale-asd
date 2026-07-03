@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useState } from 'react'
 import { aggiornaDatiGestore, aggiornaGestore, rimuoviGestore } from './actions'
+import { Spinner } from '@/app/components/Spinner'
 
 type Props = {
   id: string
@@ -60,8 +61,9 @@ export function GestoreRow({ id, nome, email, telefono, attivo, isAdmin, isSelf,
               <button
                 type="submit"
                 disabled={pending}
-                className="text-[10px] font-semibold text-blue-600 hover:text-blue-800 disabled:opacity-50 px-2 py-1 border border-blue-200 rounded-lg"
+                className="text-[10px] font-semibold text-blue-600 hover:text-blue-800 disabled:opacity-50 px-2 py-1 border border-blue-200 rounded-lg inline-flex items-center gap-1"
               >
+                {pendingDati && <Spinner className="h-3 w-3" />}
                 Salva
               </button>
               <button
@@ -116,8 +118,9 @@ export function GestoreRow({ id, nome, email, telefono, attivo, isAdmin, isSelf,
               <button
                 type="submit"
                 disabled={pending}
-                className="text-[10px] font-semibold text-gray-500 hover:text-gray-800 disabled:opacity-50 px-2 py-1 border border-gray-200 rounded-lg"
+                className="text-[10px] font-semibold text-gray-500 hover:text-gray-800 disabled:opacity-50 px-2 py-1 border border-gray-200 rounded-lg inline-flex items-center gap-1"
               >
+                {pendingAttivo && <Spinner className="h-3 w-3" />}
                 {attivo ? 'Disattiva' : 'Attiva'}
               </button>
             </form>
@@ -129,8 +132,9 @@ export function GestoreRow({ id, nome, email, telefono, attivo, isAdmin, isSelf,
               <button
                 type="submit"
                 disabled={pending}
-                className="text-[10px] font-semibold text-gray-500 hover:text-gray-800 disabled:opacity-50 px-2 py-1 border border-gray-200 rounded-lg"
+                className="text-[10px] font-semibold text-gray-500 hover:text-gray-800 disabled:opacity-50 px-2 py-1 border border-gray-200 rounded-lg inline-flex items-center gap-1"
               >
+                {pendingAdmin && <Spinner className="h-3 w-3" />}
                 {isAdmin ? 'Rimuovi admin' : 'Rendi admin'}
               </button>
             </form>
@@ -140,8 +144,9 @@ export function GestoreRow({ id, nome, email, telefono, attivo, isAdmin, isSelf,
               <button
                 type="submit"
                 disabled={pending}
-                className="text-[10px] font-semibold text-red-500 hover:text-red-700 disabled:opacity-50 px-2 py-1 border border-red-200 rounded-lg"
+                className="text-[10px] font-semibold text-red-500 hover:text-red-700 disabled:opacity-50 px-2 py-1 border border-red-200 rounded-lg inline-flex items-center gap-1"
               >
+                {pendingRimuovi && <Spinner className="h-3 w-3" />}
                 Rimuovi
               </button>
             </form>

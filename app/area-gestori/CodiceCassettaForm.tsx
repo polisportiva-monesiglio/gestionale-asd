@@ -2,6 +2,7 @@
 
 import { useActionState } from 'react'
 import { aggiornaCodiceCassetta } from './actions'
+import { Spinner } from '@/app/components/Spinner'
 
 export function CodiceCassettaForm({ codiceAttuale }: { codiceAttuale: string | null }) {
   const [state, action, isPending] = useActionState(aggiornaCodiceCassetta, null)
@@ -21,8 +22,9 @@ export function CodiceCassettaForm({ codiceAttuale }: { codiceAttuale: string | 
       <button
         type="submit"
         disabled={isPending}
-        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-colors whitespace-nowrap"
+        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-colors whitespace-nowrap inline-flex items-center gap-1.5"
       >
+        {isPending && <Spinner className="h-3.5 w-3.5" />}
         {isPending ? 'Salvo…' : 'Aggiorna'}
       </button>
       {state?.ok && (
