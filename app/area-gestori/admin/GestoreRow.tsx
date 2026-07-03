@@ -1,7 +1,7 @@
 'use client'
 
-import { useActionState } from 'react'
-import { aggiornaGestore, rimuoviGestore } from './actions'
+import { useActionState, useEffect, useState } from 'react'
+import { aggiornaDatiGestore, aggiornaGestore, rimuoviGestore } from './actions'
 
 type Props = {
   id: string
@@ -18,17 +18,80 @@ export function GestoreRow({ id, nome, email, telefono, attivo, isAdmin, isSelf,
   const [, toggleAttivoAction, pendingAttivo] = useActionState(aggiornaGestore, null)
   const [, toggleAdminAction, pendingAdmin] = useActionState(aggiornaGestore, null)
   const [, rimuoviAction, pendingRimuovi] = useActionState(rimuoviGestore, null)
+  const [datiState, datiAction, pendingDati] = useActionState(aggiornaDatiGestore, null)
+  const [editing, setEditing] = useState(false)
 
-  const pending = pendingAttivo || pendingAdmin || pendingRimuovi
+  useEffect(() => {
+    if (datiState?.ok) setEditing(false)
+  }, [datiState])
+
+  const pending = pendingAttivo || pendingAdmin || pendingRimuovi || pendingDati
 
   return (
     <div className="flex items-center justify-between gap-3 rounded-2xl border border-gray-100 px-4 py-3 bg-gray-50">
-      <div className="min-w-0">
-        <p className="font-bold text-sm text-gray-900 truncate">
-          {nome || '—'} {isSelf && <span className="text-gray-400 font-normal">(tu)</span>}
-        </p>
-        <p className="text-xs text-gray-400 truncate">{email}</p>
-        {telefono && <p className="text-xs text-gray-400 truncate">{telefono}</p>}
+      <div className="min-w-0 flex-1">
+        {editing ? (
+          <form action={datiAction} className="flex flex-col gap-1.5">
+            <input type="hidden" name="id" value={id} />
+            <input
+              type="text"
+              name="nome"
+              defaultValue={nome ?? ''}
+              placeholder="Nome e cognome"
+              className="w-full max-w-[220px] text-xs px-2 py-1 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-400"
+            />
+            {!haClaim && (
+              <input
+                type="email"
+                name="email"
+                defaultValue={email}
+                placeholder="Email"
+                className="w-full max-w-[220px] text-xs px-2 py-1 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-400"
+              />
+            )}
+            <input
+              type="tel"
+              name="telefono"
+              defaultValue={telefono ?? ''}
+              placeholder="Cellulare (es. 347 1234567)"
+              className="w-full max-w-[220px] text-xs px-2 py-1 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-400"
+            />
+            <div className="flex items-center gap-1.5">
+              <button
+                type="submit"
+                disabled={pending}
+                className="text-[10px] font-semibold text-blue-600 hover:text-blue-800 disabled:opacity-50 px-2 py-1 border border-blue-200 rounded-lg"
+              >
+                Salva
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditing(false)}
+                className="text-[10px] font-semibold text-gray-400 hover:text-gray-600 px-1 py-1"
+              >
+                Annulla
+              </button>
+            </div>
+          </form>
+        ) : (
+          <>
+            <p className="font-bold text-sm text-gray-900 truncate">
+              {nome || '—'} {isSelf && <span className="text-gray-400 font-normal">(tu)</span>}{' '}
+              <button
+                type="button"
+                onClick={() => setEditing(true)}
+                className="text-xs text-blue-500 hover:text-blue-700 font-semibold"
+              >
+                Modifica
+              </button>
+            </p>
+            <p className="text-xs text-gray-400 truncate">{email}</p>
+            <p className="text-xs text-gray-400 truncate">{telefono ?? 'Nessun telefono'}</p>
+          </>
+        )}
+        {datiState && !datiState.ok && (
+          <p className="text-[10px] text-red-500 mt-0.5">{datiState.error}</p>
+        )}
         {!haClaim && (
           <p className="text-[10px] text-orange-500 mt-0.5">In attesa di primo accesso</p>
         )}

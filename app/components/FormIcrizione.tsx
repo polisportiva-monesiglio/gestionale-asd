@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { getAnnoSportivo } from '@/lib/stagione'
+import { normalizzaTelefono } from '@/lib/telefono'
 
 export default function FormIscrizione() {
   const [step, setStep] = useState(1)
@@ -77,6 +78,7 @@ export default function FormIscrizione() {
     if (!formData.indirizzoResidenza) errs.indirizzoResidenza = "Obbligatorio"
     if (!formData.cittaResidenza) errs.cittaResidenza = "Obbligatorio"
     if (!formData.telefono) errs.telefono = "Obbligatorio"
+    else if (!normalizzaTelefono(formData.telefono)) errs.telefono = "Numero non valido"
     
     if (formData.codiceFiscale && !cfRegex.test(formData.codiceFiscale)) {
         errs.codiceFiscale = "Codice errato"
@@ -280,7 +282,7 @@ export default function FormIscrizione() {
             cap: formData.capResidenza,
             citta: formData.cittaResidenza,
             provincia_residenza: formData.provinciaResidenza,
-            telefono: formData.telefono,
+            telefono: normalizzaTelefono(formData.telefono),
             email: formData.email,
             minorenne: under18,
             genitore_nome: under18 ? formData.genitoreNome : null,

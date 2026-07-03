@@ -29,7 +29,7 @@ export function AggiungiGestoreForm() {
       <input
         name="telefono"
         type="tel"
-        placeholder="+39 347 698 6347"
+        placeholder="Cellulare (es. 347 1234567)"
         className="flex-1 min-w-[160px] px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
       />
       <button
