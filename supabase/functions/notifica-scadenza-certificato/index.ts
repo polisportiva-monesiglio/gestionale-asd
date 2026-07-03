@@ -9,14 +9,22 @@ function getAnnoSportivo(date: Date = new Date()): string {
   return `${year - 1}/${year}`
 }
 
+// Invia un messaggio WhatsApp usando un template pre-approvato da Meta
+// (obbligatorio per i messaggi business-initiated fuori dalla finestra 24h).
 async function sendWhatsApp(
   accountSid: string,
   authToken: string,
   from: string,
   to: string,
-  body: string
+  contentSid: string,
+  variables: Record<string, string>
 ): Promise<void> {
-  const params = new URLSearchParams({ From: from, To: `whatsapp:${to}`, Body: body })
+  const params = new URLSearchParams({
+    From: from,
+    To: `whatsapp:${to}`,
+    ContentSid: contentSid,
+    ContentVariables: JSON.stringify(variables),
+  })
   const res = await fetch(
     `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
     {
@@ -45,6 +53,14 @@ Deno.serve(async (req: Request) => {
   const accountSid = Deno.env.get('TWILIO_ACCOUNT_SID')!
   const authToken  = Deno.env.get('TWILIO_AUTH_TOKEN')!
   const from       = Deno.env.get('TWILIO_WHATSAPP_FROM')!
+  const contentSid = Deno.env.get('TWILIO_CONTENT_SID_SCADENZA_CERTIFICATO')
+
+  if (!contentSid) {
+    return new Response(
+      JSON.stringify({ error: 'Secret TWILIO_CONTENT_SID_SCADENZA_CERTIFICATO non configurato' }),
+      { status: 500 }
+    )
+  }
 
   const oggi        = new Date()
   const tra30Giorni = new Date(oggi)
@@ -86,10 +102,14 @@ Deno.serve(async (req: Request) => {
     const giorniRimasti = Math.ceil((scadenza.getTime() - oggi.getTime()) / (1000 * 60 * 60 * 24))
 
     try {
-      await sendWhatsApp(
-        accountSid, authToken, from, socio.telefono,
-        `Ciao ${socio.nome}! ⚠️\nIl tuo certificato medico scade tra *${giorniRimasti} giorni* (${scadenza.toLocaleDateString('it-IT')}).\n\nRinnova il certificato accedendo all'area socio del gestionale.\n\n— Polisportiva Monesiglio`
-      )
+      // Template approvato: "Ciao {{1}}! ⚠️ Il tuo certificato medico scade
+      // tra *{{2}} giorni* ({{3}}). Rinnova il certificato accedendo all'area
+      // socio del gestionale."
+      await sendWhatsApp(accountSid, authToken, from, socio.telefono, contentSid, {
+        '1': socio.nome,
+        '2': String(giorniRimasti),
+        '3': scadenza.toLocaleDateString('it-IT'),
+      })
       inviate++
       await supabase.from('invii_notifiche_certificato').upsert({
         anno_sportivo: annoSportivo,

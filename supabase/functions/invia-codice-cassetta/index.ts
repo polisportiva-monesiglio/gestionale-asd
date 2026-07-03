@@ -9,14 +9,22 @@ function getAnnoSportivo(date: Date = new Date()): string {
   return `${year - 1}/${year}`
 }
 
+// Invia un messaggio WhatsApp usando un template pre-approvato da Meta
+// (obbligatorio per i messaggi business-initiated fuori dalla finestra 24h).
 async function sendWhatsApp(
   accountSid: string,
   authToken: string,
   from: string,
   to: string,
-  body: string
+  contentSid: string,
+  variables: Record<string, string>
 ): Promise<void> {
-  const params = new URLSearchParams({ From: from, To: `whatsapp:${to}`, Body: body })
+  const params = new URLSearchParams({
+    From: from,
+    To: `whatsapp:${to}`,
+    ContentSid: contentSid,
+    ContentVariables: JSON.stringify(variables),
+  })
   const res = await fetch(
     `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
     {
@@ -45,6 +53,14 @@ Deno.serve(async (req: Request) => {
   const accountSid = Deno.env.get('TWILIO_ACCOUNT_SID')!
   const authToken  = Deno.env.get('TWILIO_AUTH_TOKEN')!
   const from       = Deno.env.get('TWILIO_WHATSAPP_FROM')!
+  const contentSid = Deno.env.get('TWILIO_CONTENT_SID_CODICE_CASSETTA')
+
+  if (!contentSid) {
+    return new Response(
+      JSON.stringify({ error: 'Secret TWILIO_CONTENT_SID_CODICE_CASSETTA non configurato' }),
+      { status: 500 }
+    )
+  }
 
   const { data: impostazione, error: errImpostazioni } = await supabase
     .from('impostazioni')
@@ -106,10 +122,13 @@ Deno.serve(async (req: Request) => {
     }
 
     try {
-      await sendWhatsApp(
-        accountSid, authToken, from, dest.telefono,
-        `Ciao ${dest.nome}! 🔑\nIl codice cassetta chiavi di ${mese} è:\n\n*${codiceCassetta}*\n\n— Polisportiva Monesiglio`
-      )
+      // Template approvato: "Ciao {{1}}! Per il mese di {{2}} il codice di
+      // apertura della cassetta delle chiavi della palestra è {{3}}."
+      await sendWhatsApp(accountSid, authToken, from, dest.telefono, contentSid, {
+        '1': dest.nome,
+        '2': mese,
+        '3': codiceCassetta,
+      })
       inviate++
       await supabase.from('invii_codice_cassetta').upsert({
         periodo, destinatario: dest.telefono, esito: 'inviato', errore_messaggio: null, aggiornato_il: new Date().toISOString(),
