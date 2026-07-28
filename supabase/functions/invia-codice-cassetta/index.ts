@@ -122,8 +122,8 @@ Deno.serve(async (req: Request) => {
     }
 
     try {
-      // Template approvato: "Ciao {{1}}! Per il mese di {{2}} il codice di
-      // apertura della cassetta delle chiavi della palestra è {{3}}."
+      // Template approvato: "Ciao {{1}}! Aggiornamento {{2}}: la cassetta
+      // delle chiavi della palestra è impostata su {{3}}"
       await sendWhatsApp(accountSid, authToken, from, dest.telefono, contentSid, {
         '1': dest.nome,
         '2': mese,
