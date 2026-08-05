@@ -61,13 +61,11 @@ export default function Home() {
                 verifiche dei provider) di risalire all'associazione reale */}
             <address className="border-t border-gray-200/70 pt-5 text-center text-[11px] not-italic leading-relaxed text-gray-400">
               <span className="font-semibold text-gray-500">ASD Polisportiva Monesiglio</span>
-              <br />
-              Associazione Sportiva Dilettantistica
-              <br />
-              Piazza XX Settembre 2 — 12077 Monesiglio (CN)
-              <br />
-              C.F. 93058330049 · P.IVA 04040870042
-              <br />
+              {' · '}Associazione Sportiva Dilettantistica
+              {' · '}Piazza XX Settembre 2, 12077 Monesiglio (CN)
+              {' · '}C.F. 93058330049
+              {' · '}P.IVA 04040870042
+              {' · '}
               <a
                 href="mailto:info@polisportiva-monesiglio.it"
                 className="underline underline-offset-2 hover:text-gray-500 transition-colors"
