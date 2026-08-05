@@ -41,7 +41,10 @@ export async function POST(req: Request) {
 
     // Spedisce la mail!
     const data = await resend.emails.send({
-      from: 'Polisportiva Monesiglio <onboarding@resend.dev>', // IMPORTANTE: Lascia questo mittente finché sei nel piano gratuito!
+      // Dominio verificato su Resend: il mittente di test onboarding@resend.dev
+      // consegna soltanto all'email del titolare dell'account, quindi con quello
+      // le iscrizioni dei soci fallivano con 403.
+      from: 'Polisportiva Monesiglio <info@polisportiva-monesiglio.it>',
       to: emailDestinatario, // L'email che l'utente ha inserito nel form
       subject: 'Codice OTP Tesseramento - ASD Monesiglio',
       html: `
