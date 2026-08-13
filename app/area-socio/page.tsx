@@ -21,6 +21,7 @@ export default async function AreaSocioPage() {
     { data: abbonamenti },
     { data: attivita },
     { data: storicoCertificati },
+    { data: codiceCassetta },
   ] = await Promise.all([
     supabase
       .from('tesseramenti_annuali')
@@ -44,6 +45,13 @@ export default async function AreaSocioPage() {
       .select('id, url_certificato_pdf, data_scadenza_certificato, caricato_il')
       .eq('socio_id', socio?.id ?? '')
       .order('caricato_il', { ascending: false }),
+    // Le RLS lasciano leggere questa riga solo a chi ha un abbonamento pagato
+    // nella stagione corrente: per gli altri torna semplicemente null.
+    supabase
+      .from('impostazioni')
+      .select('valore, aggiornato_il')
+      .eq('chiave', 'codice_cassetta')
+      .maybeSingle(),
   ])
 
   // URL firmato per il certificato corrente (valido 1h)
@@ -102,7 +110,8 @@ export default async function AreaSocioPage() {
   })
 
   const hasPending = abbonamentiFlattenati.some(a => a.stato_pagamento === 'da_saldare')
-  const uispApplicabile = !abbonamentiFlattenati.some(a => a.stato_pagamento === 'pagato')
+  const haAbbonamentoPagato = abbonamentiFlattenati.some(a => a.stato_pagamento === 'pagato')
+  const uispApplicabile = !haAbbonamentoPagato
 
   return (
     <>
@@ -153,6 +162,41 @@ export default async function AreaSocioPage() {
               annoSportivo={annoSportivo}
             />
           </div>
+
+          {/* Codice della cassetta: solo per chi ha un abbonamento pagato */}
+          {haAbbonamentoPagato && codiceCassetta?.valore && (
+            <div className="bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-3xl border border-gray-100 p-6 sm:p-8">
+              <div className="flex items-center mb-1">
+                <div className="w-1.5 h-5 bg-yellow-400 rounded-full mr-2.5 shrink-0" />
+                <h2 className="text-sm font-extrabold text-gray-900 tracking-tight">
+                  Cassetta delle chiavi
+                </h2>
+              </div>
+              <p className="text-xs text-gray-400 mb-5 pl-4">
+                La combinazione per accedere alla palestra. Cambia periodicamente:
+                controlla qui il valore aggiornato.
+              </p>
+
+              <div className="rounded-2xl bg-gray-900 px-6 py-7 text-center">
+                <p className="text-3xl sm:text-4xl font-extrabold text-yellow-400 tracking-[0.3em] font-mono">
+                  {codiceCassetta.valore}
+                </p>
+              </div>
+
+              {codiceCassetta.aggiornato_il && (
+                <p className="text-xs text-gray-400 mt-3 text-center">
+                  Aggiornato il{' '}
+                  {new Date(codiceCassetta.aggiornato_il).toLocaleDateString('it-IT', {
+                    day: '2-digit', month: '2-digit', year: 'numeric',
+                  })}
+                </p>
+              )}
+
+              <p className="text-xs text-gray-400 mt-4 leading-relaxed border-t border-gray-100 pt-4">
+                Il codice è riservato ai soci: non condividerlo con chi non è iscritto.
+              </p>
+            </div>
+          )}
 
         </div>
       </main>
