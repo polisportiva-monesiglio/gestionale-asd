@@ -268,9 +268,15 @@ export default function FormIscrizione() {
         }
 
         // 3. Salvataggio in tabella 'Soci'
-        const { data: socioData, error: socioError } = await supabase
+        // Gli id sono generati qui e non dal database: senza RETURNING l'inserimento
+        // non richiede il permesso di lettura, e la tabella resta chiusa agli anonimi.
+        const socioId = crypto.randomUUID()
+        const tesseramentoId = crypto.randomUUID()
+
+        const { error: socioError } = await supabase
           .from('soci')
           .insert({
+            id: socioId,
             nome: formData.nome,
             cognome: formData.cognome,
             sesso: formData.sesso,
@@ -291,8 +297,6 @@ export default function FormIscrizione() {
             genitore_contatto_preferito: under18 ? formData.genitoreContattoScelta : null,
             genitore_recapito: under18 ? formData.genitoreContatto : null,
           })
-          .select()
-          .single()
 
         if (socioError) throw new Error(socioError.message)
 
@@ -303,10 +307,11 @@ export default function FormIscrizione() {
           d.setFullYear(d.getFullYear() + 1)
           return d.toISOString().split('T')[0]
         })()
-        const { data: tesseramentoData, error: tesseramentoError } = await supabase
+        const { error: tesseramentoError } = await supabase
           .from('tesseramenti_annuali')
           .insert({
-            socio_id: socioData.id,
+            id: tesseramentoId,
+            socio_id: socioId,
             anno_sportivo: getAnnoSportivo(),
             data_scadenza_certificato: scadenzaCertificato,
             url_certificato_pdf: certificatoUrl,
@@ -326,8 +331,6 @@ export default function FormIscrizione() {
               consenso_immagini_facoltativo: formData.consensoPrivacy,
             },
           })
-          .select('id')
-          .single()
 
         if (tesseramentoError) throw new Error(tesseramentoError.message)
 
@@ -338,7 +341,7 @@ export default function FormIscrizione() {
                 ip: clientIp,
                 otpHash: otpHash,
                 minorenne: under18,
-                tesseramentoId: tesseramentoData?.id,
+                tesseramentoId: tesseramentoId,
                 annoSportivo: getAnnoSportivo(),
             }
 
