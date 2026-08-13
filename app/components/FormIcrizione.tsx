@@ -449,7 +449,6 @@ export default function FormIscrizione() {
 
   return (
     <>
-      <style dangerouslySetInnerHTML={{ __html: `@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap'); .font-sans { font-family: 'Inter', sans-serif; }` }} />
       
       <div className="min-h-screen w-full bg-[#FAFAFA] py-10 font-sans text-gray-800">
         <div className="max-w-3xl mx-auto px-4 sm:px-6">

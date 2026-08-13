@@ -28,7 +28,6 @@ export default async function AdminGestoriPage() {
 
   return (
     <>
-      <style dangerouslySetInnerHTML={{ __html: `@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap'); body { font-family: 'Inter', sans-serif; }` }} />
 
       <main className="min-h-screen bg-[#FAFAFA] py-10 px-4 font-sans text-gray-800">
         <div className="max-w-3xl mx-auto space-y-5">
