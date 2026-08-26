@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { ipAddress } from '@vercel/functions'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { verificaEConsumaOtp } from '@/lib/otp'
+import { verificaOtp, consumaOtp } from '@/lib/otp'
 import { componiModuloFirmato } from '@/lib/moduloPdf'
 import { getAnnoSportivo } from '@/lib/stagione'
 import { normalizzaTelefono } from '@/lib/telefono'
@@ -87,9 +87,41 @@ export async function POST(req: NextRequest) {
 
   // 1. Verifica dell'OTP dentro la stessa richiesta che scriverà l'iscrizione.
   //    Nulla può inserirsi fra il controllo e la scrittura.
-  const esito = await verificaEConsumaOtp({ email: emailFirma, codice, token, dati })
+  const esito = await verificaOtp({ email: emailFirma, codice, token, dati })
   if (!esito.valido) {
     return NextResponse.json({ error: esito.errore }, { status: esito.stato })
+  }
+
+  // 1-bis. Il codice fiscale è unico in tabella. Il controllo sta qui, dopo la
+  //    verifica dell'OTP ma prima di consumarlo: prima renderebbe l'endpoint un
+  //    modo per scoprire chi è iscritto, dopo brucerebbe il codice del socio per
+  //    un errore che deve solo correggere.
+  const { data: giaIscritto, error: verificaCfErr } = await supabase
+    .from('soci')
+    .select('id')
+    .eq('cf', String(dati.codiceFiscale).toUpperCase())
+    .maybeSingle()
+
+  if (verificaCfErr) {
+    console.error('Controllo codice fiscale fallito:', verificaCfErr.message)
+    return NextResponse.json({ error: 'Errore interno del server' }, { status: 500 })
+  }
+  if (giaIscritto) {
+    return NextResponse.json(
+      {
+        error: 'Risulta già un socio registrato con questo codice fiscale. Se sei tu, accedi alla tua area personale dalla pagina di accesso; se pensi sia un errore, contatta la segreteria.',
+        codice: 'cf_duplicato',
+      },
+      { status: 409 }
+    )
+  }
+
+  // 1-ter. Solo ora il codice viene speso.
+  if (!(await consumaOtp(esito.tokenHash))) {
+    return NextResponse.json(
+      { error: 'Questo codice è già stato utilizzato per una firma. Richiedine uno nuovo.' },
+      { status: 409 }
+    )
   }
 
   // 2. Elementi probatori: li stabilisce il server.
@@ -148,6 +180,17 @@ export async function POST(req: NextRequest) {
 
   if (socioErr) {
     console.error('Inserimento socio fallito:', socioErr.message)
+    // Rete di sicurezza: il controllo sopra non copre due iscrizioni identiche
+    // inviate nello stesso istante, che si incontrerebbero solo qui.
+    if (socioErr.code === '23505') {
+      return NextResponse.json(
+        {
+          error: 'Risulta già un socio registrato con questo codice fiscale. Se sei tu, accedi alla tua area personale dalla pagina di accesso; se pensi sia un errore, contatta la segreteria.',
+          codice: 'cf_duplicato',
+        },
+        { status: 409 }
+      )
+    }
     return NextResponse.json({ error: 'Salvataggio dei dati fallito' }, { status: 500 })
   }
 

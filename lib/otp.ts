@@ -5,18 +5,22 @@ import { hashDatiFirma } from '@/lib/firmaHash'
 const MAX_TENTATIVI = 5
 
 export type EsitoOtp =
-  | { valido: true; otpHash: string }
+  | { valido: true; otpHash: string; tokenHash: string }
   | { valido: false; errore: string; stato: number }
 
 /**
- * Verifica un OTP e, se corretto, lo consuma in modo definitivo.
+ * Verifica un OTP senza consumarlo.
  *
  * Vive qui e non in una rotta HTTP perché è il cardine della firma: deve poter
  * essere chiamata *dentro* la stessa richiesta che scrive l'iscrizione, così
  * fra la verifica e la scrittura non può inserirsi nessuno. Finché la verifica
  * era una rotta a sé, il browser era libero di ignorarne l'esito.
+ *
+ * Il consumo è separato (vedi `consumaOtp`) perché fra i due passaggi il
+ * chiamante deve poter rifiutare l'iscrizione per motivi suoi — un codice
+ * fiscale già presente, ad esempio — senza bruciare il codice del socio.
  */
-export async function verificaEConsumaOtp(params: {
+export async function verificaOtp(params: {
   email: string
   codice: string
   token: string
@@ -98,26 +102,26 @@ export async function verificaEConsumaOtp(params: {
     }
   }
 
-  // Consumo definitivo: un OTP corretto vale per una sola firma. Senza questo
-  // passaggio lo stesso codice resterebbe spendibile fino alla scadenza.
-  const { data: primoUso, error: usoErr } = await supabase
-    .rpc('consuma_token_otp', { p_token_hash: tokenHash })
-
-  if (usoErr) {
-    console.error('Errore consumo token OTP:', usoErr)
-    return { valido: false, errore: 'Errore interno del server', stato: 500 }
-  }
-  if (!primoUso) {
-    return {
-      valido: false,
-      errore: 'Questo codice è già stato utilizzato per una firma. Richiedine uno nuovo.',
-      stato: 409,
-    }
-  }
-
-  await supabase.rpc('azzera_tentativi_otp', { p_token_hash: tokenHash })
-
   // Riferimento per l'audit trail: non rivela l'OTP in chiaro
   const otpHash = crypto.createHash('sha256').update(`${email}:${scadenza}:${codice}`).digest('hex')
-  return { valido: true, otpHash }
+  return { valido: true, otpHash, tokenHash }
+}
+
+/**
+ * Consuma definitivamente un OTP già verificato: vale per una sola firma.
+ * Senza questo passaggio lo stesso codice resterebbe spendibile fino alla
+ * scadenza. Restituisce false se era già stato speso.
+ */
+export async function consumaOtp(tokenHash: string): Promise<boolean> {
+  const { data: primoUso, error } = await supabase
+    .rpc('consuma_token_otp', { p_token_hash: tokenHash })
+
+  if (error) {
+    console.error('Errore consumo token OTP:', error)
+    return false
+  }
+  if (!primoUso) return false
+
+  await supabase.rpc('azzera_tentativi_otp', { p_token_hash: tokenHash })
+  return true
 }

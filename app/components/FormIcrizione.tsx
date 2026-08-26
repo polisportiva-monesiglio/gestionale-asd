@@ -47,6 +47,10 @@ export default function FormIscrizione() {
   const [otpInviato, setOtpInviato] = useState(false)
   const [codiceOtpInserito, setCodiceOtpInserito] = useState('')
   const [otpToken, setOtpToken] = useState('')
+  // Fotografia dei dati al momento dell'invio del codice: serve ad accorgersi
+  // se l'utente torna indietro e corregge qualcosa, perché in quel caso il
+  // codice ricevuto non vale più per il nuovo contenuto.
+  const [datiAllInvioOtp, setDatiAllInvioOtp] = useState('')
   const [isInviandoOtp, setIsInviandoOtp] = useState(false)
   const [iscrizioneCompletata, setIscrizioneCompletata] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -173,6 +177,21 @@ export default function FormIscrizione() {
     consensoPrivacy: formData.consensoPrivacy,
   })
 
+  // Se dopo l'invio del codice l'utente torna indietro e modifica un dato
+  // firmato, il codice ricevuto non vale più: il server lo rifiuterebbe perché
+  // l'impronta non corrisponde. Meglio accorgersene qui e offrire la via
+  // d'uscita, invece di lasciarlo davanti a un errore senza rimedio.
+  const datiCambiatiDopoOtp =
+    otpInviato && datiAllInvioOtp !== '' && datiAllInvioOtp !== JSON.stringify(buildDatiFirma())
+
+  // Riporta il riquadro allo stato iniziale, così si può chiedere un altro codice
+  const richiediNuovoCodice = () => {
+    setOtpInviato(false)
+    setOtpToken('')
+    setCodiceOtpInserito('')
+    setDatiAllInvioOtp('')
+  }
+
   // INVIO OTP
   const handleInviaOtp = async () => {
     setIsInviandoOtp(true)
@@ -200,6 +219,8 @@ export default function FormIscrizione() {
 
       if (response.ok) {
         setOtpToken(data.token)
+        setDatiAllInvioOtp(JSON.stringify(buildDatiFirma()))
+        setCodiceOtpInserito('')
         setOtpInviato(true)
         alert(`Un codice di 6 cifre è stato inviato a ${emailDestinatario}`)
       } else {
@@ -704,6 +725,25 @@ export default function FormIscrizione() {
                       Accetta i 4 consensi obbligatori per sbloccare il pulsante.
                     </p>
                   </div>
+                ) : datiCambiatiDopoOtp ? (
+                  <div className="animate-fade-in">
+                    <div className="rounded-2xl bg-yellow-50 border border-yellow-200 px-5 py-6 mb-6 text-left">
+                      <p className="text-sm font-extrabold text-yellow-800 mb-1.5">
+                        Hai modificato i dati: serve un nuovo codice
+                      </p>
+                      <p className="text-sm text-yellow-700 leading-relaxed">
+                        Il codice che hai ricevuto firma il contenuto del modulo, non solo il tuo
+                        indirizzo email: poiché qualcosa è cambiato dopo la richiesta, quel codice
+                        non è più valido. Richiedine uno nuovo per firmare i dati aggiornati.
+                      </p>
+                    </div>
+                    <button
+                      onClick={richiediNuovoCodice}
+                      className="bg-yellow-400 text-gray-900 px-10 py-4 rounded-xl font-bold text-lg hover:bg-yellow-500 transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 w-full md:w-auto"
+                    >
+                      Richiedi un nuovo codice
+                    </button>
+                  </div>
                 ) : (
                   <div className="animate-fade-in">
                     <h3 className="text-xl font-bold text-gray-900 mb-2">Inserisci il Codice</h3>
@@ -726,6 +766,18 @@ export default function FormIscrizione() {
                       {isSubmitting && <Spinner className="h-5 w-5" />}
                       {isSubmitting ? 'Salvataggio in corso...' : 'Firma e Concludi'}
                     </button>
+
+                    <p className="text-xs text-gray-400 mt-5 font-medium">
+                      Non hai ricevuto il codice, o è scaduto?{' '}
+                      <button
+                        type="button"
+                        onClick={richiediNuovoCodice}
+                        disabled={isSubmitting}
+                        className="text-gray-600 font-bold underline underline-offset-2 hover:text-gray-900 disabled:opacity-50 disabled:no-underline transition-colors"
+                      >
+                        Richiedine uno nuovo
+                      </button>
+                    </p>
                   </div>
                 )}
               </div>
