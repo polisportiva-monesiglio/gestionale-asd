@@ -1,11 +1,9 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
-// I certificati vivono in due archivi diversi a seconda di dove sono stati
-// caricati: `certificati_medici` (underscore) dal form pubblico di iscrizione,
-// `certificati-medici` (trattino) dall'area socio. È un debito noto: finché
-// non sono unificati, si cerca nell'uno e poi nell'altro.
-const ARCHIVI = ['certificati-medici', 'certificati_medici'] as const
+// Archivio unico dal 26/08/2026: i certificati dell'iscrizione stanno sotto
+// `iscrizioni/`, quelli caricati dall'area socio sotto l'id utente.
+const ARCHIVIO = 'certificati-medici'
 
 export async function GET(req: NextRequest) {
   const supabase = await createClient()
@@ -33,10 +31,8 @@ export async function GET(req: NextRequest) {
   const percorso = tesseramento?.url_certificato_pdf
   if (!percorso) return new NextResponse('Certificato non caricato', { status: 404 })
 
-  for (const archivio of ARCHIVI) {
-    const { data } = await supabase.storage.from(archivio).createSignedUrl(percorso, 3600)
-    if (data?.signedUrl) return NextResponse.redirect(data.signedUrl)
-  }
+  const { data } = await supabase.storage.from(ARCHIVIO).createSignedUrl(percorso, 3600)
+  if (!data?.signedUrl) return new NextResponse('Certificato non trovato', { status: 404 })
 
-  return new NextResponse('Certificato non trovato', { status: 404 })
+  return NextResponse.redirect(data.signedUrl)
 }

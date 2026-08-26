@@ -248,12 +248,14 @@ export default function FormIscrizione() {
         //    non passerebbe dai limiti di corpo di una funzione server.
         let certificatoPath: string | null = null
         if (formData.fileCertificato) {
-          const fileExt = formData.fileCertificato.name.split('.').pop()
-          const fileName = `${formData.cognome.toLowerCase()}-${formData.nome.toLowerCase()}-${Date.now()}.${fileExt}`
+          // Nome casuale: il percorso di un documento sanitario non deve
+          // contenere nome e cognome dell'interessato.
+          const estensione = formData.fileCertificato.name.split('.').pop()?.toLowerCase() || 'pdf'
+          const nomeFile = `iscrizioni/${crypto.randomUUID()}.${estensione}`
 
           const { data, error } = await supabase.storage
-            .from('certificati_medici')
-            .upload(fileName, formData.fileCertificato)
+            .from('certificati-medici')
+            .upload(nomeFile, formData.fileCertificato)
 
           if (error) throw new Error(`Errore certificato: ${error.message}`)
           certificatoPath = data.path

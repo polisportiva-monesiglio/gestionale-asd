@@ -11,7 +11,7 @@
 import { readFileSync } from 'fs'
 import { createClient } from '@supabase/supabase-js'
 
-const BUCKET = ['certificati_medici', 'certificati-medici', 'moduli-firmati', 'ricevute']
+const BUCKET = ['certificati-medici', 'moduli-firmati', 'ricevute']
 const CANCELLA = process.argv.includes('--cancella')
 
 function leggiEnv(percorso = '.env.local') {
