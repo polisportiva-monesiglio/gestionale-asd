@@ -51,7 +51,7 @@ export default async function ListaSociPage({
     .from('soci')
     .select(`
       id, nome, cognome, email, telefono, data_registrazione,
-      tesseramenti_annuali(id, anno_sportivo, data_scadenza_certificato, url_modulo_firmato_pdf),
+      tesseramenti_annuali(id, anno_sportivo, data_scadenza_certificato, url_modulo_firmato_pdf, url_certificato_pdf),
       abbonamenti_soci(anno_sportivo, stato_pagamento, data_acquisto, catalogo_attivita(nome_attivita))
     `)
     .order('cognome')
@@ -63,7 +63,7 @@ export default async function ListaSociPage({
     email: string | null
     telefono: string | null
     data_registrazione: string | null
-    tesseramenti_annuali: { id: string; anno_sportivo: string; data_scadenza_certificato: string | null; url_modulo_firmato_pdf: string | null }[] | null
+    tesseramenti_annuali: { id: string; anno_sportivo: string; data_scadenza_certificato: string | null; url_modulo_firmato_pdf: string | null; url_certificato_pdf: string | null }[] | null
     abbonamenti_soci: {
       anno_sportivo: string | null
       stato_pagamento: string | null
@@ -94,7 +94,9 @@ export default async function ListaSociPage({
         scadenzaCert: tess?.data_scadenza_certificato ?? null,
         statoAbbonamento: abCorrente?.stato_pagamento ?? null,
         nomeAttivita: nomeAtt ?? null,
-        tesseramentoId: tess && tess.url_modulo_firmato_pdf ? tess.id : null,
+        tesseramentoId: tess?.id ?? null,
+        haModulo: !!tess?.url_modulo_firmato_pdf,
+        haCertificato: !!tess?.url_certificato_pdf,
         nuovoIscritto,
         presenteStagione: !!tess || !!abCorrente,
       }

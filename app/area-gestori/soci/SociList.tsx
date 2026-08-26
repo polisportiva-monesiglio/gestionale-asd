@@ -13,6 +13,8 @@ type Socio = {
   statoAbbonamento: string | null
   nomeAttivita: string | null
   tesseramentoId: string | null
+  haModulo: boolean
+  haCertificato: boolean
   nuovoIscritto: boolean
 }
 
@@ -104,7 +106,7 @@ export function SociList({ soci }: { soci: Socio[] }) {
                         Cert. scade {formatData(s.scadenzaCert)}
                       </span>
                     )}
-                    {s.tesseramentoId && (
+                    {s.tesseramentoId && s.haModulo && (
                       <a
                         href={`/api/modulo-download?tesseramento_id=${encodeURIComponent(s.tesseramentoId)}`}
                         target="_blank"
@@ -112,6 +114,16 @@ export function SociList({ soci }: { soci: Socio[] }) {
                         className="text-[10px] px-2 py-0.5 bg-blue-50 border border-blue-200 rounded-lg text-blue-700 font-semibold hover:bg-blue-100 transition-colors"
                       >
                         📄 Modulo firmato
+                      </a>
+                    )}
+                    {s.tesseramentoId && s.haCertificato && (
+                      <a
+                        href={`/api/certificato-download?tesseramento_id=${encodeURIComponent(s.tesseramentoId)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[10px] px-2 py-0.5 bg-green-50 border border-green-200 rounded-lg text-green-700 font-semibold hover:bg-green-100 transition-colors"
+                      >
+                        🩺 Certificato
                       </a>
                     )}
                   </div>
