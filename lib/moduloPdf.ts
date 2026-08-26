@@ -155,5 +155,15 @@ export async function componiModuloFirmato(
 
   firstPage.drawText(testoFirmaOTP, { x: 230, y: 102, size: 9, font, lineHeight: 12 })
 
+  // Dichiarazione di veridicità, nella fascia libera sotto il blocco firma.
+  // Il socio la legge nel form appena sopra il pulsante che appone la firma:
+  // stamparla qui senza mostrargliela significherebbe attribuirgli una
+  // dichiarazione che non ha mai visto.
+  firstPage.drawText(
+    'Il sottoscritto dichiara che i dati riportati nel presente modulo corrispondono al vero e si impegna\n' +
+    "a comunicare tempestivamente all'Associazione ogni loro variazione.",
+    { x: 71, y: 56, size: 8.5, font: fontObl, lineHeight: 11 }
+  )
+
   return pdfDoc.save()
 }

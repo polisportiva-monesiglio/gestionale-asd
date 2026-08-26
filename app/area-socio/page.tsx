@@ -25,7 +25,7 @@ export default async function AreaSocioPage() {
   ] = await Promise.all([
     supabase
       .from('tesseramenti_annuali')
-      .select('id, data_scadenza_certificato, url_certificato_pdf')
+      .select('id, data_scadenza_certificato, url_certificato_pdf, url_modulo_firmato_pdf')
       .eq('socio_id', socio?.id ?? '')
       .eq('anno_sportivo', annoSportivo)
       .maybeSingle(),
@@ -61,6 +61,18 @@ export default async function AreaSocioPage() {
       .from('certificati-medici')
       .createSignedUrl(tesseramento.url_certificato_pdf, 3600)
     certificatoUrl = data?.signedUrl ?? null
+  }
+
+  // Modulo di iscrizione firmato: il socio deve poterne riavere copia in ogni
+  // momento, non solo nell'istante in cui lo sottoscrive.
+  let moduloFirmatoUrl: string | null = null
+  if (tesseramento?.url_modulo_firmato_pdf) {
+    const { data } = await supabase.storage
+      .from('moduli-firmati')
+      .createSignedUrl(tesseramento.url_modulo_firmato_pdf, 3600, {
+        download: `Modulo_iscrizione_${annoSportivo.replace('/', '-')}.pdf`,
+      })
+    moduloFirmatoUrl = data?.signedUrl ?? null
   }
 
   // URL firmati per lo storico caricamenti (esclude quello già mostrato come "corrente")
@@ -161,6 +173,28 @@ export default async function AreaSocioPage() {
               annoSportivo={annoSportivo}
             />
           </div>
+
+          {/* Modulo di iscrizione firmato */}
+          {moduloFirmatoUrl && (
+            <div className="bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-3xl border border-gray-100 p-6 sm:p-8">
+              <div className="flex items-center mb-1">
+                <div className="w-1.5 h-5 bg-yellow-400 rounded-full mr-2.5 shrink-0" />
+                <h2 className="text-sm font-extrabold text-gray-900 tracking-tight">
+                  Il tuo modulo di iscrizione
+                </h2>
+              </div>
+              <p className="text-xs text-gray-400 mb-5 pl-4">
+                Il documento che hai firmato al momento dell&apos;iscrizione, con i dati dichiarati
+                e gli estremi della firma elettronica.
+              </p>
+              <a
+                href={moduloFirmatoUrl}
+                className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-5 py-3 text-sm font-bold text-gray-700 hover:bg-gray-100 hover:border-gray-300 transition-colors"
+              >
+                ↓ Scarica il modulo firmato
+              </a>
+            </div>
+          )}
 
           {/* Codice della cassetta: solo per chi ha un abbonamento pagato */}
           {haAbbonamentoPagato && codiceCassetta?.valore && (

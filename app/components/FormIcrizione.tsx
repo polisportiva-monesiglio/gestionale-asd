@@ -758,9 +758,15 @@ export default function FormIscrizione() {
                         placeholder="------"
                       />
                     </div>
-                    <button 
-                      onClick={handleConfermaFirma} 
-                      disabled={codiceOtpInserito.length !== 6 || isSubmitting} 
+                    <p className="text-sm text-gray-600 leading-relaxed max-w-lg mx-auto mb-6 font-medium">
+                      Firmando dichiari che <strong className="text-gray-900">i dati inseriti
+                      corrispondono al vero</strong> e ti impegni a comunicare all&apos;Associazione
+                      ogni loro variazione.
+                    </p>
+
+                    <button
+                      onClick={handleConfermaFirma}
+                      disabled={codiceOtpInserito.length !== 6 || isSubmitting}
                       className="bg-gray-900 text-white px-10 py-4 rounded-xl font-bold text-lg hover:bg-gray-800 disabled:bg-gray-200 disabled:text-gray-400 transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 disabled:shadow-none disabled:transform-none w-full md:w-auto inline-flex items-center justify-center gap-2"
                     >
                       {isSubmitting && <Spinner className="h-5 w-5" />}
