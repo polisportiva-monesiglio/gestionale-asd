@@ -8,6 +8,18 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 
 const DURATA_OTP_MS = 10 * 60 * 1000; // 10 minuti
 
+// Il nome arriva dal form pubblico e finisce nel corpo HTML dell'email: senza
+// neutralizzarlo, chi scrive del markup al posto del proprio nome lo vedrebbe
+// interpretato in un messaggio spedito dal dominio verificato dell'ASD.
+function testoSicuroHtml(valore: unknown): string {
+  return String(valore ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export async function POST(req: Request) {
   try {
     const { emailDestinatario, nome, dati } = await req.json();
@@ -22,8 +34,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Configurazione del server incompleta' }, { status: 500 });
     }
 
-    // Genera l'OTP a 6 cifre
-    const otpGenerato = Math.floor(100000 + Math.random() * 900000).toString();
+    // Genera l'OTP a 6 cifre con un generatore crittografico: Math.random()
+    // produce una sequenza ricostruibile osservandone abbastanza valori, e
+    // qui il numero estratto è il segreto che vale la firma.
+    const otpGenerato = crypto.randomInt(100000, 1000000).toString();
     const scadenza = Date.now() + DURATA_OTP_MS;
 
     // Hash del contenuto dichiarato al momento dell'invio: lega l'OTP ai dati
@@ -50,7 +64,7 @@ export async function POST(req: Request) {
       html: `
         <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
           <h2 style="color: #facc15;">Polisportiva Monesiglio</h2>
-          <p>Ciao ${nome || 'Socio'},</p>
+          <p>Ciao ${testoSicuroHtml(nome) || 'Socio'},</p>
           <p>Ecco il tuo codice OTP per firmare l'iscrizione:</p>
           <div style="background-color: #facc15; font-size: 32px; font-weight: bold; text-align: center; padding: 20px; border-radius: 10px; color: #111827;">
             ${otpGenerato}
