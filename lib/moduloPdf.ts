@@ -34,6 +34,24 @@ const CAMPI_TESTO_PDF = [
   'genitoreNome', 'genitoreCognome', 'genitoreContattoScelta', 'genitoreContatto',
 ] as const
 
+// Il server esegue in UTC: senza fissare il fuso, il modulo stamperebbe un
+// orario di firma diverso da quello dell'orologio di chi ha firmato (due ore
+// indietro in estate, una in inverno). Sul documento probatorio deve comparire
+// l'ora italiana.
+const FUSO_ITALIA = 'Europe/Rome'
+
+function dataItaliana(d: Date): string {
+  return d.toLocaleDateString('it-IT', { timeZone: FUSO_ITALIA })
+}
+
+function dataOraItaliana(d: Date): string {
+  return d.toLocaleString('it-IT', {
+    timeZone: FUSO_ITALIA,
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+  })
+}
+
 export type ProvaFirma = {
   /** Impronta dell'OTP, calcolata dal server dopo la verifica */
   otpHash: string
@@ -126,13 +144,13 @@ export async function componiModuloFirmato(
   firstPage.drawText(testoConsenso, { x: 71, y: 140, size: 10, font: fontBold })
 
   const luogoCompilazione = dati.cittaResidenza || 'Monesiglio'
-  const luogoData = `${luogoCompilazione}, ${prova.firmatoIl.toLocaleDateString('it-IT')}`
+  const luogoData = `${luogoCompilazione}, ${dataItaliana(prova.firmatoIl)}`
   firstPage.drawText(luogoData, { x: 148, y: 118, size: textSize, font })
 
   // Firma elettronica: i tre elementi provengono tutti dal server
   const testoFirmaOTP =
     `Firma elettronica validata tramite codice OTP (rif. ${prova.otpHash.slice(0, 16)})\n` +
-    `Apposta il: ${prova.firmatoIl.toLocaleString('it-IT')}\n` +
+    `Apposta il: ${dataOraItaliana(prova.firmatoIl)} (ora italiana)\n` +
     `Indirizzo IP: ${prova.ip}`
 
   firstPage.drawText(testoFirmaOTP, { x: 230, y: 102, size: 9, font, lineHeight: 12 })
