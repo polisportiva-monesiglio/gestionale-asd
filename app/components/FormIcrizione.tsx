@@ -621,9 +621,9 @@ export default function FormIscrizione() {
               <div className="bg-yellow-50 border border-yellow-200 p-5 mb-8 rounded-xl shadow-sm flex gap-4">
                 <span className="text-yellow-600 text-xl hidden sm:block">⚖️</span>
                 <div className="text-sm text-gray-800 leading-relaxed font-medium">
-                  <strong className="text-gray-900">Valore Legale:</strong> L'apposizione della firma tramite codice OTP (One Time Password) ha pieno valore legale e sostituisce a tutti gli effetti la firma autografa sul modulo cartaceo.<br/><br/>
+                  <strong className="text-gray-900">Valore legale:</strong> la firma tramite codice OTP (One Time Password) è una firma elettronica ai sensi del Regolamento UE 910/2014. Il modulo che sottoscrivi è valido e utilizzabile come prova della tua richiesta di ammissione.<br/><br/>
                   <span className="text-xs text-gray-600">
-                    Per garantire la sicurezza e la validità legale della firma elettronica, il sistema registrerà automaticamente l'indirizzo IP, la data e l'ora esatta in cui viene prestato il consenso e inserito il codice OTP, in conformità con la normativa sulla Privacy (GDPR).
+                    Per rendere la firma verificabile nel tempo, il sistema registra l&apos;impronta del codice ricevuto, la data e l&apos;ora della firma, l&apos;indirizzo IP da cui viene apposta e un&apos;impronta del documento firmato. Questi dati servono a dimostrare che il modulo è stato sottoscritto da te e non è stato modificato successivamente.
                   </span>
                 </div>
               </div>
