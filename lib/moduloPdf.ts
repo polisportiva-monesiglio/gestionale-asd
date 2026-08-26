@@ -132,6 +132,15 @@ export async function componiModuloFirmato(
     }
   }
 
+  // Dichiarazione di veridicità: in coda alle altre "Il sottoscritto dichiara"
+  // del modello, quindi *sopra* la firma, che è ciò che per convenzione la
+  // firma copre. Una riga sola: lo spazio disponibile è di 21 punti.
+  // Il socio la legge anche nel form, sopra il pulsante che appone la firma.
+  firstPage.drawText(
+    'Il sottoscritto dichiara inoltre che i dati riportati nel presente modulo corrispondono al vero.',
+    { x: 71, y: 184, size: 8.5, font: fontObl }
+  )
+
   // --- SEZIONE 4: PRIVACY, DATA E FIRME ---
   const haAcconsentito =
     dati.consensoPrivacy === true ||
@@ -154,16 +163,6 @@ export async function componiModuloFirmato(
     `Indirizzo IP: ${prova.ip}`
 
   firstPage.drawText(testoFirmaOTP, { x: 230, y: 102, size: 9, font, lineHeight: 12 })
-
-  // Dichiarazione di veridicità, nella fascia libera sotto il blocco firma.
-  // Il socio la legge nel form appena sopra il pulsante che appone la firma:
-  // stamparla qui senza mostrargliela significherebbe attribuirgli una
-  // dichiarazione che non ha mai visto.
-  firstPage.drawText(
-    'Il sottoscritto dichiara che i dati riportati nel presente modulo corrispondono al vero e si impegna\n' +
-    "a comunicare tempestivamente all'Associazione ogni loro variazione.",
-    { x: 71, y: 56, size: 8.5, font: fontObl, lineHeight: 11 }
-  )
 
   return pdfDoc.save()
 }

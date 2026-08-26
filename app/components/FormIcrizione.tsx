@@ -760,8 +760,8 @@ export default function FormIscrizione() {
                     </div>
                     <p className="text-sm text-gray-600 leading-relaxed max-w-lg mx-auto mb-6 font-medium">
                       Firmando dichiari che <strong className="text-gray-900">i dati inseriti
-                      corrispondono al vero</strong> e ti impegni a comunicare all&apos;Associazione
-                      ogni loro variazione.
+                      corrispondono al vero</strong>. La dichiarazione viene riportata sul modulo
+                      che stai per sottoscrivere.
                     </p>
 
                     <button
