@@ -73,6 +73,18 @@ export async function POST(req: NextRequest) {
 
   const emailFirma = String(dati.email).trim()
 
+  // 0. Il client di servizio si crea per primo: se la configurazione fosse
+  //    incompleta, verificare l'OTP prima significherebbe consumarlo — è
+  //    monouso — per poi fallire comunque, obbligando il socio a chiederne
+  //    un altro senza capire perché.
+  let supabase
+  try {
+    supabase = createAdminClient()
+  } catch (e) {
+    console.error('Client di servizio non disponibile:', e)
+    return NextResponse.json({ error: 'Configurazione del server incompleta' }, { status: 500 })
+  }
+
   // 1. Verifica dell'OTP dentro la stessa richiesta che scriverà l'iscrizione.
   //    Nulla può inserirsi fra il controllo e la scrittura.
   const esito = await verificaEConsumaOtp({ email: emailFirma, codice, token, dati })
@@ -93,14 +105,6 @@ export async function POST(req: NextRequest) {
 
   const socioId = crypto.randomUUID()
   const tesseramentoId = crypto.randomUUID()
-
-  let supabase
-  try {
-    supabase = createAdminClient()
-  } catch (e) {
-    console.error('Client di servizio non disponibile:', e)
-    return NextResponse.json({ error: 'Configurazione del server incompleta' }, { status: 500 })
-  }
 
   // 3. Il PDF si compone prima di scrivere: se fallisce, non resta nulla a metà.
   let pdfBytes: Uint8Array
