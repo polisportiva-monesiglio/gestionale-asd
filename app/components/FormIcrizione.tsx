@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { getAnnoSportivo } from '@/lib/stagione'
 import { normalizzaTelefono } from '@/lib/telefono'
 import { Spinner } from '@/app/components/Spinner'
 
@@ -215,159 +214,65 @@ export default function FormIscrizione() {
   }
 
   // CONFERMA FIRMA E SALVATAGGIO
+  //
+  // Il browser non scrive più nulla nel database: si limita a caricare il
+  // certificato e a consegnare al server codice OTP e dati. È il server a
+  // verificare l'OTP, stabilire IP e orario della firma, registrare
+  // l'iscrizione e archiviare il modulo, tutto dentro un'unica richiesta.
   const handleConfermaFirma = async () => {
     setIsSubmitting(true)
     try {
-        // --- VERIFICA OTP LATO SERVER ---
-        const resVerifica = await fetch('/api/verifica-otp', {
+
+        // 1. Il certificato va direttamente all'archivio: un PDF fino a 10 MB
+        //    non passerebbe dai limiti di corpo di una funzione server.
+        let certificatoPath: string | null = null
+        if (formData.fileCertificato) {
+          const fileExt = formData.fileCertificato.name.split('.').pop()
+          const fileName = `${formData.cognome.toLowerCase()}-${formData.nome.toLowerCase()}-${Date.now()}.${fileExt}`
+
+          const { data, error } = await supabase.storage
+            .from('certificati_medici')
+            .upload(fileName, formData.fileCertificato)
+
+          if (error) throw new Error(`Errore certificato: ${error.message}`)
+          certificatoPath = data.path
+        }
+
+        // 2. Unica chiamata al server: verifica dell'OTP, registrazione
+        //    dell'iscrizione e firma del modulo avvengono insieme, senza che
+        //    il browser possa intervenire fra un passaggio e l'altro.
+        const datiFirma: Record<string, unknown> = { ...formData }
+        delete datiFirma.fileCertificato
+
+        const risposta = await fetch('/api/iscrizione', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            email: getEmailOtp(),
-            codice: codiceOtpInserito,
             token: otpToken,
-            dati: buildDatiFirma(),
+            codice: codiceOtpInserito,
+            certificatoPath,
+            dati: datiFirma,
           }),
         })
-        const verifica = await resVerifica.json()
 
-        if (!resVerifica.ok || !verifica.valid) {
-          alert(verifica.error || "Il codice OTP inserito non è corretto. Riprova o richiedine uno nuovo.")
+        const esito = await risposta.json()
+
+        if (!risposta.ok || !esito.ok) {
+          alert(esito.error || "Non è stato possibile completare l'iscrizione. Riprova.")
           setIsSubmitting(false)
           return
         }
 
-        const otpHash = verifica.otpHash as string
-        // --- RECUPERO L'IP REALE ---
-        let clientIp = '127.0.0.1'
-        try {
-            const ipRes = await fetch('/api/get-ip')
-            const ipData = await ipRes.json()
-            clientIp = ipData.ip
-        } catch (e) {
-            console.warn("Impossibile recuperare IP", e)
-        }
-
-        // --- DEFINISCO LE VERSIONI LEGALI ---
-        const versioneRegolamento = 'v1.0_2026'
-        const versioneStatuto = 'v1.0_2026'
-        const versionePrivacy = 'v1.0_2026'
-
-        // 2. Caricamento del Certificato Medico su Storage
-        let certificatoUrl = ''
-        if (formData.fileCertificato) {
-          const fileExt = formData.fileCertificato.name.split('.').pop()
-          const fileName = `${formData.cognome.toLowerCase()}-${formData.nome.toLowerCase()}-${Date.now()}.${fileExt}`
-          
-          const { data, error } = await supabase.storage
-            .from('certificati_medici')
-            .upload(fileName, formData.fileCertificato)
-            
-          if (error) throw new Error(`Errore certificato: ${error.message}`)
-          certificatoUrl = data.path
-        }
-
-        // 3. Salvataggio in tabella 'Soci'
-        // Gli id sono generati qui e non dal database: senza RETURNING l'inserimento
-        // non richiede il permesso di lettura, e la tabella resta chiusa agli anonimi.
-        const socioId = crypto.randomUUID()
-        const tesseramentoId = crypto.randomUUID()
-
-        const { error: socioError } = await supabase
-          .from('soci')
-          .insert({
-            id: socioId,
-            nome: formData.nome,
-            cognome: formData.cognome,
-            sesso: formData.sesso,
-            cf: formData.codiceFiscale,
-            data_nascita: formData.dataNascita,
-            luogo_nascita: formData.luogoNascita,
-            provincia_nascita: formData.provinciaNascita,
-            cittadinanza: formData.cittadinanza,
-            indirizzo: formData.indirizzoResidenza,
-            cap: formData.capResidenza,
-            citta: formData.cittaResidenza,
-            provincia_residenza: formData.provinciaResidenza,
-            telefono: normalizzaTelefono(formData.telefono),
-            email: formData.email,
-            minorenne: under18,
-            genitore_nome: under18 ? formData.genitoreNome : null,
-            genitore_cognome: under18 ? formData.genitoreCognome : null,
-            genitore_contatto_preferito: under18 ? formData.genitoreContattoScelta : null,
-            genitore_recapito: under18 ? formData.genitoreContatto : null,
-          })
-
-        if (socioError) throw new Error(socioError.message)
-
-        // 4. Salvataggio in tabella 'Tesseramenti'
-        const dataFirma = new Date().toISOString()
-        const scadenzaCertificato = (() => {
-          const d = new Date(formData.dataCertificato)
-          d.setFullYear(d.getFullYear() + 1)
-          return d.toISOString().split('T')[0]
-        })()
-        const { error: tesseramentoError } = await supabase
-          .from('tesseramenti_annuali')
-          .insert({
-            id: tesseramentoId,
-            socio_id: socioId,
-            anno_sportivo: getAnnoSportivo(),
-            data_scadenza_certificato: scadenzaCertificato,
-            url_certificato_pdf: certificatoUrl,
-            stato_firma: 'firmato',
-            otp_generato: otpHash,
-            ip_firma: clientIp,
-            timestamp_firma: dataFirma,
-            consensi: {
-              consensi_salute: formData.consensoSalute,
-              regolamento: formData.consensoRegolamento,
-              versione_regolamento: versioneRegolamento,
-              versione_statuto: versioneStatuto,
-              consensi_videosorveglianza: formData.consensoVideosorveglianza,
-              consenso_informativa_privacy: formData.consensoInformativaPrivacy,
-              consenso_privacy: formData.consensoPrivacy,
-              versione_privacy: versionePrivacy,
-              consenso_immagini_facoltativo: formData.consensoPrivacy,
-            },
-          })
-
-        if (tesseramentoError) throw new Error(tesseramentoError.message)
-
-        // --- FASE 3: CHIAMIAMO LA STAMPANTE PDF ---
-        try {
-            const datiPdf = {
-                ...formData,
-                ip: clientIp,
-                otpHash: otpHash,
-                minorenne: under18,
-                tesseramentoId: tesseramentoId,
-                annoSportivo: getAnnoSportivo(),
-            }
-
-            const resPdf = await fetch('/api/genera-pdf', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(datiPdf),
-            })
-
-            if (resPdf.ok) {
-                const arrayBuffer = await resPdf.arrayBuffer()
-                const blob = new Blob([arrayBuffer], { type: 'application/pdf' })
-                const url = window.URL.createObjectURL(blob)
-                
-                const a = document.createElement('a')
-                a.href = url
-                a.download = `Iscrizione_${formData.cognome}_${formData.nome}.pdf`
-                document.body.appendChild(a)
-                a.click()
-                a.remove()
-                window.URL.revokeObjectURL(url)
-            } else {
-                console.error("Errore nella generazione del PDF dalla rotta API.")
-            }
-        } catch (pdfError) {
-             console.error("Errore durante la richiesta del PDF", pdfError)
+        // 3. Scarica il modulo firmato archiviato dal server
+        if (esito.urlDownload) {
+          const a = document.createElement('a')
+          a.href = esito.urlDownload
+          a.rel = 'noopener'
+          document.body.appendChild(a)
+          a.click()
+          a.remove()
+        } else {
+          console.error('Modulo firmato non disponibile per il download.')
         }
 
         setIscrizioneCompletata(true)

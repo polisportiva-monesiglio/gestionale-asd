@@ -1,0 +1,216 @@
+import { type NextRequest, NextResponse } from 'next/server'
+import crypto from 'crypto'
+import { ipAddress } from '@vercel/functions'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { verificaEConsumaOtp } from '@/lib/otp'
+import { componiModuloFirmato } from '@/lib/moduloPdf'
+import { getAnnoSportivo } from '@/lib/stagione'
+import { normalizzaTelefono } from '@/lib/telefono'
+
+// Versioni dei testi accettati: le decide il server, non il browser. Se le
+// dichiarasse il client, un socio potrebbe risultare vincolato a una versione
+// del regolamento diversa da quella che gli è stata effettivamente mostrata.
+const VERSIONE_REGOLAMENTO = 'v1.0_2026'
+const VERSIONE_STATUTO = 'v1.0_2026'
+const VERSIONE_PRIVACY = 'v1.0_2026'
+
+function ipDellaRichiesta(req: NextRequest): string {
+  // Su Vercel è la piattaforma a stabilire questo valore: non è modificabile
+  // dal client, a differenza di quanto accadeva quando l'IP veniva chiesto al
+  // browser e da lui rispedito insieme ai dati.
+  const daPiattaforma = ipAddress(req)
+  if (daPiattaforma) return daPiattaforma
+
+  const forwarded = req.headers.get('x-forwarded-for')
+  if (forwarded) return forwarded.split(',')[0].trim()
+  return req.headers.get('x-real-ip') ?? 'non rilevato'
+}
+
+function eMinorenne(dataNascita: string, riferimento: Date): boolean {
+  const nascita = new Date(dataNascita)
+  if (Number.isNaN(nascita.getTime())) return false
+  let eta = riferimento.getFullYear() - nascita.getFullYear()
+  const scartoMesi = riferimento.getMonth() - nascita.getMonth()
+  if (scartoMesi < 0 || (scartoMesi === 0 && riferimento.getDate() < nascita.getDate())) eta--
+  return eta < 18
+}
+
+function scadenzaCertificato(dataEmissione: string): string | null {
+  const d = new Date(dataEmissione)
+  if (Number.isNaN(d.getTime())) return null
+  d.setFullYear(d.getFullYear() + 1)
+  return d.toISOString().split('T')[0]
+}
+
+export async function POST(req: NextRequest) {
+  let dati: Record<string, any>
+  let token: string
+  let codice: string
+  let certificatoPath: string | null
+
+  try {
+    const body = await req.json()
+    dati = body?.dati ?? {}
+    token = String(body?.token ?? '')
+    codice = String(body?.codice ?? '')
+    certificatoPath = body?.certificatoPath ? String(body.certificatoPath) : null
+  } catch {
+    return NextResponse.json({ error: 'Richiesta non valida' }, { status: 400 })
+  }
+
+  if (!token || !codice) {
+    return NextResponse.json({ error: 'Codice OTP mancante' }, { status: 400 })
+  }
+
+  const obbligatori = ['nome', 'cognome', 'codiceFiscale', 'dataNascita', 'email', 'dataCertificato']
+  const mancanti = obbligatori.filter(c => !dati?.[c])
+  if (mancanti.length > 0) {
+    return NextResponse.json(
+      { error: `Dati incompleti: ${mancanti.join(', ')}` },
+      { status: 400 }
+    )
+  }
+
+  const emailFirma = String(dati.email).trim()
+
+  // 1. Verifica dell'OTP dentro la stessa richiesta che scriverà l'iscrizione.
+  //    Nulla può inserirsi fra il controllo e la scrittura.
+  const esito = await verificaEConsumaOtp({ email: emailFirma, codice, token, dati })
+  if (!esito.valido) {
+    return NextResponse.json({ error: esito.errore }, { status: esito.stato })
+  }
+
+  // 2. Elementi probatori: li stabilisce il server.
+  const firmatoIl = new Date()
+  const ip = ipDellaRichiesta(req)
+  const annoSportivo = getAnnoSportivo(firmatoIl)
+  const minorenne = eMinorenne(String(dati.dataNascita), firmatoIl)
+
+  const scadenza = scadenzaCertificato(String(dati.dataCertificato))
+  if (!scadenza) {
+    return NextResponse.json({ error: 'Data del certificato non valida' }, { status: 400 })
+  }
+
+  const socioId = crypto.randomUUID()
+  const tesseramentoId = crypto.randomUUID()
+
+  let supabase
+  try {
+    supabase = createAdminClient()
+  } catch (e) {
+    console.error('Client di servizio non disponibile:', e)
+    return NextResponse.json({ error: 'Configurazione del server incompleta' }, { status: 500 })
+  }
+
+  // 3. Il PDF si compone prima di scrivere: se fallisce, non resta nulla a metà.
+  let pdfBytes: Uint8Array
+  try {
+    pdfBytes = await componiModuloFirmato(dati, {
+      otpHash: esito.otpHash,
+      ip,
+      firmatoIl,
+      annoSportivo,
+    })
+  } catch (e) {
+    console.error('Composizione del modulo fallita:', e)
+    return NextResponse.json({ error: 'Generazione del documento fallita' }, { status: 500 })
+  }
+
+  const hashModulo = crypto.createHash('sha256').update(pdfBytes).digest('hex')
+
+  // 4. Scrittura delle due righe.
+  const { error: socioErr } = await supabase.from('soci').insert({
+    id: socioId,
+    nome: dati.nome,
+    cognome: dati.cognome,
+    sesso: dati.sesso,
+    cf: dati.codiceFiscale,
+    data_nascita: dati.dataNascita,
+    luogo_nascita: dati.luogoNascita,
+    provincia_nascita: dati.provinciaNascita,
+    cittadinanza: dati.cittadinanza,
+    indirizzo: dati.indirizzoResidenza,
+    cap: dati.capResidenza,
+    citta: dati.cittaResidenza,
+    provincia_residenza: dati.provinciaResidenza,
+    telefono: normalizzaTelefono(dati.telefono),
+    email: emailFirma,
+    minorenne,
+    genitore_nome: minorenne ? dati.genitoreNome : null,
+    genitore_cognome: minorenne ? dati.genitoreCognome : null,
+    genitore_contatto_preferito: minorenne ? dati.genitoreContattoScelta : null,
+    genitore_recapito: minorenne ? dati.genitoreContatto : null,
+  })
+
+  if (socioErr) {
+    console.error('Inserimento socio fallito:', socioErr.message)
+    return NextResponse.json({ error: 'Salvataggio dei dati fallito' }, { status: 500 })
+  }
+
+  const { error: tessErr } = await supabase.from('tesseramenti_annuali').insert({
+    id: tesseramentoId,
+    socio_id: socioId,
+    anno_sportivo: annoSportivo,
+    data_scadenza_certificato: scadenza,
+    url_certificato_pdf: certificatoPath,
+    stato_firma: 'firmato',
+    otp_generato: esito.otpHash,
+    ip_firma: ip,
+    timestamp_firma: firmatoIl.toISOString(),
+    consensi: {
+      consensi_salute: dati.consensoSalute,
+      regolamento: dati.consensoRegolamento,
+      versione_regolamento: VERSIONE_REGOLAMENTO,
+      versione_statuto: VERSIONE_STATUTO,
+      consensi_videosorveglianza: dati.consensoVideosorveglianza,
+      consenso_informativa_privacy: dati.consensoInformativaPrivacy,
+      consenso_privacy: dati.consensoPrivacy,
+      versione_privacy: VERSIONE_PRIVACY,
+      consenso_immagini_facoltativo: dati.consensoPrivacy,
+    },
+  })
+
+  if (tessErr) {
+    console.error('Inserimento tesseramento fallito:', tessErr.message)
+    // Il socio appena creato resterebbe orfano: lo rimuovo.
+    await supabase.from('soci').delete().eq('id', socioId)
+    return NextResponse.json({ error: 'Salvataggio del tesseramento fallito' }, { status: 500 })
+  }
+
+  // 5. Archiviazione del modulo firmato e impronta del documento.
+  const storagePath = `${annoSportivo}/${tesseramentoId}.pdf`
+  const { error: uploadErr } = await supabase.storage
+    .from('moduli-firmati')
+    .upload(storagePath, pdfBytes, { contentType: 'application/pdf' })
+
+  if (uploadErr) {
+    // L'iscrizione è valida comunque: si segnala senza farla fallire.
+    console.error('Archiviazione del modulo fallita:', uploadErr.message)
+  } else {
+    const { error: aggiornaErr } = await supabase
+      .from('tesseramenti_annuali')
+      .update({ url_modulo_firmato_pdf: storagePath, hash_modulo_pdf: hashModulo })
+      .eq('id', tesseramentoId)
+    if (aggiornaErr) console.error('Collegamento del modulo fallito:', aggiornaErr.message)
+  }
+
+  // 6. Collegamento temporaneo per far scaricare il documento all'interessato.
+  let urlDownload: string | null = null
+  if (!uploadErr) {
+    const nomeFile = `Iscrizione_${dati.cognome ?? 'Socio'}_${dati.nome ?? ''}.pdf`.replace(/\s+/g, '')
+    const { data } = await supabase.storage
+      .from('moduli-firmati')
+      // `download` imposta il Content-Disposition: il collegamento firmato sta
+      // su un altro dominio, dove l'attributo download del link viene ignorato.
+      .createSignedUrl(storagePath, 3600, { download: nomeFile })
+    urlDownload = data?.signedUrl ?? null
+  }
+
+  return NextResponse.json({
+    ok: true,
+    tesseramentoId,
+    annoSportivo,
+    urlDownload,
+    hashModulo,
+  })
+}
