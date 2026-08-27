@@ -30,6 +30,19 @@ export async function uploadCertificato(
     return { ok: false, error: 'Il file supera la dimensione massima di 5MB.' }
   }
 
+  // La data si valida PRIMA di caricare. Con una data illeggibile,
+  // `new Date(...).toISOString()` solleva un'eccezione: succedendo dopo il
+  // caricamento, il PDF resterebbe nell'archivio senza che nessuna riga lo
+  // richiami, e la cancellazione automatica dei certificati scaduti lavora
+  // proprio sui riferimenti in tabella. Sarebbe un documento sanitario
+  // conservato per sempre, contro quanto dichiara l'informativa.
+  const emissione = new Date(dataCertificato)
+  if (Number.isNaN(emissione.getTime())) {
+    return { ok: false, error: 'La data del certificato non è valida.' }
+  }
+  emissione.setFullYear(emissione.getFullYear() + 1)
+  const scadenzaCertificato = emissione.toISOString().split('T')[0]
+
   const { data: socio } = await supabase
     .from('soci')
     .select('id')
@@ -38,6 +51,20 @@ export async function uploadCertificato(
   if (!socio) return { ok: false, error: 'Profilo socio non trovato.' }
 
   const annoSportivo = getAnnoSportivo()
+
+  // Anche il tesseramento si cerca prima: se per questa stagione non c'è,
+  // caricare il file non serve a nulla e lascerebbe solo un orfano.
+  const { data: tesseramento } = await supabase
+    .from('tesseramenti_annuali')
+    .select('id')
+    .eq('socio_id', socio.id)
+    .eq('anno_sportivo', annoSportivo)
+    .maybeSingle()
+
+  if (!tesseramento) {
+    return { ok: false, error: `Non risulta un tesseramento per la stagione ${annoSportivo}. Contatta la segreteria.` }
+  }
+
   const fileName = `${user.id}/${Date.now()}-certificato.pdf`
   const arrayBuffer = await file.arrayBuffer()
 
@@ -53,24 +80,22 @@ export async function uploadCertificato(
 
   if (uploadError) return { ok: false, error: `Caricamento fallito: ${uploadError.message}` }
 
-  const scadenzaCertificato = (() => {
-    const d = new Date(dataCertificato)
-    d.setFullYear(d.getFullYear() + 1)
-    return d.toISOString().split('T')[0]
-  })()
-
   const { data: tesseramentoAggiornato, error: updateError } = await supabase
     .from('tesseramenti_annuali')
     .update({
       url_certificato_pdf: uploadData.path,
       data_scadenza_certificato: scadenzaCertificato,
     })
-    .eq('socio_id', socio.id)
-    .eq('anno_sportivo', annoSportivo)
+    .eq('id', tesseramento.id)
     .select('id')
     .single()
 
-  if (updateError) return { ok: false, error: `Aggiornamento fallito: ${updateError.message}` }
+  if (updateError) {
+    // Nessuno punta piu' a questo file: va tolto subito, o resta un documento
+    // sanitario che nessuna procedura sapra' mai di dover cancellare.
+    await supabase.storage.from('certificati-medici').remove([uploadData.path])
+    return { ok: false, error: `Aggiornamento fallito: ${updateError.message}` }
+  }
 
   // Storico: ogni caricamento resta tracciato anche dopo un rinnovo,
   // così il socio può rivedere i certificati caricati in passato.
@@ -102,6 +127,22 @@ export async function richiestaAbbonamento(
   const note = (formData.get('note') as string | null) || null
   const metodoPagamento = (formData.get('metodo_pagamento') as string | null) || null
   if (!attivitaId) return { ok: false, error: "Seleziona un'attività." }
+
+  // La chiave esterna garantisce che l'attività esista, non che sia ancora in
+  // vendita. Senza questo controllo, chi rimanda l'identificativo di
+  // un'attività ritirata ottiene il listino vecchio: la ricevuta verrebbe poi
+  // emessa su quel prezzo, perché la conferma legge prezzo_base dalla riga
+  // collegata senza ricontrollare nulla.
+  const { data: attivita } = await supabase
+    .from('catalogo_attivita')
+    .select('id')
+    .eq('id', attivitaId)
+    .eq('attivo', true)
+    .maybeSingle()
+
+  if (!attivita) {
+    return { ok: false, error: "Questa attività non è più disponibile. Ricarica la pagina e scegli fra quelle a listino." }
+  }
 
   const { data: socio } = await supabase
     .from('soci')
