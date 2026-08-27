@@ -5,15 +5,21 @@ export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
 
+  // Due guasti diversi finiscono qui e vanno tenuti distinti: il link che non
+  // si riesce a convertire in sessione, e l'indirizzo che non corrisponde a
+  // nessuno. Confonderli fa dire "email non riconosciuta" a chi invece era
+  // riconosciuto benissimo, e manda a cercare il problema dove non è.
   if (!code) {
-    return NextResponse.redirect(`${origin}/auth/non-autorizzato`)
+    console.error('Callback di accesso senza parametro code: il link non riporta un codice da scambiare')
+    return NextResponse.redirect(`${origin}/auth/non-autorizzato?motivo=link`)
   }
 
   const supabase = await createClient()
   const { data, error } = await supabase.auth.exchangeCodeForSession(code)
 
   if (error || !data.user) {
-    return NextResponse.redirect(`${origin}/auth/non-autorizzato`)
+    console.error('Scambio del codice di accesso fallito:', error?.message ?? 'nessun utente restituito')
+    return NextResponse.redirect(`${origin}/auth/non-autorizzato?motivo=link`)
   }
 
   const userId = data.user.id
