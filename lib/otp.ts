@@ -1,5 +1,5 @@
 import crypto from 'crypto'
-import { supabase } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { hashDatiFirma } from '@/lib/firmaHash'
 
 const MAX_TENTATIVI = 5
@@ -36,7 +36,14 @@ export async function verificaOtp(params: {
 
   const tokenHash = crypto.createHash('sha256').update(token).digest('hex')
 
-  // Tetto ai tentativi per token: senza, le sei cifre si esauriscono a forza bruta
+  // Tetto ai tentativi per token: senza, le sei cifre si esauriscono a forza bruta.
+  //
+  // Con la chiave di servizio e non più con quella pubblica: queste tre
+  // funzioni girano solo qui, che è codice di server, e finché erano
+  // eseguibili anche dal ruolo anonimo chiunque poteva chiamare
+  // azzera_tentativi_otp e rimettere a zero questo contatore, che è l'unica
+  // cosa che impedisce di indovinare il codice a forza bruta.
+  const supabase = createAdminClient()
   const { data: tentativi, error: tentativiErr } = await supabase
     .rpc('incrementa_tentativo_otp', { p_token_hash: tokenHash })
 
@@ -113,6 +120,7 @@ export async function verificaOtp(params: {
  * scadenza. Restituisce false se era già stato speso.
  */
 export async function consumaOtp(tokenHash: string): Promise<boolean> {
+  const supabase = createAdminClient()
   const { data: primoUso, error } = await supabase
     .rpc('consuma_token_otp', { p_token_hash: tokenHash })
 
