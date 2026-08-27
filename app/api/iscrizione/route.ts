@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
-import { ipAddress } from '@vercel/functions'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { ipDellaRichiesta } from '@/lib/ip'
 import { verificaOtp, consumaOtp } from '@/lib/otp'
 import { componiModuloFirmato } from '@/lib/moduloPdf'
 import { getAnnoSportivo } from '@/lib/stagione'
@@ -13,18 +13,6 @@ import { normalizzaTelefono } from '@/lib/telefono'
 const VERSIONE_REGOLAMENTO = 'v1.0_2026'
 const VERSIONE_STATUTO = 'v1.0_2026'
 const VERSIONE_PRIVACY = 'v1.0_2026'
-
-function ipDellaRichiesta(req: NextRequest): string {
-  // Su Vercel è la piattaforma a stabilire questo valore: non è modificabile
-  // dal client, a differenza di quanto accadeva quando l'IP veniva chiesto al
-  // browser e da lui rispedito insieme ai dati.
-  const daPiattaforma = ipAddress(req)
-  if (daPiattaforma) return daPiattaforma
-
-  const forwarded = req.headers.get('x-forwarded-for')
-  if (forwarded) return forwarded.split(',')[0].trim()
-  return req.headers.get('x-real-ip') ?? 'non rilevato'
-}
 
 function eMinorenne(dataNascita: string, riferimento: Date): boolean {
   const nascita = new Date(dataNascita)
