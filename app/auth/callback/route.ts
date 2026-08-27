@@ -37,15 +37,33 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${origin}/area-gestori`)
   }
 
-  // Socio?
-  const { data: socio } = await supabase
+  // Socio? Anche più d'uno: un genitore indica la propria email sul modulo di
+  // ciascun figlio, quindi allo stesso indirizzo possono corrispondere più
+  // soci. Vanno agganciati tutti, e la ricerca non può usare maybeSingle(),
+  // che con due righe restituisce errore — era così che due fratelli si
+  // bloccavano a vicenda l'accesso, leggendo "Email non riconosciuta".
+  const { data: soci, error: erroreSoci } = await supabase
     .from('soci')
     .select('id')
     .eq('email', email)
-    .maybeSingle()
 
-  if (socio) {
-    await supabase.from('soci').update({ user_id: userId }).eq('email', email).is('user_id', null)
+  if (erroreSoci) {
+    console.error('Ricerca del socio per email fallita:', erroreSoci.message)
+    return NextResponse.redirect(`${origin}/auth/non-autorizzato?motivo=link`)
+  }
+
+  if ((soci?.length ?? 0) > 0) {
+    const { error: aggancioErr } = await supabase
+      .from('soci')
+      .update({ user_id: userId })
+      .eq('email', email)
+      .is('user_id', null)
+
+    // L'aggancio può fallire senza impedire l'accesso — le righe già agganciate
+    // restano tali — ma se fallisce in silenzio il socio entra e non vede nulla,
+    // che è il modo peggiore di rompersi.
+    if (aggancioErr) console.error('Aggancio del socio all\'account fallito:', aggancioErr.message)
+
     return NextResponse.redirect(`${origin}/area-socio`)
   }
 

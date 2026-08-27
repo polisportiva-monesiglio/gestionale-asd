@@ -12,6 +12,8 @@ type Attivita = {
 }
 
 type Props = {
+  /** Persona per cui si sta chiedendo l'abbonamento. */
+  socioId: string
   attivita: Attivita[]
   uispApplicabile: boolean
 }
@@ -19,7 +21,7 @@ type Props = {
 const inputClass =
   'w-full p-3.5 rounded-xl border border-gray-200 shadow-sm transition-all focus:outline-none focus:ring-2 bg-white focus:border-yellow-400 focus:ring-yellow-200 text-gray-800 hover:border-gray-300 text-sm'
 
-export default function RichiestaAbbonamentoForm({ attivita, uispApplicabile }: Props) {
+export default function RichiestaAbbonamentoForm({ socioId, attivita, uispApplicabile }: Props) {
   const [state, action, pending] = useActionState<ActionResult | null, FormData>(
     richiestaAbbonamento,
     null
@@ -46,6 +48,9 @@ export default function RichiestaAbbonamentoForm({ attivita, uispApplicabile }: 
 
   return (
     <form action={action} className="space-y-5">
+      {/* A un accesso possono corrispondere piu' soci: il server deve sapere
+          per chi si sta chiedendo, e verifica comunque che sia dei tuoi. */}
+      <input type="hidden" name="socio_id" value={socioId} />
 
       {/* Dropdown attività */}
       <div>

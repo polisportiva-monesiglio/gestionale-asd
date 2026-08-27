@@ -9,6 +9,46 @@ export type ActionResult = { ok: true } | { ok: false; error: string }
 const MAX_DIMENSIONE_CERTIFICATO = 5 * 1024 * 1024 // 5MB, coerente col limite del bucket
 const FIRMA_PDF = '%PDF' // primi byte di un PDF valido
 
+/**
+ * Il socio per cui si sta agendo.
+ *
+ * A un account possono corrispondere piu' soci - un genitore che ha iscritto
+ * due figli con la propria email - quindi non basta piu' "il socio di questo
+ * utente": va detto quale, e va verificato che sia davvero suo.
+ *
+ * La verifica non e' formale: `socio_id` arriva da un campo del modulo, e
+ * senza il controllo su user_id chiunque potrebbe caricare un certificato o
+ * chiedere un abbonamento a nome di un altro socio. Le RLS lo fermerebbero
+ * comunque, ma un permesso negato a meta' operazione lascia le cose a meta'.
+ */
+async function socioDellUtente(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  socioIdRichiesto: string | null
+): Promise<{ id: string } | { errore: string }> {
+  const { data: soci, error } = await supabase
+    .from('soci')
+    .select('id')
+    .eq('user_id', userId)
+
+  if (error) return { errore: 'Non è stato possibile leggere il tuo profilo. Riprova.' }
+  if (!soci || soci.length === 0) return { errore: 'Profilo socio non trovato.' }
+
+  if (socioIdRichiesto) {
+    const trovato = soci.find(s => s.id === socioIdRichiesto)
+    return trovato ? { id: trovato.id } : { errore: 'Profilo socio non trovato.' }
+  }
+
+  // Nessun id indicato: va bene solo se di socio ce n'e' uno solo. Con piu'
+  // soci, scegliere per conto dell'utente significherebbe agire sulla persona
+  // sbagliata senza dirglielo.
+  if (soci.length > 1) {
+    return { errore: 'Scegli prima la persona a cui si riferisce la richiesta.' }
+  }
+
+  return { id: soci[0].id }
+}
+
 export async function uploadCertificato(
   _prev: ActionResult | null,
   formData: FormData
@@ -43,12 +83,9 @@ export async function uploadCertificato(
   emissione.setFullYear(emissione.getFullYear() + 1)
   const scadenzaCertificato = emissione.toISOString().split('T')[0]
 
-  const { data: socio } = await supabase
-    .from('soci')
-    .select('id')
-    .eq('user_id', user.id)
-    .single()
-  if (!socio) return { ok: false, error: 'Profilo socio non trovato.' }
+  const esito = await socioDellUtente(supabase, user.id, formData.get('socio_id') as string | null)
+  if ('errore' in esito) return { ok: false, error: esito.errore }
+  const socio = esito
 
   const annoSportivo = getAnnoSportivo()
 
@@ -144,12 +181,9 @@ export async function richiestaAbbonamento(
     return { ok: false, error: "Questa attività non è più disponibile. Ricarica la pagina e scegli fra quelle a listino." }
   }
 
-  const { data: socio } = await supabase
-    .from('soci')
-    .select('id')
-    .eq('user_id', user.id)
-    .single()
-  if (!socio) return { ok: false, error: 'Profilo socio non trovato.' }
+  const esito = await socioDellUtente(supabase, user.id, formData.get('socio_id') as string | null)
+  if ('errore' in esito) return { ok: false, error: esito.errore }
+  const socio = esito
 
   const annoSportivo = getAnnoSportivo()
 

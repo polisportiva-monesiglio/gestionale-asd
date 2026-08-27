@@ -6,7 +6,7 @@ import { Spinner } from '@/app/components/Spinner'
 
 const inputClass = 'w-full p-3.5 rounded-xl border border-gray-200 shadow-sm transition-all focus:outline-none focus:ring-2 bg-white focus:border-yellow-400 focus:ring-yellow-200 text-gray-800 hover:border-gray-300 text-sm'
 
-export default function UploadCertificatoForm({ hasExisting }: { hasExisting: boolean }) {
+export default function UploadCertificatoForm({ socioId, hasExisting }: { socioId: string; hasExisting: boolean }) {
   const [state, action, pending] = useActionState<ActionResult | null, FormData>(
     uploadCertificato,
     null
@@ -27,6 +27,9 @@ export default function UploadCertificatoForm({ hasExisting }: { hasExisting: bo
 
   return (
     <form action={action} className="space-y-4">
+      {/* A un accesso possono corrispondere piu' soci: il server deve sapere
+          per chi si sta caricando, e verifica comunque che sia dei tuoi. */}
+      <input type="hidden" name="socio_id" value={socioId} />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-1.5">

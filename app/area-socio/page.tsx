@@ -3,16 +3,31 @@ import { createClient } from '@/lib/supabase/server'
 import { getAnnoSportivo } from '@/lib/stagione'
 import AreaSocioTabs from './AreaSocioTabs'
 
-export default async function AreaSocioPage() {
+export default async function AreaSocioPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [chiave: string]: string | string[] | undefined }>
+}) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: socio } = await supabase
+  // Piu' d'uno quando un genitore ha iscritto piu' figli con la propria email.
+  // Non e' un cambio di identita': sono le persone che quell'account segue.
+  const { data: soci } = await supabase
     .from('soci')
     .select('id, nome, cognome, email')
     .eq('user_id', user.id)
-    .maybeSingle()
+    .order('nome')
+
+  const elenco = soci ?? []
+
+  // La persona scelta arriva dall'indirizzo, cosi' il collegamento e' condivisibile
+  // e la pagina resta un componente di server. L'identificativo va comunque
+  // confrontato con l'elenco: se non e' fra i suoi, si torna al primo.
+  const richiesto = (await searchParams).socio
+  const idRichiesto = Array.isArray(richiesto) ? richiesto[0] : richiesto
+  const socio = elenco.find(s => s.id === idRichiesto) ?? elenco[0] ?? null
 
   const annoSportivo = getAnnoSportivo()
 
@@ -160,9 +175,39 @@ export default async function AreaSocioPage() {
             </div>
           </div>
 
+          {/* Le persone seguite da questo accesso. Con una sola non compare
+              nulla: chi ha un solo tesserato non deve accorgersi di niente. */}
+          {elenco.length > 1 && (
+            <div className="bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-3xl border border-gray-100 p-4 sm:p-5">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3 pl-1">
+                Persone che segui
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {elenco.map(p => {
+                  const attiva = p.id === socio?.id
+                  return (
+                    <a
+                      key={p.id}
+                      href={`/area-socio?socio=${p.id}`}
+                      aria-current={attiva ? 'page' : undefined}
+                      className={
+                        attiva
+                          ? 'rounded-xl bg-yellow-400 px-4 py-2.5 text-sm font-bold text-gray-900'
+                          : 'rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm font-semibold text-gray-600 hover:bg-gray-100 hover:border-gray-300 transition-colors'
+                      }
+                    >
+                      {p.nome} {p.cognome}
+                    </a>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Contenuto con tab */}
           <div className="bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-3xl border border-gray-100 border-t-[6px] border-t-yellow-400 p-6 sm:p-8">
             <AreaSocioTabs
+              socioId={socio?.id ?? ''}
               tesseramento={tesseramento ?? null}
               certificatoUrl={certificatoUrl}
               storicoCertificati={storicoCertificatiConUrl}

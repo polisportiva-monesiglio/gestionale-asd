@@ -31,6 +31,8 @@ export type StoricoCertificato = {
 }
 
 type Props = {
+  /** Persona a cui si riferisce quello che si vede e si invia da qui. */
+  socioId: string
   tesseramento: {
     id: string
     data_scadenza_certificato: string | null
@@ -58,6 +60,7 @@ function statoScadenza(scadenza: string | null | undefined) {
 }
 
 export default function AreaSocioTabs({
+  socioId,
   tesseramento,
   certificatoUrl,
   storicoCertificati,
@@ -178,7 +181,7 @@ export default function AreaSocioTabs({
                   Salva il certificato in formato PDF e inserisci la data di emissione
                   riportata sul documento. La scadenza viene calcolata automaticamente (+1 anno).
                 </p>
-                <UploadCertificatoForm hasExisting={!!tesseramento.url_certificato_pdf} />
+                <UploadCertificatoForm socioId={socioId} hasExisting={!!tesseramento.url_certificato_pdf} />
               </div>
 
               {/* Storico caricamenti precedenti */}
@@ -251,6 +254,7 @@ export default function AreaSocioTabs({
                     Scegli l&apos;abbonamento e il metodo di pagamento. Riceverai conferma dalla segreteria.
                   </p>
                   <RichiestaAbbonamentoForm
+                    socioId={socioId}
                     attivita={attivita}
                     uispApplicabile={uispApplicabile}
                   />
