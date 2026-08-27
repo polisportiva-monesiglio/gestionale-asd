@@ -38,7 +38,7 @@ export default function FormIscrizione() {
     consensoRegolamento: false,
     consensoVideosorveglianza: false,
     consensoInformativaPrivacy: false, // GDPR Obbligatorio
-    consensoPrivacy: false, // Uso Immagini Facoltativo
+    consensoImmagini: false, // facoltativo: pubblicazione di foto e video
   })
 
   const [touched, setTouched] = useState<Record<string, boolean>>({})
@@ -174,7 +174,7 @@ export default function FormIscrizione() {
     consensoRegolamento: formData.consensoRegolamento,
     consensoVideosorveglianza: formData.consensoVideosorveglianza,
     consensoInformativaPrivacy: formData.consensoInformativaPrivacy,
-    consensoPrivacy: formData.consensoPrivacy,
+    consensoImmagini: formData.consensoImmagini,
   })
 
   // Se dopo l'invio del codice l'utente torna indietro e modifica un dato
@@ -694,8 +694,8 @@ export default function FormIscrizione() {
                 <label className="flex items-start cursor-pointer group p-4 bg-gray-50 hover:bg-yellow-50/50 rounded-xl transition-colors border border-gray-200 hover:border-yellow-400 shadow-sm">
                   <input 
                     type="checkbox" 
-                    name="consensoPrivacy" 
-                    checked={formData.consensoPrivacy} 
+                    name="consensoImmagini" 
+                    checked={formData.consensoImmagini} 
                     onChange={handleChange} 
                     className="mt-0.5 h-5 w-5 accent-yellow-400 border-gray-300 rounded cursor-pointer" 
                   />

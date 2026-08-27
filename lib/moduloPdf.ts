@@ -143,9 +143,9 @@ export async function componiModuloFirmato(
 
   // --- SEZIONE 4: PRIVACY, DATA E FIRME ---
   const haAcconsentito =
-    dati.consensoPrivacy === true ||
-    dati.consensoPrivacy === 'true' ||
-    dati.consensoPrivacy === 'on'
+    dati.consensoImmagini === true ||
+    dati.consensoImmagini === 'true' ||
+    dati.consensoImmagini === 'on'
 
   const testoConsenso = haAcconsentito
     ? "ACCONSENTE all'uso delle immagini"
