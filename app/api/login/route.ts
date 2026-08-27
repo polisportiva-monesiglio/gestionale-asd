@@ -3,6 +3,7 @@ import crypto from 'crypto'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { ipDellaRichiesta } from '@/lib/ip'
+import { emailPlausibile } from '@/lib/email'
 
 // La stessa frase in ogni caso in cui la richiesta è ben formata: indirizzo
 // riconosciuto o no, chi guarda lo schermo vede questo e nient'altro. Se le
@@ -12,12 +13,6 @@ const RISPOSTA_UNICA = {
   success: true,
   messaggio:
     'Se l\'indirizzo è registrato, riceverai un link per accedere. Controlla la tua casella di posta.',
-}
-
-function emailPlausibile(valore: unknown): valore is string {
-  if (typeof valore !== 'string') return false
-  const v = valore.trim()
-  return v.length > 0 && v.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v)
 }
 
 /**

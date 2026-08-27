@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import { hashDatiFirma } from '@/lib/firmaHash';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { ipDellaRichiesta } from '@/lib/ip';
+import { emailPlausibile } from '@/lib/email';
 
 // Inizializza il postino con la tua chiave segreta
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -20,15 +21,6 @@ function testoSicuroHtml(valore: unknown): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
-}
-
-// Non pretende di validare ogni indirizzo esistente: serve a impedire che una
-// stringa qualsiasi arrivi fino a Resend. Prima l'unico controllo era che il
-// campo non fosse vuoto.
-function emailPlausibile(valore: unknown): valore is string {
-  if (typeof valore !== 'string') return false;
-  const v = valore.trim();
-  return v.length > 0 && v.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v);
 }
 
 export async function POST(req: NextRequest) {

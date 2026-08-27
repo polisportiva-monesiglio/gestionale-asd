@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { normalizzaTelefono } from '@/lib/telefono'
+import { emailPlausibile } from '@/lib/email'
 import { revalidatePath } from 'next/cache'
 
 export type AdminResult =
@@ -49,6 +50,11 @@ export async function invitaGestore(
   const nome        = (formData.get('nome')     as string | null)?.trim() || null
   const telefonoRaw = (formData.get('telefono') as string | null)?.trim() || ''
   if (!email) return { ok: false, error: 'Inserisci un\'email.' }
+  // Un indirizzo malformato entrerebbe in tabella senza protestare, e quel
+  // gestore non riuscirebbe mai ad accedere: l'email è la chiave di aggancio
+  // col login ed è immodificabile dopo il primo accesso, quindi l'unico
+  // rimedio sarebbe cancellare la voce e rifarla.
+  if (!emailPlausibile(email)) return { ok: false, error: 'Email non valida.' }
 
   const telefono = normalizzaTelefono(telefonoRaw)
   if (telefonoRaw && !telefono) {
@@ -139,7 +145,7 @@ export async function aggiornaDatiGestore(
       return { ok: false, error: 'Email non modificabile dopo il primo accesso: rimuovi il gestore e ricrealo con la nuova email.' }
     }
     const email = emailRaw.trim().toLowerCase()
-    if (!email || !/^\S+@\S+\.\S+$/.test(email)) {
+    if (!emailPlausibile(email)) {
       return { ok: false, error: 'Email non valida.' }
     }
     update.email = email
