@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from 'react'
-import { supabase } from '@/lib/supabase'
 import { Spinner } from '@/app/components/Spinner'
 
 export default function LoginPage() {
@@ -14,20 +13,29 @@ export default function LoginPage() {
     setStato('invio')
     setErrore('')
 
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      },
-    })
+    // Il link di accesso lo chiede il server, non più il browser: solo così
+    // si può controllare che l'indirizzo appartenga a un socio o a un gestore
+    // prima di spedirlo. Fatto da qui, con la chiave pubblica, ogni indirizzo
+    // digitato faceva nascere un utente in auth.users.
+    try {
+      const risposta = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
+      const esito = await risposta.json()
 
-    if (error) {
-      setErrore(error.message)
+      if (!risposta.ok) {
+        setErrore(esito.error ?? "Non è stato possibile inviare il link di accesso.")
+        setStato('errore')
+        return
+      }
+
+      setStato('inviato')
+    } catch {
+      setErrore("Non è stato possibile contattare il server. Riprova.")
       setStato('errore')
-      return
     }
-
-    setStato('inviato')
   }
 
   return (
@@ -40,7 +48,8 @@ export default function LoginPage() {
 
         {stato === 'inviato' ? (
           <div className="rounded-lg bg-green-50 border border-green-200 text-green-800 text-sm p-4">
-            Controlla la tua casella di posta e clicca sul link che ti abbiamo inviato per accedere.
+            Se l&apos;indirizzo &egrave; registrato, riceverai un link per accedere.
+            Controlla la tua casella di posta.
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
