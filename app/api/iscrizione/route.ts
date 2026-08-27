@@ -104,7 +104,32 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  // 1-ter. Solo ora il codice viene speso.
+  // 1-ter. Il percorso del certificato arriva dal browser e non è coperto
+  //    dall'impronta che lega l'OTP ai dati: va quindi verificato qui.
+  //    Due controlli, perché servono a due cose diverse.
+  if (certificatoPath !== null) {
+    // Forma: il caricamento pubblico può scrivere solo sotto `iscrizioni/`, e
+    // il nome è un identificativo casuale. Fuori da lì il riferimento punta a
+    // qualcosa che questo percorso non ha il diritto di indicare.
+    if (!/^iscrizioni\/[A-Za-z0-9._-]{1,120}$/.test(certificatoPath)) {
+      return NextResponse.json({ error: 'Riferimento del certificato non valido' }, { status: 400 })
+    }
+
+    // Unicità: senza questo, chi chiama l'API a mano può indicare il
+    // certificato già allegato a un altro socio e farsi attribuire il suo
+    // documento sanitario. Il gestore che poi lo apre valuterebbe l'idoneità
+    // sul certificato della persona sbagliata.
+    const [{ data: suTesseramenti }, { data: suStorico }] = await Promise.all([
+      supabase.from('tesseramenti_annuali').select('id').eq('url_certificato_pdf', certificatoPath).limit(1),
+      supabase.from('certificati_medici_storico').select('id').eq('url_certificato_pdf', certificatoPath).limit(1),
+    ])
+
+    if ((suTesseramenti?.length ?? 0) > 0 || (suStorico?.length ?? 0) > 0) {
+      return NextResponse.json({ error: 'Riferimento del certificato non valido' }, { status: 400 })
+    }
+  }
+
+  // 1-quater. Solo ora il codice viene speso.
   if (!(await consumaOtp(esito.tokenHash))) {
     return NextResponse.json(
       { error: 'Questo codice è già stato utilizzato per una firma. Richiedine uno nuovo.' },
@@ -192,6 +217,11 @@ export async function POST(req: NextRequest) {
     otp_generato: esito.otpHash,
     ip_firma: ip,
     timestamp_firma: firmatoIl.toISOString(),
+    // Un solo nome per ogni consenso, e il nome dice di quale si tratta.
+    // Prima esisteva anche `consenso_privacy`, che però conteneva il consenso
+    // facoltativo alle immagini: chi lo avesse letto per sapere se il socio
+    // aveva accettato l'informativa avrebbe ottenuto l'esatto contrario del
+    // vero per ogni socio che ha rifiutato le foto.
     consensi: {
       consensi_salute: dati.consensoSalute,
       regolamento: dati.consensoRegolamento,
@@ -199,9 +229,8 @@ export async function POST(req: NextRequest) {
       versione_statuto: VERSIONE_STATUTO,
       consensi_videosorveglianza: dati.consensoVideosorveglianza,
       consenso_informativa_privacy: dati.consensoInformativaPrivacy,
-      consenso_privacy: dati.consensoPrivacy,
       versione_privacy: VERSIONE_PRIVACY,
-      consenso_immagini_facoltativo: dati.consensoPrivacy,
+      consenso_immagini_facoltativo: dati.consensoImmagini,
     },
   })
 
