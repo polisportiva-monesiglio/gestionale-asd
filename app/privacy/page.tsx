@@ -276,12 +276,21 @@ export default function PrivacyPage() {
               navigazione. A chi visita il sito senza autenticarsi non viene rilasciato alcun cookie.
             </p>
             <p>
-              Quando accedi alla tua area riservata vengono impostati cookie <em>tecnici</em> di
-              sessione, necessari a mantenerti autenticato durante la visita. Sono indispensabili per
-              erogare il servizio che hai richiesto e, ai sensi dell&apos;art. 122 del Codice Privacy
-              e delle Linee guida del Garante del 10 giugno 2021, non richiedono il tuo consenso.
-              Puoi comunque eliminarli in ogni momento dalle impostazioni del browser: in tal caso
-              dovrai autenticarti di nuovo.
+              Nel momento in cui <strong className="text-gray-900">chiedi il link di accesso</strong>,
+              il sito registra sul tuo browser un cookie tecnico che serve a verificare che il link
+              venga poi aperto dallo stesso browser da cui &egrave; stato richiesto: &egrave; ci&ograve; che impedisce
+              a chi intercettasse il messaggio di usarlo al posto tuo. Non &egrave; un cookie di sessione
+              e resta sul tuo dispositivo fino a un massimo di 400 giorni, se non lo elimini prima.
+            </p>
+            <p>
+              Quando l&apos;accesso si completa vengono impostati i cookie <em>di sessione</em> che ti
+              mantengono autenticato per la durata della visita.
+            </p>
+            <p>
+              Sono tutti cookie <em>tecnici</em>, indispensabili per erogare il servizio che hai
+              richiesto: ai sensi dell&apos;art. 122 del Codice Privacy e delle Linee guida del Garante
+              del 10 giugno 2021 non richiedono il tuo consenso. Puoi eliminarli in ogni momento
+              dalle impostazioni del browser: in tal caso dovrai autenticarti di nuovo.
             </p>
             <p>
               I caratteri tipografici usati dal sito sono ospitati sui nostri stessi server: nessuna
