@@ -46,6 +46,7 @@ export async function confermaPagamento(
     .from('abbonamenti_soci')
     .select(`
       id, stato_pagamento, importo_tesseramento_uisp, metodo_pagamento, data_acquisto,
+      numero_ricevuta_riservato,
       catalogo_attivita(nome_attivita, prezzo_base),
       soci(id, nome, cognome, email, cf)
     `)
@@ -68,15 +69,35 @@ export async function confermaPagamento(
   if (claimErr) return { ok: false, error: `Aggiornamento stato fallito: ${claimErr.message}` }
   if (!claimed) return { ok: false, error: 'Richiesta già confermata da un altro gestore.' }
 
-  // Numero ricevuta sequenziale per anno, generato atomicamente lato DB
+  // Numero ricevuta sequenziale per anno, generato atomicamente lato DB.
+  //
+  // Se un tentativo precedente su questo stesso abbonamento aveva gia' estratto
+  // un numero senza arrivare a salvare la ricevuta, si riusa quello: sotto quel
+  // numero non e' mai stato emesso nulla, e prenderne un altro lascerebbe un
+  // salto permanente nella numerazione. La conferma e' esclusiva per
+  // abbonamento (vedi il claim qui sopra), quindi non c'e' modo che due
+  // ricevute diverse finiscano sullo stesso numero.
   const anno = new Date().getFullYear()
-  const { data: numeroRicevuta, error: numeroErr } = await supabase
-    .rpc('genera_numero_ricevuta', { p_anno: anno })
+  let numeroRicevuta = ab.numero_ricevuta_riservato as string | null
 
-  if (numeroErr || !numeroRicevuta) {
-    // Rilascia il claim per non lasciare l'abbonamento bloccato su "pagato" senza ricevuta
-    await supabase.from('abbonamenti_soci').update({ stato_pagamento: 'da_saldare' }).eq('id', abbonamentiId)
-    return { ok: false, error: `Generazione numero ricevuta fallita: ${numeroErr?.message ?? 'errore sconosciuto'}` }
+  if (!numeroRicevuta) {
+    const { data: nuovoNumero, error: numeroErr } = await supabase
+      .rpc('genera_numero_ricevuta', { p_anno: anno })
+
+    if (numeroErr || !nuovoNumero) {
+      // Rilascia il claim per non lasciare l'abbonamento bloccato su "pagato" senza ricevuta
+      await supabase.from('abbonamenti_soci').update({ stato_pagamento: 'da_saldare' }).eq('id', abbonamentiId)
+      return { ok: false, error: `Generazione numero ricevuta fallita: ${numeroErr?.message ?? 'errore sconosciuto'}` }
+    }
+
+    numeroRicevuta = nuovoNumero as string
+
+    // Annotato subito: se il salvataggio si interrompe da qui in poi, il
+    // prossimo tentativo ritrova questo numero invece di bruciarne un altro.
+    await supabase
+      .from('abbonamenti_soci')
+      .update({ numero_ricevuta_riservato: numeroRicevuta })
+      .eq('id', abbonamentiId)
   }
 
   const socio = Array.isArray(ab.soci) ? ab.soci[0] : (ab.soci as { nome?: string; cognome?: string; email?: string; cf?: string } | null)
