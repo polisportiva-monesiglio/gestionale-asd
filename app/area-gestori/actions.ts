@@ -78,7 +78,14 @@ export async function confermaPagamento(
   // abbonamento (vedi il claim qui sopra), quindi non c'e' modo che due
   // ricevute diverse finiscano sullo stesso numero.
   const anno = new Date().getFullYear()
-  let numeroRicevuta = ab.numero_ricevuta_riservato as string | null
+  const riservato = ab.numero_ricevuta_riservato as string | null
+
+  // Il numero riservato vale solo dentro il proprio anno. Una conferma iniziata
+  // il 31 dicembre e ripresa il 2 gennaio riuserebbe altrimenti un numero del
+  // 2025 su una ricevuta datata 2026, archiviata sotto la cartella del 2026:
+  // il contatore e' per anno, e mescolarli disfa proprio la sequenza che serve
+  // a tenere. In quel caso il salto nell'anno abbandonato e' il male minore.
+  let numeroRicevuta = riservato && riservato.startsWith(`RIC-${anno}-`) ? riservato : null
 
   if (!numeroRicevuta) {
     const { data: nuovoNumero, error: numeroErr } = await supabase
@@ -94,10 +101,21 @@ export async function confermaPagamento(
 
     // Annotato subito: se il salvataggio si interrompe da qui in poi, il
     // prossimo tentativo ritrova questo numero invece di bruciarne un altro.
-    await supabase
+    //
+    // L'esito si controlla, perche' e' l'annotazione stessa a reggere la
+    // promessa: se fallisse in silenzio e poi fallisse anche l'archiviazione,
+    // il tentativo successivo non troverebbe nulla da riusare e brucerebbe un
+    // numero — cioe' esattamente il difetto che questa riserva esiste per
+    // evitare, solo piu' difficile da notare.
+    const { error: riservaErr } = await supabase
       .from('abbonamenti_soci')
       .update({ numero_ricevuta_riservato: numeroRicevuta })
       .eq('id', abbonamentiId)
+
+    if (riservaErr) {
+      await supabase.from('abbonamenti_soci').update({ stato_pagamento: 'da_saldare' }).eq('id', abbonamentiId)
+      return { ok: false, error: `Riserva del numero di ricevuta fallita: ${riservaErr.message}` }
+    }
   }
 
   const socio = Array.isArray(ab.soci) ? ab.soci[0] : (ab.soci as { nome?: string; cognome?: string; email?: string; cf?: string } | null)

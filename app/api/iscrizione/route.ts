@@ -123,10 +123,21 @@ export async function POST(req: NextRequest) {
     // certificato già allegato a un altro socio e farsi attribuire il suo
     // documento sanitario. Il gestore che poi lo apre valuterebbe l'idoneità
     // sul certificato della persona sbagliata.
-    const [{ data: suTesseramenti }, { data: suStorico }] = await Promise.all([
+    const [
+      { data: suTesseramenti, error: errTesseramenti },
+      { data: suStorico, error: errStorico },
+    ] = await Promise.all([
       supabase.from('tesseramenti_annuali').select('id').eq('url_certificato_pdf', certificatoPath).limit(1),
       supabase.from('certificati_medici_storico').select('id').eq('url_certificato_pdf', certificatoPath).limit(1),
     ])
+
+    // Se la verifica non si è potuta fare, non è passata: con `data` a null il
+    // conteggio sarebbe zero e il controllo si lascerebbe attraversare proprio
+    // quando il database ha un problema. Un guasto non è un'autorizzazione.
+    if (errTesseramenti || errStorico) {
+      console.error('Controllo unicità del certificato fallito:', errTesseramenti?.message ?? errStorico?.message)
+      return NextResponse.json({ error: 'Errore interno del server' }, { status: 500 })
+    }
 
     if ((suTesseramenti?.length ?? 0) > 0 || (suStorico?.length ?? 0) > 0) {
       return NextResponse.json({ error: 'Riferimento del certificato non valido' }, { status: 400 })

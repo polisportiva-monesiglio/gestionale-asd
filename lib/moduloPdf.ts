@@ -13,6 +13,12 @@ const SEGNI_DIACRITICI = new RegExp(`[${SEGNO_DIACRITICO_INIZIO}-${SEGNO_DIACRIT
 // turco ğ/ş, romeno ț/ș, polacco ł, cirillico, ecc). Senza questo controllo
 // pdf-lib lancia un errore e l'intera generazione del documento fallisce
 // per un singolo carattere non rappresentabile in un nome o un comune.
+const TRASLITTERAZIONI: Record<string, string> = {
+  'Ł': 'L', 'ł': 'l', 'Đ': 'D', 'đ': 'd', 'Ð': 'D', 'ð': 'd',
+  'Ø': 'O', 'ø': 'o', 'Þ': 'Th', 'þ': 'th', 'ß': 'ss',
+  'Æ': 'AE', 'æ': 'ae', 'Œ': 'OE', 'œ': 'oe', 'ı': 'i', 'Ŋ': 'N', 'ŋ': 'n',
+}
+
 function testoCompatibile(font: PDFFont, valore: unknown): string {
   const testo = valore == null ? '' : String(valore)
   if (!testo) return testo
@@ -23,6 +29,12 @@ function testoCompatibile(font: PDFFont, valore: unknown): string {
     return testo
       .normalize('NFKD')
       .replace(SEGNI_DIACRITICI, '')
+      // NFKD scompone le lettere accentate, non quelle che il tratto ce
+      // l'hanno dentro: ł, đ, ø non sono "l con segno sopra", sono lettere a
+      // sé. Senza questa riga finivano nel '?' qui sotto, e un cognome come
+      // Kowalski scritto "?ukasz" su un documento che serve a provare chi ha
+      // firmato è un difetto, non un dettaglio tipografico.
+      .replace(/[ŁłĐđÐðØøÞþßÆæŒœıŊŋ]/g, c => TRASLITTERAZIONI[c] ?? c)
       .replace(/[^\x00-\x7F]/g, '?')
   }
 }
@@ -31,7 +43,8 @@ const CAMPI_TESTO_PDF = [
   'nome', 'cognome', 'dataNascita', 'luogoNascita', 'provinciaNascita',
   'codiceFiscale', 'cittadinanza', 'indirizzoResidenza', 'cittaResidenza',
   'provinciaResidenza', 'email', 'telefono', 'tel', 'cellulare',
-  'genitoreNome', 'genitoreCognome', 'genitoreContattoScelta', 'genitoreContatto',
+  'genitoreNome', 'genitoreCognome', 'genitoreEmail',
+  'genitoreContattoScelta', 'genitoreContatto',
 ] as const
 
 // Il server esegue in UTC: senza fissare il fuso, il modulo stamperebbe un
@@ -180,11 +193,20 @@ export async function componiModuloFirmato(
   ]
 
   if (prova.firmatario?.minorenne) {
-    const chi = [prova.firmatario.nome, prova.firmatario.cognome].filter(Boolean).join(' ')
+    // Anche questi passano dalla ripulitura WinAnsi. Arrivano da `prova`, non
+    // da `dati`, quindi il giro fatto sopra su CAMPI_TESTO_PDF non li tocca:
+    // le stringhe sono immutabili e `firmatario` è un altro oggetto. Senza,
+    // un cognome con ł, ș o ğ farebbe lanciare pdf-lib — e succederebbe dopo
+    // che l'OTP è stato consumato, quindi con un codice ormai bruciato e la
+    // stessa iscrizione destinata a fallire a ogni nuovo tentativo.
+    const nome = testoCompatibile(font, prova.firmatario.nome)
+    const cognome = testoCompatibile(font, prova.firmatario.cognome)
+    const email = testoCompatibile(font, prova.firmatario.email)
+    const chi = [nome, cognome].filter(Boolean).join(' ')
     righeFirma.push(
       `Sottoscritto da ${chi || 'il genitore'}, in qualità di esercente la`,
       `responsabilità genitoriale sul socio minorenne.`,
-      `Codice inviato a: ${prova.firmatario.email}`
+      `Codice inviato a: ${email}`
     )
   }
 
