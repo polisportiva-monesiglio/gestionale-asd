@@ -61,6 +61,13 @@ export type ProvaFirma = {
   firmatoIl: Date
   /** Stagione sportiva calcolata dal server */
   annoSportivo: string
+  /** Chi ha sottoscritto il modulo, come determinato dal server */
+  firmatario?: {
+    email: string
+    minorenne: boolean
+    nome: string | null
+    cognome: string | null
+  }
 }
 
 /**
@@ -126,9 +133,12 @@ export async function componiModuloFirmato(
     firstPage.drawText('TESSERATO MINORENNE', { x: 109, y: 340, size: 10, font: fontBold })
     const datiGenitore = `Genitore/Tutore: ${dati.genitoreNome} ${dati.genitoreCognome}`
     firstPage.drawText(datiGenitore, { x: 109, y: 325, size: 11, font: fontBold })
+    if (dati.genitoreEmail) {
+      firstPage.drawText(`Email Genitore: ${dati.genitoreEmail}`, { x: 109, y: 310, size: textSize, font })
+    }
     if (dati.genitoreContatto) {
       const contattoGenitore = `Recapito Genitore (${dati.genitoreContattoScelta || 'Email'}): ${dati.genitoreContatto}`
-      firstPage.drawText(contattoGenitore, { x: 109, y: 310, size: textSize, font })
+      firstPage.drawText(contattoGenitore, { x: 109, y: 296, size: textSize, font })
     }
   }
 
@@ -156,13 +166,29 @@ export async function componiModuloFirmato(
   const luogoData = `${luogoCompilazione}, ${dataItaliana(prova.firmatoIl)}`
   firstPage.drawText(luogoData, { x: 148, y: 118, size: textSize, font })
 
-  // Firma elettronica: i tre elementi provengono tutti dal server
-  const testoFirmaOTP =
-    `Firma elettronica validata tramite codice OTP (rif. ${prova.otpHash.slice(0, 16)})\n` +
-    `Apposta il: ${dataOraItaliana(prova.firmatoIl)} (ora italiana)\n` +
-    `Indirizzo IP: ${prova.ip}`
+  // Firma elettronica: tutti gli elementi provengono dal server.
+  //
+  // Per un socio minorenne il modulo lo sottoscrive chi esercita la
+  // responsabilità genitoriale, e il codice viene spedito al suo indirizzo: il
+  // documento deve dirlo. Dalla sola riga della firma, altrimenti, non si
+  // capisce né chi l'abbia apposta né a che titolo — che è esattamente ciò che
+  // rende opponibile una sottoscrizione fatta per conto di un minore.
+  const righeFirma = [
+    `Firma elettronica validata tramite codice OTP (rif. ${prova.otpHash.slice(0, 16)})`,
+    `Apposta il: ${dataOraItaliana(prova.firmatoIl)} (ora italiana)`,
+    `Indirizzo IP: ${prova.ip}`,
+  ]
 
-  firstPage.drawText(testoFirmaOTP, { x: 230, y: 102, size: 9, font, lineHeight: 12 })
+  if (prova.firmatario?.minorenne) {
+    const chi = [prova.firmatario.nome, prova.firmatario.cognome].filter(Boolean).join(' ')
+    righeFirma.push(
+      `Sottoscritto da ${chi || 'il genitore'}, in qualità di esercente la`,
+      `responsabilità genitoriale sul socio minorenne.`,
+      `Codice inviato a: ${prova.firmatario.email}`
+    )
+  }
+
+  firstPage.drawText(righeFirma.join('\n'), { x: 230, y: 102, size: 9, font, lineHeight: 12 })
 
   return pdfDoc.save()
 }

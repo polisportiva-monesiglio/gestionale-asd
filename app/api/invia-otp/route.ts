@@ -5,6 +5,7 @@ import { hashDatiFirma } from '@/lib/firmaHash';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { ipDellaRichiesta } from '@/lib/ip';
 import { emailPlausibile } from '@/lib/email';
+import { firmatarioDi } from '@/lib/firmatario';
 
 // Inizializza il postino con la tua chiave segreta
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -25,11 +26,27 @@ function testoSicuroHtml(valore: unknown): string {
 
 export async function POST(req: NextRequest) {
   try {
-    const { emailDestinatario, nome, dati } = await req.json();
+    const { dati } = await req.json();
 
-    if (!emailPlausibile(emailDestinatario)) {
-      return NextResponse.json({ error: 'Email mancante o non valida' }, { status: 400 });
+    // Il destinatario lo decide il server, non il browser. Prima arrivava
+    // gia' scelto dal client: bastava dichiararlo per far recapitare altrove
+    // il codice che vale come firma. E soprattutto era una scelta diversa da
+    // quella con cui /api/iscrizione poi verificava il codice.
+    const firmatario = firmatarioDi(dati ?? {});
+
+    if (!emailPlausibile(firmatario.email)) {
+      return NextResponse.json(
+        {
+          error: firmatario.minorenne
+            ? "Per un socio minorenne serve l'email del genitore o di chi ne esercita la responsabilita'."
+            : 'Email mancante o non valida',
+        },
+        { status: 400 }
+      );
     }
+
+    const emailDestinatario = firmatario.email;
+    const nome = firmatario.nome;
 
     const secret = process.env.OTP_SECRET;
     if (!secret) {

@@ -26,6 +26,7 @@ export default function FormIscrizione() {
     // Dati genitore (se minorenne)
     genitoreNome: '',
     genitoreCognome: '',
+    genitoreEmail: '',
     genitoreContattoScelta: 'whatsapp',
     genitoreContatto: '',
 
@@ -96,6 +97,10 @@ export default function FormIscrizione() {
     if (isMinorenne()) {
       if (!formData.genitoreNome) errs.genitoreNome = "Obbligatorio"
       if (!formData.genitoreCognome) errs.genitoreCognome = "Obbligatorio"
+      // Obbligatoria: e' l'indirizzo a cui arriva il codice con cui il
+      // genitore firma. Senza, firmerebbe il ragazzo.
+      if (!formData.genitoreEmail) errs.genitoreEmail = "Obbligatorio"
+      else if (!/^\S+@\S+\.\S+$/.test(formData.genitoreEmail)) errs.genitoreEmail = "Email non valida"
       if (!formData.genitoreContatto) errs.genitoreContatto = "Obbligatorio"
       else if (formData.genitoreContattoScelta === 'email' && !/^\S+@\S+\.\S+$/.test(formData.genitoreContatto)) {
         errs.genitoreContatto = "Email non valida"
@@ -143,9 +148,11 @@ export default function FormIscrizione() {
 
   // Email a cui viene inviato (e con cui viene verificato) il codice OTP
   const getEmailOtp = () => {
-    return under18 && formData.genitoreContattoScelta === 'email'
-      ? formData.genitoreContatto
-      : formData.email
+    // Per un minorenne firma il genitore, sempre: il canale preferito per le
+    // comunicazioni non c'entra con dove va spedito il codice della firma.
+    // Il server applica la stessa regola in autonomia (lib/firmatario.ts);
+    // questa serve solo a mostrare l'indirizzo giusto a schermo.
+    return under18 ? formData.genitoreEmail : formData.email
   }
 
   // Snapshot dei dati che costituiscono il contenuto dichiarato/firmato
@@ -168,6 +175,7 @@ export default function FormIscrizione() {
     telefono: formData.telefono,
     genitoreNome: formData.genitoreNome,
     genitoreCognome: formData.genitoreCognome,
+    genitoreEmail: formData.genitoreEmail,
     genitoreContattoScelta: formData.genitoreContattoScelta,
     genitoreContatto: formData.genitoreContatto,
     consensoSalute: formData.consensoSalute,
@@ -208,11 +216,10 @@ export default function FormIscrizione() {
       const response = await fetch('/api/invia-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            emailDestinatario: emailDestinatario,
-            nome: under18 ? formData.genitoreNome : formData.nome,
-            dati: buildDatiFirma(),
-        }),
+        // Destinatario e nome non si mandano piu': li ricava il server dai
+        // dati firmati. Se li scegliesse il browser, basterebbe cambiarli per
+        // far recapitare altrove il codice che vale come firma.
+        body: JSON.stringify({ dati: buildDatiFirma() }),
       })
 
       const data = await response.json()
@@ -531,6 +538,16 @@ export default function FormIscrizione() {
                       <input type="text" name="genitoreCognome" value={formData.genitoreCognome} onChange={handleChange} onBlur={handleBlur} className={getInputClass('genitoreCognome')} />
                       <ErrorMsg name="genitoreCognome" />
                     </div>
+                    <div className="sm:col-span-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">
+                        Email del genitore/tutore <span className="text-red-500">*</span>
+                      </label>
+                      <p className="text-xs text-gray-500 mb-1">
+                        A questo indirizzo inviamo il codice con cui firmare l&apos;iscrizione: per un socio minorenne il modulo lo sottoscrive chi esercita la responsabilit&agrave; genitoriale.
+                      </p>
+                      <input type="email" name="genitoreEmail" value={formData.genitoreEmail} onChange={handleChange} onBlur={handleBlur} className={getInputClass('genitoreEmail')} placeholder="mario.rossi@email.it" />
+                      <ErrorMsg name="genitoreEmail" />
+                    </div>
                     
                     <div className="md:col-span-2 mt-2">
                       <label className="block text-sm font-semibold text-gray-700 mb-3">Canale preferito per comunicazioni e avvisi</label>
@@ -712,7 +729,7 @@ export default function FormIscrizione() {
                     <p className="text-gray-600 mb-6 font-medium">
                       Invieremo un codice di sicurezza gratuito per firmare all'indirizzo email:<br/>
                       <strong className="text-2xl text-gray-900 font-extrabold block mt-2 break-all">
-                        {under18 && formData.genitoreContattoScelta === 'email' ? formData.genitoreContatto : formData.email}
+                        {getEmailOtp()}
                       </strong>
                     </p>
                     <button 

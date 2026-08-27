@@ -8,7 +8,8 @@ const CAMPI_DATI_FIRMA = [
   'nome', 'cognome', 'sesso', 'dataNascita', 'luogoNascita', 'provinciaNascita',
   'cittadinanza', 'codiceFiscale', 'indirizzoResidenza', 'cittaResidenza',
   'capResidenza', 'provinciaResidenza', 'email', 'telefono',
-  'genitoreNome', 'genitoreCognome', 'genitoreContattoScelta', 'genitoreContatto',
+  'genitoreNome', 'genitoreCognome', 'genitoreEmail',
+  'genitoreContattoScelta', 'genitoreContatto',
   'consensoSalute', 'consensoRegolamento', 'consensoVideosorveglianza',
   'consensoInformativaPrivacy', 'consensoImmagini',
 ] as const

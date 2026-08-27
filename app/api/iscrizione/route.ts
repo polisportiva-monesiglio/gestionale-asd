@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { ipDellaRichiesta } from '@/lib/ip'
+import { eMinorenne, firmatarioDi } from '@/lib/firmatario'
 import { verificaOtp, consumaOtp } from '@/lib/otp'
 import { componiModuloFirmato } from '@/lib/moduloPdf'
 import { getAnnoSportivo } from '@/lib/stagione'
@@ -13,15 +14,6 @@ import { normalizzaTelefono } from '@/lib/telefono'
 const VERSIONE_REGOLAMENTO = 'v1.0_2026'
 const VERSIONE_STATUTO = 'v1.0_2026'
 const VERSIONE_PRIVACY = 'v1.0_2026'
-
-function eMinorenne(dataNascita: string, riferimento: Date): boolean {
-  const nascita = new Date(dataNascita)
-  if (Number.isNaN(nascita.getTime())) return false
-  let eta = riferimento.getFullYear() - nascita.getFullYear()
-  const scartoMesi = riferimento.getMonth() - nascita.getMonth()
-  if (scartoMesi < 0 || (scartoMesi === 0 && riferimento.getDate() < nascita.getDate())) eta--
-  return eta < 18
-}
 
 function scadenzaCertificato(dataEmissione: string): string | null {
   const d = new Date(dataEmissione)
@@ -59,7 +51,19 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  const emailFirma = String(dati.email).trim()
+  // Chi firma: per un minorenne e' il genitore, e il codice e' stato spedito a
+  // lui. La regola e' la stessa usata da /api/invia-otp per scegliere dove
+  // spedire, perche' viene dalla stessa funzione: se qui si verificasse contro
+  // un indirizzo diverso, nessun minorenne riuscirebbe a firmare.
+  const firmatario = firmatarioDi(dati)
+  const emailFirma = firmatario.email
+
+  if (!emailFirma) {
+    return NextResponse.json(
+      { error: "Manca l'email di chi sottoscrive il modulo" },
+      { status: 400 }
+    )
+  }
 
   // 0. Il client di servizio si crea per primo: se la configurazione fosse
   //    incompleta, verificare l'OTP prima significherebbe consumarlo — è
@@ -159,6 +163,12 @@ export async function POST(req: NextRequest) {
       ip,
       firmatoIl,
       annoSportivo,
+      firmatario: {
+        email: emailFirma,
+        minorenne: firmatario.minorenne,
+        nome: firmatario.nome,
+        cognome: firmatario.cognome,
+      },
     })
   } catch (e) {
     console.error('Composizione del modulo fallita:', e)
@@ -183,10 +193,13 @@ export async function POST(req: NextRequest) {
     citta: dati.cittaResidenza,
     provincia_residenza: dati.provinciaResidenza,
     telefono: normalizzaTelefono(dati.telefono),
-    email: emailFirma,
+    // L'email del socio resta la sua, anche quando a firmare e' il genitore:
+    // l'indirizzo di chi ha firmato si conserva a parte, in genitore_email.
+    email: String(dati.email).trim(),
     minorenne,
     genitore_nome: minorenne ? dati.genitoreNome : null,
     genitore_cognome: minorenne ? dati.genitoreCognome : null,
+    genitore_email: minorenne ? emailFirma : null,
     genitore_contatto_preferito: minorenne ? dati.genitoreContattoScelta : null,
     genitore_recapito: minorenne ? dati.genitoreContatto : null,
   })

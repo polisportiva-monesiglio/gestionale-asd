@@ -1,21 +1,4 @@
-// Fuso in cui vive l'Associazione. La stagione cambia a una data di calendario,
-// e una data di calendario esiste solo dentro un fuso: il server esegue in UTC,
-// quindi senza fissarlo qui un'iscrizione delle 01:30 del 15 agosto verrebbe
-// letta come del 14 e finirebbe nella stagione precedente, gia' chiusa.
-const FUSO = 'Europe/Rome'
-
-/** Giorno, mese e anno come li vede chi sta a Monesiglio, non come li vede il server. */
-function partiRomane(date: Date): { anno: number; mese: number; giorno: number } {
-  const parti = new Intl.DateTimeFormat('en-CA', {
-    timeZone: FUSO,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(date)
-
-  const valore = (tipo: string) => Number(parti.find(p => p.type === tipo)?.value)
-  return { anno: valore('year'), mese: valore('month'), giorno: valore('day') }
-}
+import { partiRomane } from './dataRoma'
 
 export function getAnnoSportivo(date: Date = new Date()): string {
   const { anno, mese, giorno } = partiRomane(date)
