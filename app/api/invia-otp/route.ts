@@ -1,7 +1,9 @@
-import { NextResponse } from 'next/server';
+import { type NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import crypto from 'crypto';
 import { hashDatiFirma } from '@/lib/firmaHash';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { ipDellaRichiesta } from '@/lib/ip';
 
 // Inizializza il postino con la tua chiave segreta
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -20,18 +22,63 @@ function testoSicuroHtml(valore: unknown): string {
     .replace(/'/g, '&#39;');
 }
 
-export async function POST(req: Request) {
+// Non pretende di validare ogni indirizzo esistente: serve a impedire che una
+// stringa qualsiasi arrivi fino a Resend. Prima l'unico controllo era che il
+// campo non fosse vuoto.
+function emailPlausibile(valore: unknown): valore is string {
+  if (typeof valore !== 'string') return false;
+  const v = valore.trim();
+  return v.length > 0 && v.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v);
+}
+
+export async function POST(req: NextRequest) {
   try {
     const { emailDestinatario, nome, dati } = await req.json();
 
-    if (!emailDestinatario) {
-      return NextResponse.json({ error: 'Email mancante' }, { status: 400 });
+    if (!emailPlausibile(emailDestinatario)) {
+      return NextResponse.json({ error: 'Email mancante o non valida' }, { status: 400 });
     }
 
     const secret = process.env.OTP_SECRET;
     if (!secret) {
       console.error("OTP_SECRET non configurato");
       return NextResponse.json({ error: 'Configurazione del server incompleta' }, { status: 500 });
+    }
+
+    // Tetto agli invii, per destinatario e per provenienza. Senza, questa
+    // rotta è aperta a due abusi: riempire la casella di un socio di codici
+    // che non ha chiesto, e bruciare la quota Resend dell'ASD a spese di tutti.
+    // Il conteggio sta su Postgres e non in memoria perché ogni richiesta può
+    // toccare un'istanza serverless diversa: un contatore locale non vedrebbe
+    // gli invii delle altre.
+    //
+    // L'indirizzo non viene passato in chiaro: alla tabella basta l'impronta
+    // per contare, e l'HMAC con OTP_SECRET impedisce di risalire all'email
+    // provando i candidati, cosa che un semplice sha256 non fermerebbe.
+    const emailNormalizzata = emailDestinatario.trim().toLowerCase();
+    const emailHash = crypto
+      .createHmac('sha256', secret)
+      .update(`rate-limit:${emailNormalizzata}`)
+      .digest('hex');
+
+    const ip = ipDellaRichiesta(req);
+    const admin = createAdminClient();
+    const { data: esitoLimite, error: erroreLimite } = await admin
+      .rpc('registra_invio_otp', { p_email_hash: emailHash, p_ip: ip });
+
+    if (erroreLimite) {
+      // Fallire aperti qui vorrebbe dire che basta far cadere il controllo per
+      // riavere la rotta senza limiti: meglio negare.
+      console.error('Errore rate limit invio OTP:', erroreLimite);
+      return NextResponse.json({ error: 'Errore interno del server' }, { status: 500 });
+    }
+
+    if (esitoLimite !== 'ok') {
+      const messaggio =
+        esitoLimite === 'email'
+          ? "Hai già richiesto troppi codici per questo indirizzo. Attendi un'ora e riprova."
+          : "Troppe richieste da questa connessione. Attendi un'ora e riprova.";
+      return NextResponse.json({ error: messaggio }, { status: 429 });
     }
 
     // Genera l'OTP a 6 cifre con un generatore crittografico: Math.random()
@@ -42,7 +89,7 @@ export async function POST(req: Request) {
 
     // Hash del contenuto dichiarato al momento dell'invio: lega l'OTP ai dati
     // attuali, non solo all'email. Se i dati cambiano prima della conferma,
-    // la verifica fallirà (vedi /api/verifica-otp).
+    // la verifica fallirà (vedi lib/otp.ts).
     const datiHash = hashDatiFirma(dati ?? {});
 
     // Firma HMAC del codice: il client riceverà solo questo token, non l'OTP in chiaro
