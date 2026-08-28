@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import UploadCertificatoForm from './UploadCertificatoForm'
 import RichiestaAbbonamentoForm from './RichiestaAbbonamentoForm'
+import { etichettaInizio, formattaGiorno } from '@/lib/abbonamento'
 
 export type AbbonamentoFlat = {
   id: string
@@ -10,6 +11,10 @@ export type AbbonamentoFlat = {
   importo_tesseramento_uisp: number | null
   note_socio: string | null
   data_acquisto: string | null
+  inizio_scelto: string | null
+  data_inizio_validita: string | null
+  data_fine_validita: string | null
+  motivo_rifiuto: string | null
   nome_attivita: string | null
   prezzo_base: number | null
   ricevutaId: string | null
@@ -21,6 +26,7 @@ export type AttivitaOption = {
   nome_attivita: string
   tipo: string
   prezzo_base: number | null
+  durata_mesi: number | null
 }
 
 export type StoricoCertificato = {
@@ -280,15 +286,14 @@ export default function AreaSocioTabs({
               {abbonamenti.map(ab => {
                 const totale = (ab.prezzo_base ?? 0) + Number(ab.importo_tesseramento_uisp ?? 0)
                 const isPagato = ab.stato_pagamento === 'pagato'
+                const isRifiutato = ab.stato_pagamento === 'rifiutato'
+                const cornice = isRifiutato
+                  ? 'border-red-200 bg-red-50'
+                  : isPagato
+                    ? 'border-green-200 bg-green-50'
+                    : 'border-yellow-200 bg-yellow-50'
                 return (
-                  <div
-                    key={ab.id}
-                    className={`rounded-2xl border p-4 ${
-                      isPagato
-                        ? 'border-green-200 bg-green-50'
-                        : 'border-yellow-200 bg-yellow-50'
-                    }`}
-                  >
+                  <div key={ab.id} className={`rounded-2xl border p-4 ${cornice}`}>
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
                         <p className="text-sm font-bold text-gray-900">
@@ -310,6 +315,24 @@ export default function AreaSocioTabs({
                             </>
                           )}
                         </p>
+                        {ab.data_inizio_validita && (
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            Valido dal {formattaGiorno(ab.data_inizio_validita)} al{' '}
+                            {formattaGiorno(ab.data_fine_validita)}
+                            <span className="text-gray-400">
+                              {' '}({etichettaInizio(ab.inizio_scelto).toLowerCase()})
+                            </span>
+                          </p>
+                        )}
+                        {isRifiutato && ab.motivo_rifiuto && (
+                          <p className="mt-2 rounded-xl bg-white border border-red-200 px-3 py-2 text-xs text-red-800 leading-relaxed">
+                            <span className="font-bold block mb-0.5">Perché è stata rifiutata</span>
+                            {ab.motivo_rifiuto}
+                            <span className="block mt-1 text-red-600">
+                              Puoi inviare una nuova richiesta correggendo quanto indicato.
+                            </span>
+                          </p>
+                        )}
                         {isPagato && ab.ricevutaId && (
                           <a
                             href={`/api/ricevuta-download?abbonamento_id=${encodeURIComponent(ab.id)}`}
@@ -324,12 +347,14 @@ export default function AreaSocioTabs({
                       </div>
                       <span
                         className={`shrink-0 rounded-full px-3 py-1 text-xs font-bold ${
-                          isPagato
-                            ? 'bg-green-200 text-green-800'
-                            : 'bg-yellow-200 text-yellow-800'
+                          isRifiutato
+                            ? 'bg-red-200 text-red-800'
+                            : isPagato
+                              ? 'bg-green-200 text-green-800'
+                              : 'bg-yellow-200 text-yellow-800'
                         }`}
                       >
-                        {isPagato ? 'Pagato ✓' : 'In attesa'}
+                        {isRifiutato ? 'Rifiutata' : isPagato ? 'Pagato ✓' : 'In attesa'}
                       </span>
                     </div>
                   </div>

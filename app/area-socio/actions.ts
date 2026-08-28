@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getAnnoSportivo } from '@/lib/stagione'
 import { revalidatePath } from 'next/cache'
 import { notificaNuovaRichiesta } from '@/lib/notifiche'
+import { periodoAbbonamento, inizioValido } from '@/lib/abbonamento'
 
 export type ActionResult = { ok: true } | { ok: false; error: string }
 
@@ -178,13 +179,29 @@ export async function richiestaAbbonamento(
   // collegata senza ricontrollare nulla.
   const { data: attivita } = await supabase
     .from('catalogo_attivita')
-    .select('id, nome_attivita, prezzo_base')
+    .select('id, nome_attivita, prezzo_base, durata_mesi')
     .eq('id', attivitaId)
     .eq('attivo', true)
     .maybeSingle()
 
   if (!attivita) {
     return { ok: false, error: "Questa attività non è più disponibile. Ricarica la pagina e scegli fra quelle a listino." }
+  }
+
+  // Da quando parte l'abbonamento lo decide il socio, non piu' una soglia nel
+  // mese. Le date le calcola il server: se le mandasse il browser, basterebbe
+  // cambiarle per farsi dare mesi che non si sono pagati.
+  const durata = Number(attivita.durata_mesi ?? 0)
+  const inizioRichiesto = formData.get('inizio')
+  let periodo: { dataInizio: string; dataFine: string } | null = null
+  let inizioScelto: string | null = null
+
+  if (durata >= 1) {
+    if (!inizioValido(inizioRichiesto)) {
+      return { ok: false, error: "Scegli da quando vuoi far partire l'abbonamento." }
+    }
+    inizioScelto = inizioRichiesto
+    periodo = periodoAbbonamento(inizioRichiesto, durata)
   }
 
   const esito = await socioDellUtente(supabase, user.id, formData.get('socio_id') as string | null)
@@ -230,6 +247,9 @@ export async function richiestaAbbonamento(
       importo_tesseramento_uisp: uispFee,
       note_socio: note,
       metodo_pagamento: metodoPagamento,
+      inizio_scelto: inizioScelto,
+      data_inizio_validita: periodo?.dataInizio ?? null,
+      data_fine_validita: periodo?.dataFine ?? null,
     })
 
   if (error) {
@@ -251,6 +271,9 @@ export async function richiestaAbbonamento(
       metodo: metodoPagamento,
       note,
       annoSportivo,
+      inizioScelto,
+      dataInizio: periodo?.dataInizio ?? null,
+      dataFine: periodo?.dataFine ?? null,
     })
   })
 

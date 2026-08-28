@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getAnnoSportivo } from '@/lib/stagione'
-import { ConfermaButton } from './ConfermaButton'
+import { AzioniRichiesta } from './AzioniRichiesta'
+import { etichettaInizio, formattaGiorno } from '@/lib/abbonamento'
 import { MenuDrawer } from './MenuDrawer'
 
 function formatData(d: string | null) {
@@ -55,6 +56,7 @@ export default async function AreaGestoriPage() {
       .from('abbonamenti_soci')
       .select(`
         id, importo_tesseramento_uisp, metodo_pagamento, data_acquisto, note_socio,
+        inizio_scelto, data_inizio_validita, data_fine_validita,
         catalogo_attivita(nome_attivita, prezzo_base),
         soci(nome, cognome, email)
       `)
@@ -80,6 +82,9 @@ export default async function AreaGestoriPage() {
     metodo_pagamento: string | null
     data_acquisto: string | null
     note_socio: string | null
+    inizio_scelto: string | null
+    data_inizio_validita: string | null
+    data_fine_validita: string | null
     catalogo_attivita: { nome_attivita: string; prezzo_base: number | null }[] | { nome_attivita: string; prezzo_base: number | null } | null
     soci: { nome: string; cognome: string; email: string | null }[] | { nome: string; cognome: string; email: string | null } | null
   }
@@ -97,6 +102,9 @@ export default async function AreaGestoriPage() {
       metodo: r.metodo_pagamento,
       dataRichiesta: r.data_acquisto,
       note: r.note_socio,
+      inizioScelto: r.inizio_scelto,
+      dataInizio: r.data_inizio_validita,
+      dataFine: r.data_fine_validita,
     }
   })
 
@@ -188,13 +196,32 @@ export default async function AreaGestoriPage() {
                       </span>
                     </div>
 
+                    {r.dataInizio ? (
+                      <div className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-blue-500">
+                          Decorrenza scelta dal socio
+                        </p>
+                        <p className="text-sm font-bold text-blue-900 mt-0.5">
+                          {etichettaInizio(r.inizioScelto)} — dal {formattaGiorno(r.dataInizio)} al{' '}
+                          {formattaGiorno(r.dataFine)}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="rounded-xl border border-gray-200 bg-white px-3 py-2">
+                        <p className="text-xs text-gray-500">
+                          Richiesta inviata prima che la decorrenza fosse una scelta: non ha un
+                          periodo di validità.
+                        </p>
+                      </div>
+                    )}
+
                     {r.note && (
                       <p className="text-xs text-gray-500 italic border-l-2 border-gray-200 pl-2">
                         {r.note}
                       </p>
                     )}
 
-                    <ConfermaButton abbonamentoId={r.id} />
+                    <AzioniRichiesta abbonamentoId={r.id} />
                   </div>
                 ))}
               </div>

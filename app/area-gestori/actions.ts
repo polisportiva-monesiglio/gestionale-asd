@@ -3,7 +3,8 @@
 import { after } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import { notificaPagamentoConfermato } from '@/lib/notifiche'
+import { notificaPagamentoConfermato, notificaRichiestaRifiutata } from '@/lib/notifiche'
+import { formattaGiorno } from '@/lib/abbonamento'
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 import { getAnnoSportivo } from '@/lib/stagione'
 import fs from 'fs'
@@ -48,7 +49,7 @@ export async function confermaPagamento(
     .from('abbonamenti_soci')
     .select(`
       id, stato_pagamento, importo_tesseramento_uisp, metodo_pagamento, data_acquisto,
-      numero_ricevuta_riservato,
+      numero_ricevuta_riservato, inizio_scelto, data_inizio_validita, data_fine_validita,
       catalogo_attivita(nome_attivita, prezzo_base),
       soci(id, nome, cognome, email, cf, minorenne, genitore_email)
     `)
@@ -202,6 +203,19 @@ export async function confermaPagamento(
   rowY -= 18
   page.drawText(`Metodo: ${metodo.charAt(0).toUpperCase() + metodo.slice(1)}`, { x: 30, y: rowY, size: 9, font, color: gray })
 
+  // Il periodo di validita' e' il motivo per cui il socio tiene la ricevuta:
+  // gli dice fino a quando puo' entrare. Sta sotto il metodo, dove c'e' spazio
+  // libero fino al piede, cosi' non sposta niente di quello che c'e' sopra.
+  const dataInizio = ab.data_inizio_validita as string | null
+  const dataFine = ab.data_fine_validita as string | null
+  if (dataInizio) {
+    rowY -= 14
+    page.drawText(
+      `Periodo di validità: dal ${formattaGiorno(dataInizio)} al ${formattaGiorno(dataFine)}`,
+      { x: 30, y: rowY, size: 9, font, color: gray }
+    )
+  }
+
   // Footer
   page.drawLine({ start: { x: 30, y: 45 }, end: { x: width - 30, y: 45 }, thickness: 0.3, color: lineGray })
   page.drawText(`Emessa da: ${gestore.nome ?? gestore.email ?? 'Gestore'}  ·  ${new Date().toLocaleString('it-IT')}`, {
@@ -259,6 +273,8 @@ export async function confermaPagamento(
       metodo: metodo.charAt(0).toUpperCase() + metodo.slice(1),
       numeroRicevuta,
       annoSportivo,
+      dataInizio,
+      dataFine,
       ricevutaPdf: Buffer.from(pdfBytes),
     })
   })
@@ -286,4 +302,91 @@ export async function aggiornaCodiceCassetta(
 
   revalidatePath('/area-gestori')
   return { ok: true, message: 'Codice cassetta aggiornato.' }
+}
+
+const MAX_MOTIVO = 500
+
+/**
+ * Rifiuta una richiesta di pagamento, con la motivazione scritta dal gestore.
+ *
+ * Serve perche' ora la decorrenza la sceglie il socio, e un socio puo'
+ * sbagliarla: chiedere di partire dal mese in corso quando intendeva il
+ * successivo, o viceversa. Senza una via d'uscita l'unico rimedio sarebbe
+ * confermare una cosa sbagliata e poi rimediare a mano nel database.
+ *
+ * La motivazione non e' facoltativa: e' l'unica cosa che il socio legge, e un
+ * rifiuto muto lo lascerebbe ad aspettare una conferma che non arrivera' mai.
+ * Il vincolo che la impone sta anche sulla tabella, non solo qui.
+ */
+export async function rifiutaPagamento(
+  _prev: GestoreResult | null,
+  formData: FormData
+): Promise<GestoreResult> {
+  const supabase = await createClient()
+  const gestore = await getGestore(supabase)
+  if (!gestore) return { ok: false, error: 'Accesso non autorizzato.' }
+
+  const abbonamentoId = formData.get('abbonamento_id') as string
+  if (!abbonamentoId) return { ok: false, error: 'ID abbonamento mancante.' }
+
+  const motivo = ((formData.get('motivo') as string | null) ?? '').trim()
+  if (!motivo) return { ok: false, error: 'Scrivi il motivo del rifiuto: lo legge il socio.' }
+  if (motivo.length > MAX_MOTIVO) {
+    return { ok: false, error: `Il motivo non può superare i ${MAX_MOTIVO} caratteri.` }
+  }
+
+  // Serve per avvisare il socio, e va letto prima: dopo l'aggiornamento la
+  // riga non e' piu' fra le richieste in attesa.
+  const { data: ab, error: abErr } = await supabase
+    .from('abbonamenti_soci')
+    .select(`
+      id, anno_sportivo,
+      catalogo_attivita(nome_attivita),
+      soci(nome, cognome, email, minorenne, genitore_email)
+    `)
+    .eq('id', abbonamentoId)
+    .eq('stato_pagamento', 'da_saldare')
+    .maybeSingle()
+
+  if (abErr) return { ok: false, error: `Lettura della richiesta fallita: ${abErr.message}` }
+  if (!ab) return { ok: false, error: 'Richiesta non trovata o già decisa.' }
+
+  // Stessa presa in carico esclusiva della conferma: due gestori che agiscono
+  // insieme non possono decidere due volte la stessa richiesta.
+  const { data: preso, error: updErr } = await supabase
+    .from('abbonamenti_soci')
+    .update({
+      stato_pagamento: 'rifiutato',
+      motivo_rifiuto: motivo,
+      rifiutato_il: new Date().toISOString(),
+    })
+    .eq('id', abbonamentoId)
+    .eq('stato_pagamento', 'da_saldare')
+    .select('id')
+    .maybeSingle()
+
+  if (updErr) return { ok: false, error: `Rifiuto fallito: ${updErr.message}` }
+  if (!preso) return { ok: false, error: 'Richiesta già decisa da un altro gestore.' }
+
+  type SocioRifiuto = { nome?: string; cognome?: string; email?: string; minorenne?: boolean; genitore_email?: string | null }
+  const socio = Array.isArray(ab.soci) ? (ab.soci[0] as SocioRifiuto) : (ab.soci as SocioRifiuto | null)
+  const attivita = Array.isArray(ab.catalogo_attivita)
+    ? ab.catalogo_attivita[0]
+    : (ab.catalogo_attivita as { nome_attivita?: string } | null)
+
+  // Come per la conferma: il rifiuto e' gia' registrato, l'avviso parte dopo
+  // la risposta e un guasto del postino non lo annulla.
+  after(async () => {
+    await notificaRichiestaRifiutata({
+      emailSocio: socio?.email,
+      emailGenitore: socio?.minorenne ? socio?.genitore_email : null,
+      nomeSocio: `${socio?.nome ?? ''} ${socio?.cognome ?? ''}`.trim(),
+      attivita: attivita?.nome_attivita ?? 'Abbonamento',
+      motivo,
+      annoSportivo: String(ab.anno_sportivo ?? ''),
+    })
+  })
+
+  revalidatePath('/area-gestori')
+  return { ok: true, message: 'Richiesta rifiutata. Il socio è stato avvisato.' }
 }

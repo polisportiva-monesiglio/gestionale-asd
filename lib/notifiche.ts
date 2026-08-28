@@ -1,6 +1,7 @@
 import 'server-only'
 import { Resend } from 'resend'
 import { emailPlausibile, testoSicuroHtml } from '@/lib/email'
+import { etichettaInizio, formattaGiorno } from '@/lib/abbonamento'
 
 /**
  * Le email che il gestionale manda per conto proprio, quando succede qualcosa.
@@ -115,6 +116,8 @@ export async function notificaPagamentoConfermato(dati: {
   metodo: string
   numeroRicevuta: string
   annoSportivo: string
+  dataInizio?: string | null
+  dataFine?: string | null
   ricevutaPdf?: Buffer
 }): Promise<void> {
   // Genitore e socio possono avere lo stesso indirizzo: senza questo passaggio
@@ -135,6 +138,7 @@ export async function notificaPagamentoConfermato(dati: {
     <table style="border-collapse: collapse; margin: 16px 0;">
       ${voce('Ricevuta n.', dati.numeroRicevuta)}
       ${voce('Attività', dati.attivita)}
+      ${dati.dataInizio ? voce('Valido', `dal ${formattaGiorno(dati.dataInizio)} al ${formattaGiorno(dati.dataFine)}`) : ''}
       ${voce('Stagione', dati.annoSportivo)}
       ${voce('Quota attività', euro(dati.importoAttivita))}
       ${dati.importoUisp > 0 ? voce('Tessera UISP', euro(dati.importoUisp)) : ''}
@@ -206,6 +210,9 @@ export async function notificaNuovaRichiesta(dati: {
   metodo: string | null
   note: string | null
   annoSportivo: string
+  inizioScelto: string | null
+  dataInizio: string | null
+  dataFine: string | null
 }): Promise<void> {
   const a = destinatarioAsd()
   if (!a) return
@@ -213,10 +220,12 @@ export async function notificaNuovaRichiesta(dati: {
   const totale = dati.importoAttivita + dati.importoUisp
 
   const corpo = `
-    <p style="font-size: 15px;">Un socio ha chiesto di pagare. La richiesta aspetta una conferma nell'area gestori.</p>
+    <p style="font-size: 15px;">Un socio ha chiesto di pagare. La richiesta aspetta una conferma nell'area gestori, dove si può anche rifiutare spiegandone il motivo.</p>
     <table style="border-collapse: collapse; margin: 16px 0;">
       ${voce('Socio', dati.nomeSocio)}
       ${voce('Attività', dati.attivita)}
+      ${voce('Decorrenza scelta dal socio', etichettaInizio(dati.inizioScelto))}
+      ${dati.dataInizio ? voce('Periodo richiesto', `dal ${formattaGiorno(dati.dataInizio)} al ${formattaGiorno(dati.dataFine)}`) : ''}
       ${voce('Stagione', dati.annoSportivo)}
       ${voce('Quota attività', euro(dati.importoAttivita))}
       ${dati.importoUisp > 0 ? voce('Tessera UISP', euro(dati.importoUisp)) : ''}
@@ -231,5 +240,48 @@ export async function notificaNuovaRichiesta(dati: {
     a: [a],
     oggetto: `Nuova richiesta di pagamento: ${dati.nomeSocio}`,
     html: guscio('Richiesta di pagamento', corpo),
+  })
+}
+
+/**
+ * Al socio: la richiesta è stata rifiutata, ed ecco perché.
+ *
+ * Senza questa, rifiutare sarebbe un gesto muto: la richiesta sparirebbe
+ * dall'elenco del gestore e il socio resterebbe ad aspettare una conferma che
+ * non arriva, senza sapere che deve rifarla. Il motivo è scritto a mano dal
+ * gestore e va riportato tale e quale.
+ */
+export async function notificaRichiestaRifiutata(dati: {
+  emailSocio: string | null | undefined
+  emailGenitore?: string | null
+  nomeSocio: string
+  attivita: string
+  motivo: string
+  annoSportivo: string
+}): Promise<void> {
+  const unici = [
+    ...new Set(
+      [dati.emailSocio, dati.emailGenitore]
+        .filter((x): x is string => emailPlausibile(x))
+        .map((x) => x.trim().toLowerCase())
+    ),
+  ]
+
+  const corpo = `
+    <p style="font-size: 15px;">Ciao ${testoSicuroHtml(dati.nomeSocio)},</p>
+    <p style="font-size: 15px;">la tua richiesta di abbonamento non è stata confermata. Puoi inviarne una nuova correggendo quanto indicato qui sotto.</p>
+    <table style="border-collapse: collapse; margin: 16px 0;">
+      ${voce('Attività richiesta', dati.attivita)}
+      ${voce('Stagione', dati.annoSportivo)}
+    </table>
+    <p style="margin: 0 0 6px; font-size: 13px; color: #6b7280;">Motivo indicato dalla segreteria</p>
+    <p style="font-size: 15px; border-left: 3px solid #b89f21; padding-left: 12px; margin: 0;">${testoSicuroHtml(dati.motivo)}</p>
+    <p style="font-size: 14px; margin-top: 20px;"><a href="${SITO}/area-socio" style="color: #b89f21;">Vai alla tua area personale</a></p>
+  `
+
+  await spedisci({
+    a: unici,
+    oggetto: 'Richiesta di abbonamento non confermata',
+    html: guscio('Richiesta rifiutata', corpo),
   })
 }

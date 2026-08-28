@@ -46,13 +46,13 @@ export default async function AreaSocioPage({
       .maybeSingle(),
     supabase
       .from('abbonamenti_soci')
-      .select('id, stato_pagamento, importo_tesseramento_uisp, note_socio, data_acquisto, catalogo_attivita(nome_attivita, prezzo_base), pagamenti_ricevute(id, numero_ricevuta)')
+      .select('id, stato_pagamento, importo_tesseramento_uisp, note_socio, data_acquisto, inizio_scelto, data_inizio_validita, data_fine_validita, motivo_rifiuto, catalogo_attivita(nome_attivita, prezzo_base), pagamenti_ricevute(id, numero_ricevuta)')
       .eq('socio_id', socio?.id ?? '')
       .eq('anno_sportivo', annoSportivo)
       .order('data_acquisto', { ascending: false }),
     supabase
       .from('catalogo_attivita')
-      .select('id, nome_attivita, tipo, prezzo_base')
+      .select('id, nome_attivita, tipo, prezzo_base, durata_mesi')
       .eq('attivo', true)
       .order('nome_attivita'),
     supabase
@@ -114,6 +114,10 @@ export default async function AreaSocioPage({
     importo_tesseramento_uisp: number | null
     note_socio: string | null
     data_acquisto: string | null
+    inizio_scelto: string | null
+    data_inizio_validita: string | null
+    data_fine_validita: string | null
+    motivo_rifiuto: string | null
     catalogo_attivita: { nome_attivita: string; prezzo_base: number | null }[] | { nome_attivita: string; prezzo_base: number | null } | null
     pagamenti_ricevute: { id: string; numero_ricevuta: string | null }[] | null
   }
@@ -129,6 +133,10 @@ export default async function AreaSocioPage({
       importo_tesseramento_uisp: ab.importo_tesseramento_uisp,
       note_socio: ab.note_socio,
       data_acquisto: ab.data_acquisto,
+      inizio_scelto: ab.inizio_scelto,
+      data_inizio_validita: ab.data_inizio_validita,
+      data_fine_validita: ab.data_fine_validita,
+      motivo_rifiuto: ab.motivo_rifiuto,
       nome_attivita: act?.nome_attivita ?? null,
       prezzo_base: act?.prezzo_base ?? null,
       ricevutaId: ricevuta?.id ?? null,

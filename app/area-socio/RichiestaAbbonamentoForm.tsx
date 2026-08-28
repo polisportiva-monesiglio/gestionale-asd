@@ -3,12 +3,14 @@
 import { useActionState, useState } from 'react'
 import { richiestaAbbonamento, type ActionResult } from './actions'
 import { Spinner } from '@/app/components/Spinner'
+import { periodoAbbonamento, formattaGiorno, type InizioScelto } from '@/lib/abbonamento'
 
 type Attivita = {
   id: string
   nome_attivita: string
   tipo: string
   prezzo_base: number | null
+  durata_mesi: number | null
 }
 
 type Props = {
@@ -27,6 +29,7 @@ export default function RichiestaAbbonamentoForm({ socioId, attivita, uispApplic
     null
   )
   const [selectedId, setSelectedId] = useState('')
+  const [inizio, setInizio] = useState<InizioScelto | ''>('')
 
   if (state?.ok) {
     return (
@@ -45,6 +48,13 @@ export default function RichiestaAbbonamentoForm({ socioId, attivita, uispApplic
   const selected = attivita.find(a => a.id === selectedId)
   const prezzoBase = selected?.prezzo_base ?? null
   const totale = prezzoBase != null ? prezzoBase + (uispApplicabile ? 20 : 0) : null
+
+  // La durata viene dall'attività scelta: un trimestrale dura tre mesi, e da
+  // quale mese si contano lo decide il socio qui sotto. Le stesse date le
+  // ricalcola il server: questo serve solo a farle vedere prima di inviare.
+  const durata = selected?.durata_mesi ?? 0
+  const scegliePeriodo = durata >= 1
+  const anteprima = scegliePeriodo && inizio ? periodoAbbonamento(inizio, durata) : null
 
   return (
     <form action={action} className="space-y-5">
@@ -73,6 +83,65 @@ export default function RichiestaAbbonamentoForm({ socioId, attivita, uispApplic
           ))}
         </select>
       </div>
+
+      {/* Da quando parte. Non c'è più una soglia nel mese che decide al posto
+          del socio: chi vuole entrare oggi parte oggi, chi non ha fretta
+          aspetta il primo del mese e non perde giorni. */}
+      {scegliePeriodo && (
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-2">
+            Da quando vuoi far partire l&apos;abbonamento
+          </label>
+          <div className="grid gap-2.5">
+            {([
+              {
+                value: 'mese_corrente' as const,
+                label: 'Dal mese in corso',
+                nota: 'Puoi venire subito. I giorni già passati di questo mese sono compresi nella quota.',
+              },
+              {
+                value: 'mese_successivo' as const,
+                label: 'Dal mese successivo',
+                nota: 'Non puoi venire in palestra fino alla fine di questo mese, ma non perdi giorni.',
+              },
+            ]).map(opt => (
+              <label
+                key={opt.value}
+                className="flex items-start gap-2.5 cursor-pointer rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm transition-all hover:border-yellow-400 has-[:checked]:border-yellow-400 has-[:checked]:bg-yellow-50 has-[:checked]:shadow-[0_0_0_1px_theme(colors.yellow.400)]"
+              >
+                <input
+                  type="radio"
+                  name="inizio"
+                  value={opt.value}
+                  required
+                  checked={inizio === opt.value}
+                  onChange={() => setInizio(opt.value)}
+                  className="accent-yellow-400 w-4 h-4 shrink-0 mt-0.5"
+                />
+                <span>
+                  <span className="block text-sm font-semibold text-gray-800">{opt.label}</span>
+                  <span className="block text-xs text-gray-500 mt-0.5 leading-relaxed">{opt.nota}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+
+          {anteprima && (
+            <div className="mt-2.5 rounded-xl bg-gray-50 border border-gray-200 px-4 py-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+                Periodo di validità
+              </p>
+              <p className="text-sm font-bold text-gray-900 mt-0.5">
+                dal {formattaGiorno(anteprima.dataInizio)} al {formattaGiorno(anteprima.dataFine)}
+              </p>
+              <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                L&apos;abbonamento finisce sempre a fine mese. La segreteria confermerà queste
+                date insieme al pagamento.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Banner UISP (sempre visibile se applicabile) */}
       {uispApplicabile && (
@@ -161,7 +230,7 @@ export default function RichiestaAbbonamentoForm({ socioId, attivita, uispApplic
 
       <button
         type="submit"
-        disabled={pending || !selectedId}
+        disabled={pending || !selectedId || (scegliePeriodo && !inizio)}
         className="bg-yellow-400 text-gray-900 px-6 py-3.5 rounded-xl font-bold text-sm hover:bg-yellow-500 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed w-full inline-flex items-center justify-center gap-2"
       >
         {pending && <Spinner className="h-4 w-4" />}
