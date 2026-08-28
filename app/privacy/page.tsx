@@ -224,15 +224,18 @@ export default function PrivacyPage() {
           <Sezione numero={6} titolo="Videosorveglianza dei locali">
             <p>
               Nei locali in cui si svolge l&apos;attività è attivo un impianto di videosorveglianza
-              di proprietà del Comune di Monesiglio, alle cui immagini accedono sia il Comune sia
-              l&apos;Associazione.
+              di proprietà del <strong className="text-gray-900">Comune di Monesiglio</strong>, che
+              ne è l&apos;unico titolare: decide finalità e modalità delle riprese ed è il solo a
+              trattare le immagini. L&apos;Associazione non vi accede, non le conserva e non ha
+              alcun ruolo in quel trattamento.
             </p>
             <p>
-              Si tratta di un trattamento <strong className="text-gray-900">distinto</strong> da
-              quelli descritti in questa pagina, che riguarda chi entra nei locali e non chi usa
-              questo sito. Le informazioni che lo riguardano — finalità, tempi di conservazione delle
-              immagini e modalità per esercitare i tuoi diritti — sono riportate nei cartelli affissi
-              prima delle aree riprese e nell&apos;informativa esposta nei locali.
+              È quindi un trattamento di <strong className="text-gray-900">un altro titolare</strong>,
+              distinto da quelli descritti in questa pagina: riguarda chi entra nei locali, non chi
+              usa questo sito. Finalità, tempi di conservazione delle immagini e modalità per
+              esercitare i tuoi diritti sono riportati nei cartelli affissi prima delle aree riprese
+              e nell&apos;informativa esposta nei locali. Per qualunque richiesta sulle immagini
+              devi rivolgerti al Comune, non a noi.
             </p>
           </Sezione>
 
