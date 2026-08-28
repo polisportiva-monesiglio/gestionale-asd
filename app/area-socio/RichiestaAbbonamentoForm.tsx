@@ -184,7 +184,8 @@ export default function RichiestaAbbonamentoForm({
         </div>
       )}
 
-      {/* Banner UISP (sempre visibile se applicabile) */}
+      {/* Quota annuale di tesseramento: il nome e' quello dell'art. 2 del
+          regolamento, non "UISP", che e' solo l'ente che emette la tessera. */}
       {uispApplicabile && (
         <div className="rounded-2xl bg-red-50 border border-red-300 px-4 py-4">
           <div className="flex items-start gap-3">
@@ -193,11 +194,12 @@ export default function RichiestaAbbonamentoForm({
             </div>
             <div>
               <p className="text-sm font-extrabold text-red-800">
-                Prima iscrizione della stagione
+                Primo pagamento della stagione
               </p>
               <p className="text-sm text-red-700 mt-1 leading-relaxed">
-                Verrà aggiunto il <strong>tesseramento UISP di €20</strong>, obbligatorio
-                per la prima iscrizione di ogni stagione sportiva.
+                Verrà aggiunta la <strong>quota annuale di tesseramento di €20</strong>,
+                comprensiva della copertura assicurativa. Si versa una volta per stagione
+                sportiva e non è compresa nel costo dell&apos;abbonamento.
               </p>
             </div>
           </div>
@@ -214,7 +216,7 @@ export default function RichiestaAbbonamentoForm({
               </p>
               {uispApplicabile && prezzoBase != null && (
                 <p className="text-xs text-gray-400 mt-0.5">
-                  €{prezzoBase} abbonamento + €20 UISP
+                  €{prezzoBase} abbonamento + €20 quota tesseramento
                 </p>
               )}
             </div>

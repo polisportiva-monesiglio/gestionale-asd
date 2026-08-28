@@ -310,7 +310,7 @@ export default function AreaSocioTabs({
                               </span>
                               {Number(ab.importo_tesseramento_uisp) > 0 && (
                                 <span className="text-gray-400">
-                                  {' '}(incl. €{ab.importo_tesseramento_uisp} UISP)
+                                  {' '}(incl. €{ab.importo_tesseramento_uisp} di quota tesseramento)
                                 </span>
                               )}
                             </>

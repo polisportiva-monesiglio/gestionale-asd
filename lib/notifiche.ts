@@ -141,7 +141,7 @@ export async function notificaPagamentoConfermato(dati: {
       ${dati.dataInizio ? voce('Valido', `dal ${formattaGiorno(dati.dataInizio)} al ${formattaGiorno(dati.dataFine)}`) : ''}
       ${voce('Stagione', dati.annoSportivo)}
       ${voce('Quota attività', euro(dati.importoAttivita))}
-      ${dati.importoUisp > 0 ? voce('Tessera UISP', euro(dati.importoUisp)) : ''}
+      ${dati.importoUisp > 0 ? voce('Quota tesseramento', euro(dati.importoUisp)) : ''}
       ${voce('Totale', euro(totale))}
       ${voce('Metodo', dati.metodo)}
     </table>
@@ -235,7 +235,7 @@ export async function notificaNuovaRichiesta(dati: {
       ${dati.dataInizio ? voce('Periodo richiesto', `dal ${formattaGiorno(dati.dataInizio)} al ${formattaGiorno(dati.dataFine)}`) : ''}
       ${voce('Stagione', dati.annoSportivo)}
       ${voce('Quota attività', euro(dati.importoAttivita))}
-      ${dati.importoUisp > 0 ? voce('Tessera UISP', euro(dati.importoUisp)) : ''}
+      ${dati.importoUisp > 0 ? voce('Quota tesseramento', euro(dati.importoUisp)) : ''}
       ${voce('Totale', euro(totale))}
       ${voce('Metodo indicato', dati.metodo)}
       ${voce('Note del socio', dati.note)}

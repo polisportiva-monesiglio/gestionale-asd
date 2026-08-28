@@ -188,7 +188,7 @@ export default async function AreaGestoriPage() {
                       </span>
                       {r.uisp > 0 && (
                         <span className="px-2 py-0.5 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-700">
-                          +€{r.uisp} UISP
+                          +€{r.uisp} tesseramento
                         </span>
                       )}
                       <span className="px-2 py-0.5 bg-white border border-gray-200 rounded-lg text-gray-400">

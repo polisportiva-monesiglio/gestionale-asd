@@ -189,7 +189,7 @@ export async function confermaPagamento(
 
   if (uisp > 0) {
     rowY -= 20
-    page.drawText('Tessera UISP', { x: 30, y: rowY, size: 11, font, color: dark })
+    page.drawText('Quota annuale di tesseramento', { x: 30, y: rowY, size: 11, font, color: dark })
     page.drawText(`€ ${uisp.toFixed(2)}`, { x: width - 90, y: rowY, size: 11, font, color: dark })
   }
 
