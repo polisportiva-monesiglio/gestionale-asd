@@ -173,6 +173,8 @@ export async function notificaNuovaIscrizione(dati: {
   annoSportivo: string
   minorenne: boolean
   scadenzaCertificato: string | null
+  /** Un rinnovo non e' una persona nuova: la segreteria deve poterlo capire dall'oggetto. */
+  rinnovo?: boolean
 }): Promise<void> {
   const a = destinatarioAsd()
   if (!a) return
@@ -181,8 +183,13 @@ export async function notificaNuovaIscrizione(dati: {
     ? new Date(dati.scadenzaCertificato).toLocaleDateString('it-IT')
     : null
 
+  const titolo = dati.rinnovo ? 'Rinnovo del tesseramento' : 'Nuova iscrizione'
   const corpo = `
-    <p style="font-size: 15px;">È arrivata una nuova iscrizione firmata.</p>
+    <p style="font-size: 15px;">${
+      dati.rinnovo
+        ? 'Un socio ha rinnovato il tesseramento per la stagione nuova.'
+        : 'È arrivata una nuova iscrizione firmata.'
+    }</p>
     <table style="border-collapse: collapse; margin: 16px 0;">
       ${voce('Socio', `${dati.cognome} ${dati.nome}`)}
       ${voce('Email', dati.emailSocio)}
@@ -196,8 +203,8 @@ export async function notificaNuovaIscrizione(dati: {
 
   await spedisci({
     a: [a],
-    oggetto: `Nuova iscrizione: ${dati.cognome} ${dati.nome}`,
-    html: guscio('Nuova iscrizione', corpo),
+    oggetto: `${dati.rinnovo ? 'Rinnovo tesseramento' : 'Nuova iscrizione'}: ${dati.cognome} ${dati.nome}`,
+    html: guscio(titolo, corpo),
   })
 }
 

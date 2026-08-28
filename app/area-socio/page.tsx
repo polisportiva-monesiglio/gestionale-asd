@@ -2,6 +2,9 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getAnnoSportivo } from '@/lib/stagione'
 import AreaSocioTabs from './AreaSocioTabs'
+import RinnovoTesseramento, { type SocioDaRinnovare } from './RinnovoTesseramento'
+import { certificatoAncoraValido } from '@/lib/rinnovoServer'
+import { partiRomane } from '@/lib/dataRoma'
 
 export default async function AreaSocioPage({
   searchParams,
@@ -16,18 +19,24 @@ export default async function AreaSocioPage({
   // Non e' un cambio di identita': sono le persone che quell'account segue.
   const { data: soci } = await supabase
     .from('soci')
-    .select('id, nome, cognome, email')
+    .select(
+      'id, nome, cognome, cf, data_nascita, luogo_nascita, indirizzo, cap, citta, ' +
+      'provincia_residenza, telefono, email, minorenne, genitore_nome, genitore_cognome, ' +
+      'genitore_email, genitore_contatto_preferito, genitore_recapito'
+    )
     .eq('user_id', user.id)
     .order('nome')
 
-  const elenco = soci ?? []
+  // L'elenco delle colonne e' una stringa composta: i tipi generati da Supabase
+  // non sanno che forma abbia la riga, la si dichiara qui una volta sola.
+  const elenco = (soci ?? []) as unknown as SocioDaRinnovare[]
 
   // La persona scelta arriva dall'indirizzo, cosi' il collegamento e' condivisibile
   // e la pagina resta un componente di server. L'identificativo va comunque
   // confrontato con l'elenco: se non e' fra i suoi, si torna al primo.
   const richiesto = (await searchParams).socio
   const idRichiesto = Array.isArray(richiesto) ? richiesto[0] : richiesto
-  const socio = elenco.find(s => s.id === idRichiesto) ?? elenco[0] ?? null
+  const socio: SocioDaRinnovare | null = elenco.find(s => s.id === idRichiesto) ?? elenco[0] ?? null
 
   const annoSportivo = getAnnoSportivo()
 
@@ -144,6 +153,17 @@ export default async function AreaSocioPage({
     }
   })
 
+  // Senza il tesseramento della stagione in corso non si e' soci per quest'anno:
+  // e' il rinnovo, non una seconda iscrizione. L'anagrafica resta quella, si
+  // rifanno le dichiarazioni dell'anno e si rifirma.
+  const deveRinnovare = socio !== null && !tesseramento
+  const oggiRoma = (() => {
+    const { anno, mese, giorno } = partiRomane(new Date())
+    return `${anno}-${String(mese).padStart(2, '0')}-${String(giorno).padStart(2, '0')}`
+  })()
+  const certificatoRiusabile =
+    deveRinnovare && socio ? await certificatoAncoraValido(socio.id, oggiRoma) : null
+
   const hasPending = abbonamentiFlattenati.some(a => a.stato_pagamento === 'da_saldare')
   const haAbbonamentoPagato = abbonamentiFlattenati.some(a => a.stato_pagamento === 'pagato')
   const uispApplicabile = !haAbbonamentoPagato
@@ -209,6 +229,28 @@ export default async function AreaSocioPage({
                   )
                 })}
               </div>
+            </div>
+          )}
+
+          {/* Rinnovo: sta sopra a tutto, perche' finche' non e' fatto il resto
+              dell'area non ha molto senso. */}
+          {deveRinnovare && socio && (
+            <div className="bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-3xl border border-yellow-300 border-t-[6px] border-t-yellow-400 p-6 sm:p-8">
+              <div className="flex items-center mb-1">
+                <div className="w-1.5 h-5 bg-yellow-400 rounded-full mr-2.5 shrink-0" />
+                <h2 className="text-sm font-extrabold text-gray-900 tracking-tight">
+                  Rinnova il tesseramento {annoSportivo}
+                </h2>
+              </div>
+              <p className="text-xs text-gray-500 mb-5 leading-relaxed pl-4">
+                I tuoi dati sono già qui: controllali, rifai le dichiarazioni dell&apos;anno e
+                firma. Non devi ricompilare niente da capo.
+              </p>
+              <RinnovoTesseramento
+                socio={socio}
+                annoSportivo={annoSportivo}
+                certificatoValidoFinoAl={certificatoRiusabile?.scadenza ?? null}
+              />
             </div>
           )}
 
