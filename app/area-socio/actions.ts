@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getAnnoSportivo } from '@/lib/stagione'
 import { revalidatePath } from 'next/cache'
 import { notificaNuovaRichiesta } from '@/lib/notifiche'
-import { periodoAbbonamento, inizioValido } from '@/lib/abbonamento'
+import { periodoAbbonamento, inizioValido, decorrenzeAmmesse } from '@/lib/abbonamento'
 
 export type ActionResult = { ok: true } | { ok: false; error: string }
 
@@ -191,6 +191,7 @@ export async function richiestaAbbonamento(
   // Da quando parte l'abbonamento lo decide il socio, non piu' una soglia nel
   // mese. Le date le calcola il server: se le mandasse il browser, basterebbe
   // cambiarle per farsi dare mesi che non si sono pagati.
+  const annoSportivo = getAnnoSportivo()
   const durata = Number(attivita.durata_mesi ?? 0)
   const inizioRichiesto = formData.get('inizio')
   let periodo: { dataInizio: string; dataFine: string } | null = null
@@ -200,6 +201,18 @@ export async function richiestaAbbonamento(
     if (!inizioValido(inizioRichiesto)) {
       return { ok: false, error: "Scegli da quando vuoi far partire l'abbonamento." }
     }
+
+    // Il modulo disattiva le decorrenze che sforerebbero nella stagione dopo,
+    // ma un campo disabilitato nel browser non e' un controllo: chi chiama
+    // l'azione a mano lo ignora. Qui si rifa' la stessa verifica, ed e'
+    // questa che conta.
+    if (!decorrenzeAmmesse(durata, annoSportivo)[inizioRichiesto]) {
+      return {
+        ok: false,
+        error: `Questo abbonamento finirebbe oltre la stagione ${annoSportivo}. Scegli una decorrenza diversa o una durata più breve.`,
+      }
+    }
+
     inizioScelto = inizioRichiesto
     periodo = periodoAbbonamento(inizioRichiesto, durata)
   }
@@ -207,8 +220,6 @@ export async function richiestaAbbonamento(
   const esito = await socioDellUtente(supabase, user.id, formData.get('socio_id') as string | null)
   if ('errore' in esito) return { ok: false, error: esito.errore }
   const socio = esito
-
-  const annoSportivo = getAnnoSportivo()
 
   // Blocco "soft" lato applicazione (UX immediata); il blocco reale e
   // atomico è il vincolo UNIQUE parziale su (socio_id, anno_sportivo)

@@ -263,6 +263,7 @@ export default function AreaSocioTabs({
                     socioId={socioId}
                     attivita={attivita}
                     uispApplicabile={uispApplicabile}
+                    annoSportivo={annoSportivo}
                   />
                 </div>
               ) : (

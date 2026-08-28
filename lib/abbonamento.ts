@@ -84,3 +84,60 @@ export function formattaGiorno(iso: string | null | undefined): string {
   const [a, m, g] = iso.split('-')
   return a && m && g ? `${g}/${m}/${a}` : '—'
 }
+
+/**
+ * L'ultimo giorno che un abbonamento di questa stagione può coprire.
+ *
+ * La stagione sportiva scatta il 15 agosto (vedi `getAnnoSportivo`), ma un
+ * abbonamento finisce sempre a fine mese: il confine utile non è il 14 agosto,
+ * è **il 31 agosto** dell'anno che chiude la stagione. Con il confine a metà
+ * mese nessun annuale sarebbe mai acquistabile, nemmeno partendo a settembre,
+ * perché finirebbe sempre due settimane oltre.
+ */
+export function ultimoGiornoStagione(annoSportivo: string): string | null {
+  const annoChiusura = Number(annoSportivo?.split('/')[1])
+  if (!Number.isInteger(annoChiusura)) return null
+  return `${annoChiusura}-08-31`
+}
+
+/**
+ * Quali decorrenze sono ancora possibili, per questa durata e questa stagione.
+ *
+ * Un abbonamento non può sfociare nella stagione successiva: chi compra un
+ * annuale in ottobre arriverebbe a settembre dell'anno dopo, che è già l'altra
+ * stagione, con un tesseramento che non copre quei mesi. Man mano che la
+ * stagione avanza le durate lunghe si spengono da sole: a settembre l'annuale
+ * si può ancora prendere partendo subito ma non dal mese dopo, da ottobre non
+ * si può più prendere affatto.
+ *
+ * Le date si confrontano come stringhe ISO, che per 'AAAA-MM-GG' ordina come
+ * il calendario.
+ */
+export function decorrenzeAmmesse(
+  durataMesi: number,
+  annoSportivo: string,
+  adesso: Date = new Date()
+): Record<InizioScelto, boolean> {
+  const limite = ultimoGiornoStagione(annoSportivo)
+  if (!limite) return { mese_corrente: true, mese_successivo: true }
+
+  const entro = (inizio: InizioScelto) => {
+    const p = periodoAbbonamento(inizio, durataMesi, adesso)
+    // Senza durata non c'è un periodo da confinare: non è questo il controllo
+    // che deve fermare le attività a ingressi.
+    if (!p) return true
+    return p.dataFine <= limite
+  }
+
+  return { mese_corrente: entro('mese_corrente'), mese_successivo: entro('mese_successivo') }
+}
+
+/** Se nessuna delle due decorrenze sta nella stagione, l'attività non è acquistabile. */
+export function acquistabile(
+  durataMesi: number,
+  annoSportivo: string,
+  adesso: Date = new Date()
+): boolean {
+  const a = decorrenzeAmmesse(durataMesi, annoSportivo, adesso)
+  return a.mese_corrente || a.mese_successivo
+}

@@ -3,7 +3,13 @@
 import { useActionState, useState } from 'react'
 import { richiestaAbbonamento, type ActionResult } from './actions'
 import { Spinner } from '@/app/components/Spinner'
-import { periodoAbbonamento, formattaGiorno, type InizioScelto } from '@/lib/abbonamento'
+import {
+  periodoAbbonamento,
+  formattaGiorno,
+  decorrenzeAmmesse,
+  acquistabile,
+  type InizioScelto,
+} from '@/lib/abbonamento'
 
 type Attivita = {
   id: string
@@ -18,12 +24,19 @@ type Props = {
   socioId: string
   attivita: Attivita[]
   uispApplicabile: boolean
+  /** Serve a fermare gli abbonamenti che sforerebbero nella stagione dopo. */
+  annoSportivo: string
 }
 
 const inputClass =
   'w-full p-3.5 rounded-xl border border-gray-200 shadow-sm transition-all focus:outline-none focus:ring-2 bg-white focus:border-yellow-400 focus:ring-yellow-200 text-gray-800 hover:border-gray-300 text-sm'
 
-export default function RichiestaAbbonamentoForm({ socioId, attivita, uispApplicabile }: Props) {
+export default function RichiestaAbbonamentoForm({
+  socioId,
+  attivita,
+  uispApplicabile,
+  annoSportivo,
+}: Props) {
   const [state, action, pending] = useActionState<ActionResult | null, FormData>(
     richiestaAbbonamento,
     null
@@ -56,6 +69,13 @@ export default function RichiestaAbbonamentoForm({ socioId, attivita, uispApplic
   const scegliePeriodo = durata >= 1
   const anteprima = scegliePeriodo && inizio ? periodoAbbonamento(inizio, durata) : null
 
+  // Un abbonamento non puo' sfociare nella stagione successiva. Piu' la
+  // stagione avanza, piu' le durate lunghe si spengono: prima sparisce la
+  // partenza dal mese dopo, poi l'attivita' intera.
+  const ammesse = scegliePeriodo
+    ? decorrenzeAmmesse(durata, annoSportivo)
+    : { mese_corrente: true, mese_successivo: true }
+
   return (
     <form action={action} className="space-y-5">
       {/* A un accesso possono corrispondere piu' soci: il server deve sapere
@@ -71,16 +91,25 @@ export default function RichiestaAbbonamentoForm({ socioId, attivita, uispApplic
           name="attivita_id"
           required
           value={selectedId}
-          onChange={e => setSelectedId(e.target.value)}
+          onChange={e => {
+            setSelectedId(e.target.value)
+            // La decorrenza gia' scelta puo' non valere piu' per la nuova
+            // durata: meglio farla riscegliere che portarsela dietro.
+            setInizio('')
+          }}
           className={inputClass}
         >
           <option value="">Seleziona un abbonamento…</option>
-          {attivita.map(a => (
-            <option key={a.id} value={a.id}>
-              {a.nome_attivita}
-              {a.prezzo_base != null ? `  —  €${a.prezzo_base}` : ''}
-            </option>
-          ))}
+          {attivita.map(a => {
+            const disponibile = acquistabile(a.durata_mesi ?? 0, annoSportivo)
+            return (
+              <option key={a.id} value={a.id} disabled={!disponibile}>
+                {a.nome_attivita}
+                {a.prezzo_base != null ? `  —  €${a.prezzo_base}` : ''}
+                {disponibile ? '' : '  —  non disponibile per questa stagione'}
+              </option>
+            )
+          })}
         </select>
       </div>
 
@@ -104,26 +133,38 @@ export default function RichiestaAbbonamentoForm({ socioId, attivita, uispApplic
                 label: 'Dal mese successivo',
                 nota: 'Non puoi venire in palestra fino alla fine di questo mese, ma non perdi giorni.',
               },
-            ]).map(opt => (
-              <label
-                key={opt.value}
-                className="flex items-start gap-2.5 cursor-pointer rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm transition-all hover:border-yellow-400 has-[:checked]:border-yellow-400 has-[:checked]:bg-yellow-50 has-[:checked]:shadow-[0_0_0_1px_theme(colors.yellow.400)]"
-              >
-                <input
-                  type="radio"
-                  name="inizio"
-                  value={opt.value}
-                  required
-                  checked={inizio === opt.value}
-                  onChange={() => setInizio(opt.value)}
-                  className="accent-yellow-400 w-4 h-4 shrink-0 mt-0.5"
-                />
-                <span>
-                  <span className="block text-sm font-semibold text-gray-800">{opt.label}</span>
-                  <span className="block text-xs text-gray-500 mt-0.5 leading-relaxed">{opt.nota}</span>
-                </span>
-              </label>
-            ))}
+            ]).map(opt => {
+              const ammessa = ammesse[opt.value]
+              return (
+                <label
+                  key={opt.value}
+                  className={`flex items-start gap-2.5 rounded-xl border px-4 py-3 shadow-sm transition-all ${
+                    ammessa
+                      ? 'cursor-pointer border-gray-200 bg-white hover:border-yellow-400 has-[:checked]:border-yellow-400 has-[:checked]:bg-yellow-50 has-[:checked]:shadow-[0_0_0_1px_theme(colors.yellow.400)]'
+                      : 'cursor-not-allowed border-gray-200 bg-gray-50 opacity-60'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="inizio"
+                    value={opt.value}
+                    required
+                    disabled={!ammessa}
+                    checked={inizio === opt.value}
+                    onChange={() => setInizio(opt.value)}
+                    className="accent-yellow-400 w-4 h-4 shrink-0 mt-0.5"
+                  />
+                  <span>
+                    <span className="block text-sm font-semibold text-gray-800">{opt.label}</span>
+                    <span className="block text-xs text-gray-500 mt-0.5 leading-relaxed">
+                      {ammessa
+                        ? opt.nota
+                        : `Non disponibile: finirebbe oltre il 31 agosto ${annoSportivo.split('/')[1]}, cioè nella stagione successiva.`}
+                    </span>
+                  </span>
+                </label>
+              )
+            })}
           </div>
 
           {anteprima && (
