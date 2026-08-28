@@ -242,18 +242,26 @@ export async function POST(req: NextRequest) {
     otp_generato: esito.otpHash,
     ip_firma: ip,
     timestamp_firma: firmatoIl.toISOString(),
-    // Un solo nome per ogni consenso, e il nome dice di quale si tratta.
+    // Un solo nome per ogni casella, e il nome dice che cosa il socio ha fatto.
     // Prima esisteva anche `consenso_privacy`, che però conteneva il consenso
     // facoltativo alle immagini: chi lo avesse letto per sapere se il socio
     // aveva accettato l'informativa avrebbe ottenuto l'esatto contrario del
     // vero per ogni socio che ha rifiutato le foto.
+    //
+    // Quattro caselle su cinque non raccolgono un consenso, e chiamarle
+    // «consenso» diceva il falso su che cosa il socio ha sottoscritto: la
+    // salute è una dichiarazione sotto la propria responsabilità, statuto e
+    // regolamento si accettano, informativa e videosorveglianza si prendono
+    // in atto — un'informativa non si consente, si legge. L'unico consenso
+    // vero è quello alle immagini, che infatti è l'unico facoltativo e
+    // l'unico revocabile.
     consensi: {
-      consensi_salute: dati.consensoSalute,
-      regolamento: dati.consensoRegolamento,
+      dichiarazione_salute: dati.dichiarazioneSalute,
+      accettazione_statuto_regolamento: dati.accettazioneStatutoRegolamento,
       versione_regolamento: VERSIONE_REGOLAMENTO,
       versione_statuto: VERSIONE_STATUTO,
-      consensi_videosorveglianza: dati.consensoVideosorveglianza,
-      consenso_informativa_privacy: dati.consensoInformativaPrivacy,
+      presa_atto_videosorveglianza: dati.presaAttoVideosorveglianza,
+      presa_atto_informativa: dati.presaAttoInformativa,
       versione_privacy: VERSIONE_PRIVACY,
       consenso_immagini_facoltativo: dati.consensoImmagini,
     },

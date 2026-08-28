@@ -35,10 +35,10 @@ export default function FormIscrizione() {
     fileCertificato: null as File | null,
 
     // Consensi separati
-    consensoSalute: false,
-    consensoRegolamento: false,
-    consensoVideosorveglianza: false,
-    consensoInformativaPrivacy: false, // GDPR Obbligatorio
+    dichiarazioneSalute: false,
+    accettazioneStatutoRegolamento: false,
+    presaAttoVideosorveglianza: false,
+    presaAttoInformativa: false, // GDPR Obbligatorio
     consensoImmagini: false, // facoltativo: pubblicazione di foto e video
   })
 
@@ -178,10 +178,10 @@ export default function FormIscrizione() {
     genitoreEmail: formData.genitoreEmail,
     genitoreContattoScelta: formData.genitoreContattoScelta,
     genitoreContatto: formData.genitoreContatto,
-    consensoSalute: formData.consensoSalute,
-    consensoRegolamento: formData.consensoRegolamento,
-    consensoVideosorveglianza: formData.consensoVideosorveglianza,
-    consensoInformativaPrivacy: formData.consensoInformativaPrivacy,
+    dichiarazioneSalute: formData.dichiarazioneSalute,
+    accettazioneStatutoRegolamento: formData.accettazioneStatutoRegolamento,
+    presaAttoVideosorveglianza: formData.presaAttoVideosorveglianza,
+    presaAttoInformativa: formData.presaAttoInformativa,
     consensoImmagini: formData.consensoImmagini,
   })
 
@@ -672,12 +672,12 @@ export default function FormIscrizione() {
                 <h3 className="font-semibold text-gray-500 uppercase tracking-wide text-sm mb-3">Dichiarazioni Obbligatorie</h3>
                 
                 <label className="flex items-start cursor-pointer group p-4 bg-gray-50 hover:bg-yellow-50/50 rounded-xl transition-colors border border-gray-200 hover:border-yellow-400 shadow-sm">
-                  <input type="checkbox" name="consensoSalute" checked={formData.consensoSalute} onChange={handleChange} className="mt-0.5 h-5 w-5 accent-yellow-400 border-gray-300 rounded cursor-pointer" />
+                  <input type="checkbox" name="dichiarazioneSalute" checked={formData.dichiarazioneSalute} onChange={handleChange} className="mt-0.5 h-5 w-5 accent-yellow-400 border-gray-300 rounded cursor-pointer" />
                   <span className="ml-3.5 text-sm text-gray-600 leading-relaxed font-medium"><strong className="text-gray-900 font-bold block mb-0.5">Stato di Salute</strong> Dichiaro sotto la mia responsabilità di essere di sana e robusta costituzione fisica per svolgere attività sportiva non agonistica.</span>
                 </label>
                 
                 <label className="flex items-start cursor-pointer group p-4 bg-gray-50 hover:bg-yellow-50/50 rounded-xl transition-colors border border-gray-200 hover:border-yellow-400 shadow-sm">
-                  <input type="checkbox" name="consensoRegolamento" checked={formData.consensoRegolamento} onChange={handleChange} className="mt-0.5 h-5 w-5 accent-yellow-400 border-gray-300 rounded cursor-pointer" />
+                  <input type="checkbox" name="accettazioneStatutoRegolamento" checked={formData.accettazioneStatutoRegolamento} onChange={handleChange} className="mt-0.5 h-5 w-5 accent-yellow-400 border-gray-300 rounded cursor-pointer" />
                   <span className="ml-3.5 text-sm text-gray-600 leading-relaxed font-medium">
                     <strong className="text-gray-900 font-bold block mb-0.5">Regolamento e Statuto</strong> 
                     Dichiaro di aver preso visione dello <a href="/statuto.pdf" target="_blank" onClick={(e) => e.stopPropagation()} className="text-yellow-600 font-bold hover:text-yellow-700 hover:underline transition-all">Statuto</a> e del <a href="/regolamento.pdf" target="_blank" onClick={(e) => e.stopPropagation()} className="text-yellow-600 font-bold hover:text-yellow-700 hover:underline transition-all">Regolamento</a> dell'ASD, di accettarli integralmente e di chiedere l'ammissione in qualità di socio.
@@ -688,16 +688,16 @@ export default function FormIscrizione() {
                     Comune di Monesiglio, unico titolare: l'Associazione non tratta le
                     immagini. Qui si informa e si indirizza a chi risponde davvero. */}
                 <label className="flex items-start cursor-pointer group p-4 bg-gray-50 hover:bg-yellow-50/50 rounded-xl transition-colors border border-gray-200 hover:border-yellow-400 shadow-sm">
-                  <input type="checkbox" name="consensoVideosorveglianza" checked={formData.consensoVideosorveglianza} onChange={handleChange} className="mt-0.5 h-5 w-5 accent-yellow-400 border-gray-300 rounded cursor-pointer" />
-                  <span className="ml-3.5 text-sm text-gray-600 leading-relaxed font-medium"><strong className="text-gray-900 font-bold block mb-0.5">Videosorveglianza dei locali</strong> Dichiaro di essere informato che nei locali in cui si svolge l'attività è attivo un impianto di videosorveglianza del Comune di Monesiglio, unico titolare del trattamento delle immagini. L'Associazione non vi accede e non le conserva: finalità, tempi di conservazione e modalità per esercitare i propri diritti sono indicati nei cartelli e nell'informativa esposti nei locali.</span>
+                  <input type="checkbox" name="presaAttoVideosorveglianza" checked={formData.presaAttoVideosorveglianza} onChange={handleChange} className="mt-0.5 h-5 w-5 accent-yellow-400 border-gray-300 rounded cursor-pointer" />
+                  <span className="ml-3.5 text-sm text-gray-600 leading-relaxed font-medium"><strong className="text-gray-900 font-bold block mb-0.5">Videosorveglianza dei locali</strong> Dichiaro di essere informato che nei locali in cui si svolge l'attività è attivo un impianto di videosorveglianza del Comune di Monesiglio, titolare del trattamento delle immagini.</span>
                 </label>
 
                 {/* BLOCCO OBBLIGATORIO GDPR (Separato) */}
                 <label className="flex items-start cursor-pointer group p-4 bg-gray-50 hover:bg-yellow-50/50 rounded-xl transition-colors border border-gray-200 hover:border-yellow-400 shadow-sm">
                   <input 
                     type="checkbox" 
-                    name="consensoInformativaPrivacy" 
-                    checked={formData.consensoInformativaPrivacy} 
+                    name="presaAttoInformativa" 
+                    checked={formData.presaAttoInformativa} 
                     onChange={handleChange} 
                     className="mt-0.5 h-5 w-5 accent-yellow-400 border-gray-300 rounded cursor-pointer" 
                   />
@@ -736,7 +736,7 @@ export default function FormIscrizione() {
                     </p>
                     <button 
                       onClick={handleInviaOtp} 
-                      disabled={!formData.consensoSalute || !formData.consensoRegolamento || !formData.consensoVideosorveglianza || !formData.consensoInformativaPrivacy || isInviandoOtp} 
+                      disabled={!formData.dichiarazioneSalute || !formData.accettazioneStatutoRegolamento || !formData.presaAttoVideosorveglianza || !formData.presaAttoInformativa || isInviandoOtp} 
                       className="bg-yellow-400 text-gray-900 px-10 py-4 rounded-xl font-bold text-lg hover:bg-yellow-500 disabled:bg-gray-200 disabled:text-gray-400 disabled:border disabled:border-gray-200 transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 disabled:shadow-none disabled:transform-none w-full md:w-auto inline-flex items-center justify-center gap-2"
                     >
                       {isInviandoOtp && <Spinner className="h-5 w-5" />}

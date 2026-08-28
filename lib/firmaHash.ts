@@ -10,8 +10,8 @@ const CAMPI_DATI_FIRMA = [
   'capResidenza', 'provinciaResidenza', 'email', 'telefono',
   'genitoreNome', 'genitoreCognome', 'genitoreEmail',
   'genitoreContattoScelta', 'genitoreContatto',
-  'consensoSalute', 'consensoRegolamento', 'consensoVideosorveglianza',
-  'consensoInformativaPrivacy', 'consensoImmagini',
+  'dichiarazioneSalute', 'accettazioneStatutoRegolamento', 'presaAttoVideosorveglianza',
+  'presaAttoInformativa', 'consensoImmagini',
 ] as const
 
 export function hashDatiFirma(dati: Record<string, unknown>): string {
