@@ -1,7 +1,9 @@
 'use server'
 
+import { after } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { notificaPagamentoConfermato } from '@/lib/notifiche'
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 import { getAnnoSportivo } from '@/lib/stagione'
 import fs from 'fs'
@@ -48,7 +50,7 @@ export async function confermaPagamento(
       id, stato_pagamento, importo_tesseramento_uisp, metodo_pagamento, data_acquisto,
       numero_ricevuta_riservato,
       catalogo_attivita(nome_attivita, prezzo_base),
-      soci(id, nome, cognome, email, cf)
+      soci(id, nome, cognome, email, cf, minorenne, genitore_email)
     `)
     .eq('id', abbonamentiId)
     .eq('stato_pagamento', 'da_saldare')
@@ -118,7 +120,8 @@ export async function confermaPagamento(
     }
   }
 
-  const socio = Array.isArray(ab.soci) ? ab.soci[0] : (ab.soci as { nome?: string; cognome?: string; email?: string; cf?: string } | null)
+  type SocioRicevuta = { nome?: string; cognome?: string; email?: string; cf?: string; minorenne?: boolean; genitore_email?: string | null }
+  const socio = Array.isArray(ab.soci) ? (ab.soci[0] as SocioRicevuta) : (ab.soci as SocioRicevuta | null)
   const attivita = Array.isArray(ab.catalogo_attivita) ? ab.catalogo_attivita[0] : (ab.catalogo_attivita as { nome_attivita?: string; prezzo_base?: number } | null)
   const prezzoBase = Number(attivita?.prezzo_base ?? 0)
   const uisp = Number(ab.importo_tesseramento_uisp ?? 0)
@@ -238,6 +241,27 @@ export async function confermaPagamento(
     await supabase.from('abbonamenti_soci').update({ stato_pagamento: 'da_saldare' }).eq('id', abbonamentiId)
     return { ok: false, error: `Salvataggio ricevuta fallito: ${insertErr.message}` }
   }
+
+  // La conferma e' fatta e la ricevuta e' archiviata: da qui in poi non c'e'
+  // piu' niente che possa farla fallire. L'email parte dopo la risposta, cosi'
+  // il gestore non aspetta il postino, e se il postino non parte il pagamento
+  // resta confermato lo stesso.
+  after(async () => {
+    await notificaPagamentoConfermato({
+      emailSocio: socio?.email,
+      // Per un minorenne ha firmato e pagato un genitore: la ricevuta va anche
+      // a lui, non solo alla casella del ragazzo.
+      emailGenitore: socio?.minorenne ? socio?.genitore_email : null,
+      nomeSocio: `${socio?.nome ?? ''} ${socio?.cognome ?? ''}`.trim(),
+      attivita: attivita?.nome_attivita ?? 'Abbonamento',
+      importoAttivita: prezzoBase,
+      importoUisp: uisp,
+      metodo: metodo.charAt(0).toUpperCase() + metodo.slice(1),
+      numeroRicevuta,
+      annoSportivo,
+      ricevutaPdf: Buffer.from(pdfBytes),
+    })
+  })
 
   revalidatePath('/area-gestori')
   return { ok: true, message: `Pagamento confermato – ${numeroRicevuta}`, ricevutaPath: storagePath }

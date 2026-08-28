@@ -1,4 +1,4 @@
-import { type NextRequest, NextResponse } from 'next/server'
+import { after, type NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { ipDellaRichiesta } from '@/lib/ip'
@@ -7,6 +7,7 @@ import { verificaOtp, consumaOtp } from '@/lib/otp'
 import { componiModuloFirmato } from '@/lib/moduloPdf'
 import { getAnnoSportivo } from '@/lib/stagione'
 import { normalizzaTelefono } from '@/lib/telefono'
+import { notificaNuovaIscrizione } from '@/lib/notifiche'
 
 // Versioni dei testi accettati: le decide il server, non il browser. Se le
 // dichiarasse il client, un socio potrebbe risultare vincolato a una versione
@@ -293,6 +294,21 @@ export async function POST(req: NextRequest) {
       .createSignedUrl(storagePath, 3600, { download: nomeFile })
     urlDownload = data?.signedUrl ?? null
   }
+
+  // 7. La segreteria va avvisata, ma non a spese dell'iscritto: se il postino
+  //    fallisse dentro la risposta, un tesseramento gia' scritto e archiviato
+  //    tornerebbe indietro come errore. Parte dopo, e se non parte resta solo
+  //    una riga nel registro.
+  after(async () => {
+    await notificaNuovaIscrizione({
+      nome: String(dati.nome ?? ''),
+      cognome: String(dati.cognome ?? ''),
+      emailSocio: String(dati.email ?? '').trim(),
+      annoSportivo,
+      minorenne,
+      scadenzaCertificato: scadenza,
+    })
+  })
 
   return NextResponse.json({
     ok: true,

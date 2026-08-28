@@ -15,3 +15,22 @@ export function emailPlausibile(valore: unknown): valore is string {
   const v = valore.trim()
   return v.length > 0 && v.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v)
 }
+
+/**
+ * Neutralizza una stringa destinata al corpo HTML di un'email.
+ *
+ * Nome, note e attivita' arrivano da moduli compilati da persone e finiscono
+ * dentro messaggi spediti dal dominio verificato dell'ASD: senza questo, chi
+ * scrive del markup al posto del proprio nome se lo vedrebbe interpretato.
+ *
+ * Sta qui accanto a emailPlausibile perche' il problema e' lo stesso: una
+ * copia per ogni rotta che spedisce, e le copie divergono.
+ */
+export function testoSicuroHtml(valore: unknown): string {
+  return String(valore ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}

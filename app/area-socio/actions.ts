@@ -1,8 +1,10 @@
 'use server'
 
+import { after } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getAnnoSportivo } from '@/lib/stagione'
 import { revalidatePath } from 'next/cache'
+import { notificaNuovaRichiesta } from '@/lib/notifiche'
 
 export type ActionResult = { ok: true } | { ok: false; error: string }
 
@@ -25,10 +27,12 @@ async function socioDellUtente(
   supabase: Awaited<ReturnType<typeof createClient>>,
   userId: string,
   socioIdRichiesto: string | null
-): Promise<{ id: string } | { errore: string }> {
+): Promise<{ id: string; nome: string | null; cognome: string | null } | { errore: string }> {
+  // Nome e cognome non servono ai controlli: servono alla segnalazione che
+  // parte dopo, per non dover interrogare di nuovo la stessa riga.
   const { data: soci, error } = await supabase
     .from('soci')
-    .select('id')
+    .select('id, nome, cognome')
     .eq('user_id', userId)
 
   if (error) return { errore: 'Non è stato possibile leggere il tuo profilo. Riprova.' }
@@ -36,7 +40,9 @@ async function socioDellUtente(
 
   if (socioIdRichiesto) {
     const trovato = soci.find(s => s.id === socioIdRichiesto)
-    return trovato ? { id: trovato.id } : { errore: 'Profilo socio non trovato.' }
+    return trovato
+      ? { id: trovato.id, nome: trovato.nome, cognome: trovato.cognome }
+      : { errore: 'Profilo socio non trovato.' }
   }
 
   // Nessun id indicato: va bene solo se di socio ce n'e' uno solo. Con piu'
@@ -46,7 +52,7 @@ async function socioDellUtente(
     return { errore: 'Scegli prima la persona a cui si riferisce la richiesta.' }
   }
 
-  return { id: soci[0].id }
+  return { id: soci[0].id, nome: soci[0].nome, cognome: soci[0].cognome }
 }
 
 export async function uploadCertificato(
@@ -172,7 +178,7 @@ export async function richiestaAbbonamento(
   // collegata senza ricontrollare nulla.
   const { data: attivita } = await supabase
     .from('catalogo_attivita')
-    .select('id')
+    .select('id, nome_attivita, prezzo_base')
     .eq('id', attivitaId)
     .eq('attivo', true)
     .maybeSingle()
@@ -232,6 +238,21 @@ export async function richiestaAbbonamento(
     }
     return { ok: false, error: `Richiesta fallita: ${error.message}` }
   }
+
+  // La richiesta e' registrata: da qui la segnalazione alla segreteria non puo'
+  // piu' cambiarne l'esito. Parte dopo la risposta, cosi' il socio non aspetta
+  // il postino e un guasto di Resend non gli fa credere di aver fallito.
+  after(async () => {
+    await notificaNuovaRichiesta({
+      nomeSocio: `${socio.nome ?? ''} ${socio.cognome ?? ''}`.trim(),
+      attivita: attivita.nome_attivita ?? 'Attivita non indicata',
+      importoAttivita: Number(attivita.prezzo_base ?? 0),
+      importoUisp: uispFee,
+      metodo: metodoPagamento,
+      note,
+      annoSportivo,
+    })
+  })
 
   revalidatePath('/area-socio')
   return { ok: true }

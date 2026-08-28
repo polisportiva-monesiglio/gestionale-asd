@@ -4,25 +4,13 @@ import crypto from 'crypto';
 import { hashDatiFirma } from '@/lib/firmaHash';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { ipDellaRichiesta } from '@/lib/ip';
-import { emailPlausibile } from '@/lib/email';
+import { emailPlausibile, testoSicuroHtml } from '@/lib/email';
 import { firmatarioDi } from '@/lib/firmatario';
 
 // Inizializza il postino con la tua chiave segreta
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 const DURATA_OTP_MS = 10 * 60 * 1000; // 10 minuti
-
-// Il nome arriva dal form pubblico e finisce nel corpo HTML dell'email: senza
-// neutralizzarlo, chi scrive del markup al posto del proprio nome lo vedrebbe
-// interpretato in un messaggio spedito dal dominio verificato dell'ASD.
-function testoSicuroHtml(valore: unknown): string {
-  return String(valore ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
 
 export async function POST(req: NextRequest) {
   try {
