@@ -684,10 +684,12 @@ export default function FormIscrizione() {
                   </span>
                 </label>
 
-                {/* CONSENSO VIDEOSORVEGLIANZA (Separato e obbligatorio) */}
+                {/* VIDEOSORVEGLIANZA: presa d'atto, non consenso. L'impianto e' del
+                    Comune di Monesiglio, unico titolare: l'Associazione non tratta le
+                    immagini. Qui si informa e si indirizza a chi risponde davvero. */}
                 <label className="flex items-start cursor-pointer group p-4 bg-gray-50 hover:bg-yellow-50/50 rounded-xl transition-colors border border-gray-200 hover:border-yellow-400 shadow-sm">
                   <input type="checkbox" name="consensoVideosorveglianza" checked={formData.consensoVideosorveglianza} onChange={handleChange} className="mt-0.5 h-5 w-5 accent-yellow-400 border-gray-300 rounded cursor-pointer" />
-                  <span className="ml-3.5 text-sm text-gray-600 leading-relaxed font-medium"><strong className="text-gray-900 font-bold block mb-0.5">Videosorveglianza Interna</strong> Dichiaro di essere informato della presenza di un sistema di videosorveglianza interno per motivi di sicurezza e tutela del patrimonio.</span>
+                  <span className="ml-3.5 text-sm text-gray-600 leading-relaxed font-medium"><strong className="text-gray-900 font-bold block mb-0.5">Videosorveglianza dei locali</strong> Dichiaro di essere informato che nei locali in cui si svolge l'attività è attivo un impianto di videosorveglianza del Comune di Monesiglio, unico titolare del trattamento delle immagini. L'Associazione non vi accede e non le conserva: finalità, tempi di conservazione e modalità per esercitare i propri diritti sono indicati nei cartelli e nell'informativa esposti nei locali.</span>
                 </label>
 
                 {/* BLOCCO OBBLIGATORIO GDPR (Separato) */}
