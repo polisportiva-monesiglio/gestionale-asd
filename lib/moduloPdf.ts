@@ -135,7 +135,11 @@ export async function componiModuloFirmato(
 
   // --- SEZIONE 2: RESIDENZA E CONTATTI ---
   firstPage.drawText(dati.indirizzoResidenza || '', { x: 247, y: 401, size: textSize, font })
-  const cittaCompleta = `${dati.cittaResidenza || ''} (${dati.provinciaResidenza || ''})`
+  // Il CAP si raccoglie nel modulo ma non finiva sul documento: una residenza
+  // senza CAP e' un indirizzo incompleto, su una domanda di ammissione che vale
+  // come atto.
+  const cap = String(dati.capResidenza || '').trim()
+  const cittaCompleta = `${dati.cittaResidenza || ''} (${dati.provinciaResidenza || ''})${cap ? ' ' + cap : ''}`
   firstPage.drawText(cittaCompleta, { x: 140, y: 385, size: textSize, font })
   firstPage.drawText(dati.email || '', { x: 145, y: 369, size: textSize, font })
   const numeroTel = dati.telefono || dati.tel || dati.cellulare || ''
@@ -173,7 +177,10 @@ export async function componiModuloFirmato(
   const testoConsenso = haAcconsentito
     ? "ACCONSENTE all'uso delle immagini"
     : "NON ACCONSENTE all'uso delle immagini"
-  firstPage.drawText(testoConsenso, { x: 71, y: 140, size: 10, font: fontBold })
+  // A 135 e non piu' a 140: il paragrafo sulle immagini si e' spostato in
+  // basso per far posto sopra alla frase sul certificato, e questa riga deve
+  // restare attaccata a quel paragrafo, non alla frase nuova.
+  firstPage.drawText(testoConsenso, { x: 71, y: 135, size: 10, font: fontBold })
 
   const luogoCompilazione = dati.cittaResidenza || 'Monesiglio'
   const luogoData = `${luogoCompilazione}, ${dataItaliana(prova.firmatoIl)}`
