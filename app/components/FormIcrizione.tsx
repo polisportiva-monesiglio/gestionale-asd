@@ -703,7 +703,7 @@ export default function FormIscrizione() {
                   />
                   <span className="ml-3.5 text-sm text-gray-600 leading-relaxed font-medium">
                     <strong className="text-gray-900 font-bold block mb-0.5">Informativa sulla Privacy (GDPR)</strong>
-                    Dichiaro di aver letto e compreso l'<a href="/privacy-policy.pdf" target="_blank" onClick={(e) => e.stopPropagation()} className="text-yellow-600 font-bold hover:text-yellow-700 hover:underline transition-all">Informativa sul trattamento dei dati personali</a> ai sensi del Regolamento UE 2016/679.
+                    Dichiaro di aver letto e compreso l'<a href="/privacy" target="_blank" onClick={(e) => e.stopPropagation()} className="text-yellow-600 font-bold hover:text-yellow-700 hover:underline transition-all">Informativa sul trattamento dei dati personali</a> ai sensi del Regolamento UE 2016/679.
                   </span>
                 </label>
 

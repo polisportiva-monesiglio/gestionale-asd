@@ -72,6 +72,13 @@ export default function Home() {
               >
                 info@polisportiva-monesiglio.it
               </a>
+              {' · '}
+              <Link
+                href="/privacy"
+                className="underline underline-offset-2 hover:text-gray-500 transition-colors"
+              >
+                Informativa privacy
+              </Link>
             </address>
           </div>
 
