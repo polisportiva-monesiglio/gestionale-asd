@@ -214,6 +214,7 @@ export async function POST(req: NextRequest) {
       presa_atto_videosorveglianza: dati.presaAttoVideosorveglianza,
       presa_atto_informativa: dati.presaAttoInformativa,
       versione_privacy: VERSIONE_PRIVACY,
+      consenso_dati_salute: dati.consensoCertificatoMedico,
       consenso_immagini_facoltativo: dati.consensoImmagini,
     },
   })

@@ -63,6 +63,7 @@ export default function RinnovoTesseramento({ socio, annoSportivo, certificatoVa
     accettazioneStatutoRegolamento: false,
     presaAttoVideosorveglianza: false,
     presaAttoInformativa: false,
+    consensoCertificatoMedico: false,
     consensoImmagini: false,
   })
 
@@ -82,7 +83,8 @@ export default function RinnovoTesseramento({ socio, annoSportivo, certificatoVa
     consensi.dichiarazioneSalute &&
     consensi.accettazioneStatutoRegolamento &&
     consensi.presaAttoVideosorveglianza &&
-    consensi.presaAttoInformativa
+    consensi.presaAttoInformativa &&
+    consensi.consensoCertificatoMedico
 
   const certificatoPronto = riusaCertificato
     ? certificatoValidoFinoAl !== null
@@ -376,6 +378,11 @@ export default function RinnovoTesseramento({ socio, annoSportivo, certificatoVa
             </a>{' '}
             ai sensi del Regolamento UE 2016/679.
           </>
+        )}
+        {casella(
+          'consensoCertificatoMedico',
+          'Certificato medico e dati sulla salute',
+          'Acconsento al trattamento del certificato medico e dei dati sulla salute che contiene, per la sola verifica dell’idoneità alla pratica sportiva non agonistica. Senza questo consenso non è possibile rinnovare il tesseramento. Puoi revocarlo quando vuoi scrivendo alla segreteria: la revoca comporta la fine del tesseramento.'
         )}
         {casella(
           'consensoImmagini',

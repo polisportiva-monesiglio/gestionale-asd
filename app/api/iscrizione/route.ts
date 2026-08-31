@@ -52,6 +52,25 @@ export async function POST(req: NextRequest) {
     )
   }
 
+  // I consensi obbligatori si controllano anche qui, non solo nel modulo. Il
+  // browser puo' non spuntarli e chiamare l'API lo stesso: senza questo, si
+  // creerebbe un tesseramento con il consenso ai dati sulla salute a false,
+  // cioe' un certificato medico conservato senza una base giuridica che lo
+  // regga. Il rinnovo lo fa gia'; qui mancava.
+  const OBBLIGATORI = [
+    'dichiarazioneSalute',
+    'accettazioneStatutoRegolamento',
+    'presaAttoVideosorveglianza',
+    'presaAttoInformativa',
+    'consensoCertificatoMedico',
+  ] as const
+  if (OBBLIGATORI.some(campo => dati?.[campo] !== true)) {
+    return NextResponse.json(
+      { error: 'Per iscriverti devi accettare tutte le dichiarazioni obbligatorie.' },
+      { status: 400 }
+    )
+  }
+
   // Chi firma: per un minorenne e' il genitore, e il codice e' stato spedito a
   // lui. La regola e' la stessa usata da /api/invia-otp per scegliere dove
   // spedire, perche' viene dalla stessa funzione: se qui si verificasse contro
@@ -263,6 +282,7 @@ export async function POST(req: NextRequest) {
       presa_atto_videosorveglianza: dati.presaAttoVideosorveglianza,
       presa_atto_informativa: dati.presaAttoInformativa,
       versione_privacy: VERSIONE_PRIVACY,
+      consenso_dati_salute: dati.consensoCertificatoMedico,
       consenso_immagini_facoltativo: dati.consensoImmagini,
     },
   })

@@ -43,6 +43,7 @@ export type Consensi = {
   accettazioneStatutoRegolamento: boolean
   presaAttoVideosorveglianza: boolean
   presaAttoInformativa: boolean
+  consensoCertificatoMedico: boolean
   consensoImmagini: boolean
 }
 
@@ -136,6 +137,7 @@ export function datiRinnovo(
     accettazioneStatutoRegolamento: consensi.accettazioneStatutoRegolamento === true,
     presaAttoVideosorveglianza: consensi.presaAttoVideosorveglianza === true,
     presaAttoInformativa: consensi.presaAttoInformativa === true,
+    consensoCertificatoMedico: consensi.consensoCertificatoMedico === true,
     consensoImmagini: consensi.consensoImmagini === true,
   }
 }
@@ -146,7 +148,8 @@ export function consensiCompleti(c: Consensi): boolean {
     c.dichiarazioneSalute === true &&
     c.accettazioneStatutoRegolamento === true &&
     c.presaAttoVideosorveglianza === true &&
-    c.presaAttoInformativa === true
+    c.presaAttoInformativa === true &&
+    c.consensoCertificatoMedico === true
   )
 }
 
@@ -157,6 +160,7 @@ export function leggiConsensi(corpo: Record<string, unknown> | null | undefined)
     accettazioneStatutoRegolamento: c.accettazioneStatutoRegolamento === true,
     presaAttoVideosorveglianza: c.presaAttoVideosorveglianza === true,
     presaAttoInformativa: c.presaAttoInformativa === true,
+    consensoCertificatoMedico: c.consensoCertificatoMedico === true,
     consensoImmagini: c.consensoImmagini === true,
   }
 }

@@ -39,6 +39,7 @@ export default function FormIscrizione() {
     accettazioneStatutoRegolamento: false,
     presaAttoVideosorveglianza: false,
     presaAttoInformativa: false, // GDPR Obbligatorio
+    consensoCertificatoMedico: false, // art. 9.2.a: base per i dati sulla salute
     consensoImmagini: false, // facoltativo: pubblicazione di foto e video
   })
 
@@ -182,6 +183,7 @@ export default function FormIscrizione() {
     accettazioneStatutoRegolamento: formData.accettazioneStatutoRegolamento,
     presaAttoVideosorveglianza: formData.presaAttoVideosorveglianza,
     presaAttoInformativa: formData.presaAttoInformativa,
+    consensoCertificatoMedico: formData.consensoCertificatoMedico,
     consensoImmagini: formData.consensoImmagini,
   })
 
@@ -707,6 +709,18 @@ export default function FormIscrizione() {
                   </span>
                 </label>
 
+                {/* CONSENSO AI DATI SULLA SALUTE (art. 9.2.a).
+                    Distinto dalla dichiarazione di sana costituzione, che e' una
+                    dichiarazione dell'interessato sul proprio stato: questo e' il
+                    consenso a *trattare* il certificato, ed e' la base giuridica su
+                    cui si regge la sua conservazione. Obbligatorio, perche' senza
+                    certificato non si puo' fare attivita': la condizione viene dalla
+                    legge (D.M. 24 aprile 2013), non da una scelta dell'Associazione. */}
+                <label className="flex items-start cursor-pointer group p-4 bg-gray-50 hover:bg-yellow-50/50 rounded-xl transition-colors border border-gray-200 hover:border-yellow-400 shadow-sm">
+                  <input type="checkbox" name="consensoCertificatoMedico" checked={formData.consensoCertificatoMedico} onChange={handleChange} className="mt-0.5 h-5 w-5 accent-yellow-400 border-gray-300 rounded cursor-pointer" />
+                  <span className="ml-3.5 text-sm text-gray-600 leading-relaxed font-medium"><strong className="text-gray-900 font-bold block mb-0.5">Certificato medico e dati sulla salute</strong> Acconsento al trattamento del certificato medico e dei dati sulla salute che contiene, per la sola verifica dell'idoneità alla pratica sportiva non agonistica. Senza questo consenso non è possibile tesserarsi, perché il certificato è per legge condizione per svolgere l'attività. Puoi revocarlo quando vuoi scrivendo alla segreteria: la revoca comporta la fine del tesseramento.</span>
+                </label>
+
                 {/* BLOCCO FACOLTATIVO (Immagini) */}
                 <h3 className="font-semibold text-gray-500 uppercase tracking-wide text-sm mt-8 mb-3">Consensi Facoltativi</h3>
                 
@@ -736,7 +750,7 @@ export default function FormIscrizione() {
                     </p>
                     <button 
                       onClick={handleInviaOtp} 
-                      disabled={!formData.dichiarazioneSalute || !formData.accettazioneStatutoRegolamento || !formData.presaAttoVideosorveglianza || !formData.presaAttoInformativa || isInviandoOtp} 
+                      disabled={!formData.dichiarazioneSalute || !formData.accettazioneStatutoRegolamento || !formData.presaAttoVideosorveglianza || !formData.presaAttoInformativa || !formData.consensoCertificatoMedico || isInviandoOtp} 
                       className="bg-yellow-400 text-gray-900 px-10 py-4 rounded-xl font-bold text-lg hover:bg-yellow-500 disabled:bg-gray-200 disabled:text-gray-400 disabled:border disabled:border-gray-200 transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 disabled:shadow-none disabled:transform-none w-full md:w-auto inline-flex items-center justify-center gap-2"
                     >
                       {isInviandoOtp && <Spinner className="h-5 w-5" />}
