@@ -249,11 +249,23 @@ export default function PrivacyPage() {
 
           <Sezione numero={7} titolo="Trasferimenti fuori dall'Unione Europea">
             <p>
-              Il database e i documenti che carichi restano su server situati nell&apos;Unione
-              Europea. Alcuni fornitori sono società con sede negli Stati Uniti: in tal caso il
-              trasferimento avviene sulla base delle clausole contrattuali standard approvate dalla
-              Commissione Europea e, ove applicabile, dell&apos;adesione del fornitore al{' '}
-              <em>EU-U.S. Data Privacy Framework</em>.
+              Il database, i documenti che carichi e l&apos;esecuzione del sito stanno su server
+              situati nell&apos;Unione Europea, a Francoforte. Le email partono da un fornitore con
+              server in Irlanda.
+            </p>
+            <p>
+              Alcuni di questi fornitori sono però società statunitensi e, per l&apos;assistenza
+              tecnica, possono accedere ai dati dagli Stati Uniti. Quando accade, il trasferimento
+              si fonda sulle <strong className="text-gray-900">clausole contrattuali standard</strong>{' '}
+              approvate dalla Commissione Europea, contenute nei contratti di trattamento che
+              accettiamo all&apos;attivazione di ciascun servizio.
+            </p>
+            <p>
+              <strong className="text-gray-900">Vercel</strong>, che esegue il sito, è inoltre
+              certificata nell&apos;ambito dell&apos;<em>EU-U.S. Data Privacy Framework</em>. Per gli
+              altri fornitori la garanzia applicabile sono le clausole contrattuali standard; se
+              vuoi sapere quale si applica a uno in particolare, o averne copia, scrivici e te lo
+              diciamo — è un tuo diritto.
             </p>
           </Sezione>
 
