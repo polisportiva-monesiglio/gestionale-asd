@@ -382,7 +382,7 @@ export default function RinnovoTesseramento({ socio, annoSportivo, certificatoVa
         {casella(
           'consensoCertificatoMedico',
           'Certificato medico e dati sulla salute',
-          'Acconsento al trattamento del certificato medico e dei dati sulla salute che contiene, per la sola verifica dell’idoneità alla pratica sportiva non agonistica. Senza questo consenso non è possibile rinnovare il tesseramento. Puoi revocarlo quando vuoi scrivendo alla segreteria: la revoca comporta la fine del tesseramento.'
+          'Acconsento al trattamento del certificato medico e dei dati sulla salute che contiene, per la sola verifica dell’idoneità alla pratica sportiva non agonistica. Senza questo consenso non è possibile rinnovare il tesseramento, perché senza certificato non è consentito svolgere attività sportiva. Puoi revocarlo quando vuoi scrivendo alla segreteria: in quel caso cancelliamo il certificato e non potrai più allenarti finché non ne consegni uno nuovo.'
         )}
         {casella(
           'consensoImmagini',
