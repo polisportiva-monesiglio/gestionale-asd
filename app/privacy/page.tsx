@@ -199,6 +199,7 @@ export default function PrivacyPage() {
                     ['Vercel', 'Hosting del sito', 'Vedi la sezione sui trasferimenti'],
                     ['Resend', 'Invio delle email di accesso e di conferma', 'Unione Europea (Irlanda)'],
                     ['ImprovMX', 'Inoltro della posta indirizzata al dominio dell’Associazione', 'Vedi la sezione sui trasferimenti'],
+                    ['Twilio', 'Invio dei messaggi WhatsApp di servizio (codice della cassetta, scadenza del certificato)', 'Vedi la sezione sui trasferimenti'],
                   ].map(([nome, servizio, dove]) => (
                     <tr key={nome} className="border-t border-gray-100">
                       <td className="py-3 pr-4 text-gray-900 font-semibold">{nome}</td>
@@ -209,6 +210,13 @@ export default function PrivacyPage() {
                 </tbody>
               </table>
             </div>
+            <p>
+              I messaggi WhatsApp transitano sulla piattaforma gestita da <strong className="text-gray-900">Meta</strong>,
+              che tratta il numero di telefono del destinatario secondo le proprie condizioni. Se
+              preferisci non essere contattato su WhatsApp, gli stessi avvisi ti arrivano comunque
+              per email: scrivici e togliamo il numero.
+            </p>
+
             <p className="pt-2">
               Comunichiamo inoltre i dati anagrafici necessari all&apos;<strong className="text-gray-900">UISP</strong>,
               l&apos;ente di promozione sportiva a cui l&apos;Associazione è affiliata, per
