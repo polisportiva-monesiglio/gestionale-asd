@@ -333,6 +333,19 @@ export default async function AreaSocioPage({
             </div>
           )}
 
+          {/* La guida, raggiungibile anche da dentro. Stava solo in prima
+              pagina, cioe' nel punto che un socio gia' entrato non rivede mai:
+              chi si blocca sul rinnovo o non trova la scheda giusta non aveva
+              nessuna strada per arrivarci. */}
+          <p className="text-center text-sm pt-1">
+            <a
+              href="/guida"
+              className="font-semibold text-gray-400 underline underline-offset-4 decoration-gray-300 hover:text-gray-700 hover:decoration-gray-500 transition-colors"
+            >
+              Come funziona, in breve
+            </a>
+          </p>
+
         </div>
       </main>
     </>
