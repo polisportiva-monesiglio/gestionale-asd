@@ -170,10 +170,14 @@ export async function confermaPagamento(
   if (socio?.cf) page.drawText(`C.F.: ${socio.cf}`, { x: 30, y: secY - 34, size: 9, font, color: gray })
   if (socio?.email) page.drawText(`Email: ${socio.email}`, { x: 30, y: secY - 48, size: 9, font, color: gray })
 
-  // Causale
-  page.drawText(`Causale: quota associativa e corrispettivo specifico - stagione ${annoSportivo}`, {
-    x: 30, y: secY - 66, size: 9, font, color: gray,
-  })
+  // Causale, con le voci del bilancio approvato dal commercialista: le "quote
+  // associative" sono i 20 euro di tesseramento, i "corrispettivi mensili" la
+  // frequenza della sala pesi. "Corrispettivi specifici" no: quella voce il
+  // bilancio la tiene per i corsi, che qui non si vendono.
+  const causale = uisp > 0
+    ? `Causale: quota associativa e corrispettivo mensile - stagione ${annoSportivo}`
+    : `Causale: corrispettivo mensile - stagione ${annoSportivo}`
+  page.drawText(causale, { x: 30, y: secY - 66, size: 9, font, color: gray })
 
   // Dettaglio
   const detY = height - 200

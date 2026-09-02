@@ -58,6 +58,29 @@ export default function Home() {
             </Link>
           </p>
 
+          {/* Statuto e Regolamento in prima pagina, non solo dentro il modulo
+              di iscrizione: chi li ha accettati deve poterli rileggere senza
+              ricominciare un'iscrizione per arrivarci. */}
+          <p className="text-center text-xs text-gray-400 -mt-3">
+            <a
+              href="/statuto.pdf"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline underline-offset-2 hover:text-gray-600 transition-colors"
+            >
+              Statuto
+            </a>
+            {' · '}
+            <a
+              href="/regolamento.pdf"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline underline-offset-2 hover:text-gray-600 transition-colors"
+            >
+              Regolamento
+            </a>
+          </p>
+
           {/* Footer */}
           <div className="space-y-5">
             <p className="text-center text-xs text-gray-300">
