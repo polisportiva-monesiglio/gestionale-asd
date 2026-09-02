@@ -58,19 +58,15 @@ export default function Home() {
             </Link>
           </p>
 
-          {/* Statuto e Regolamento in prima pagina, non solo dentro il modulo
-              di iscrizione: chi li ha accettati deve poterli rileggere senza
-              ricominciare un'iscrizione per arrivarci. */}
+          {/* Il Regolamento in prima pagina, non solo dentro il modulo di
+              iscrizione: chi lo ha accettato deve poterlo rileggere senza
+              ricominciare un'iscrizione per arrivarci.
+
+              Lo Statuto qui non c'e' per scelta e in via temporanea. Resta
+              raggiungibile dal modulo di iscrizione, dove lo si accetta: non e'
+              stato tolto dal sito, solo dalla vetrina. Per rimetterlo basta un
+              secondo <a> come quello sotto, verso /statuto.pdf. */}
           <p className="text-center text-xs text-gray-400 -mt-3">
-            <a
-              href="/statuto.pdf"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline underline-offset-2 hover:text-gray-600 transition-colors"
-            >
-              Statuto
-            </a>
-            {' · '}
             <a
               href="/regolamento.pdf"
               target="_blank"
