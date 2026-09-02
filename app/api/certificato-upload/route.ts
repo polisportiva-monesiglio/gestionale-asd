@@ -17,6 +17,22 @@ const ESTENSIONI: Record<string, string> = {
   heic: 'heic',
 }
 
+// Ripiego quando il nome del file non porta un'estensione utile: capita con gli
+// allegati salvati da certe app di messaggistica, che arrivano chiamati solo
+// "certificato". Prima di questo, `split('.').pop()` restituiva l'intero nome e
+// il caricamento veniva rifiutato dicendo che il file non era un PDF — mentre
+// un PDF lo era. Il tipo dichiarato dal browser e' un indizio migliore del
+// nome, e comunque non e' l'ultima parola: l'archivio controlla per conto suo
+// i tipi che accetta.
+const DA_TIPO: Record<string, string> = {
+  'application/pdf': 'pdf',
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+  'image/heic': 'heic',
+  'image/heif': 'heic',
+}
+
 /**
  * Il permesso di caricare un certificato, firmato dal server.
  *
@@ -33,14 +49,16 @@ const ESTENSIONI: Record<string, string> = {
  */
 export async function POST(req: NextRequest) {
   let estensioneRichiesta: string
+  let tipoDichiarato: string
   try {
     const corpo = await req.json()
-    estensioneRichiesta = String(corpo?.estensione ?? 'pdf').toLowerCase()
+    estensioneRichiesta = String(corpo?.estensione ?? '').toLowerCase()
+    tipoDichiarato = String(corpo?.tipo ?? '').toLowerCase().split(';')[0].trim()
   } catch {
     return NextResponse.json({ error: 'Richiesta non valida' }, { status: 400 })
   }
 
-  const estensione = ESTENSIONI[estensioneRichiesta]
+  const estensione = ESTENSIONI[estensioneRichiesta] ?? DA_TIPO[tipoDichiarato]
   if (!estensione) {
     return NextResponse.json(
       { error: 'Il certificato deve essere un PDF o una foto (JPG, PNG, WEBP, HEIC).' },

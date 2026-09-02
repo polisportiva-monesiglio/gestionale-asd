@@ -54,17 +54,33 @@ async function orfaniDaButtare(
 ): Promise<{ percorsi: string[]; errore: string | null }> {
   // Tutti i riferimenti esistenti, non solo quelli nei termini: un file
   // nominato da una riga qualsiasi non e' un orfano, qualunque sia la sua eta'.
-  const [tess, stor] = await Promise.all([
-    supabase.from('tesseramenti_annuali').select('url_certificato_pdf').not('url_certificato_pdf', 'is', null),
-    supabase.from('certificati_medici_storico').select('url_certificato_pdf').not('url_certificato_pdf', 'is', null),
-  ])
-  if (tess.error || stor.error) {
-    return { percorsi: [], errore: tess.error?.message ?? stor.error?.message ?? 'errore' }
-  }
-
+  //
+  // Si legge a pagine, e non in un colpo solo, perche' PostgREST tronca le
+  // risposte a mille righe. Un elenco troncato qui non fa cancellare di meno:
+  // fa cancellare di piu'. I file richiamati dalle righe cadute fuori dalla
+  // prima pagina sembrerebbero orfani, e verrebbero distrutti pur essendo
+  // certificati di soci in regola. E' il verso opposto rispetto alla passata
+  // sugli scaduti, dove un elenco corto e' innocuo.
   const nominati = new Set<string>()
-  for (const r of [...(tess.data ?? []), ...(stor.data ?? [])]) {
-    if (r.url_certificato_pdf) nominati.add(r.url_certificato_pdf as string)
+  const RIGHE = 500
+
+  for (const tabella of ['tesseramenti_annuali', 'certificati_medici_storico']) {
+    for (let da = 0; ; da += RIGHE) {
+      const { data, error } = await supabase
+        .from(tabella)
+        .select('url_certificato_pdf')
+        .not('url_certificato_pdf', 'is', null)
+        .range(da, da + RIGHE - 1)
+
+      if (error) return { percorsi: [], errore: `${tabella}: ${error.message}` }
+      if (!data || data.length === 0) break
+
+      for (const r of data) {
+        if (r.url_certificato_pdf) nominati.add(r.url_certificato_pdf as string)
+      }
+
+      if (data.length < RIGHE) break
+    }
   }
 
   // Solo `iscrizioni/`, che e' la cartella dove finisce il caricamento fatto

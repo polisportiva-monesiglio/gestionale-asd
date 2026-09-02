@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Spinner } from '@/app/components/Spinner'
+import { permessoDiCaricare, type PermessoRicordato } from '@/lib/caricaCertificato'
 
 export type SocioDaRinnovare = {
   id: string
@@ -76,6 +77,9 @@ export default function RinnovoTesseramento({ socio, annoSportivo, certificatoVa
   const [istantanea, setIstantanea] = useState('')
   const [codice, setCodice] = useState('')
   const [inCorso, setInCorso] = useState(false)
+  // Il permesso sopravvive ai ritentativi: chiederne un altro per lo stesso file
+  // consumerebbe un secondo slot del limitatore.
+  const permessoCaricamento = useRef<PermessoRicordato>(null)
   const [errore, setErrore] = useState('')
   const [fatto, setFatto] = useState<{ url: string | null } | null>(null)
 
@@ -137,17 +141,7 @@ export default function RinnovoTesseramento({ socio, annoSportivo, certificatoVa
         // permesso: sceglie lui il percorso — casuale, perché quello di un
         // documento sanitario non deve contenere nome e cognome — e conta i
         // caricamenti per provenienza.
-        const estensione = file.name.split('.').pop()?.toLowerCase() || 'pdf'
-        const permesso = await fetch('/api/certificato-upload', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ estensione }),
-        })
-        const rilascio = await permesso.json()
-        if (!permesso.ok) {
-          setErrore(rilascio.error || 'Caricamento del certificato fallito.')
-          return
-        }
+        const rilascio = await permessoDiCaricare(file, permessoCaricamento)
 
         const { error } = await supabase.storage
           .from('certificati-medici')

@@ -5,6 +5,7 @@ import AreaSocioTabs from './AreaSocioTabs'
 import RinnovoTesseramento, { type SocioDaRinnovare } from './RinnovoTesseramento'
 import { certificatoAncoraValido } from '@/lib/rinnovoServer'
 import { partiRomane } from '@/lib/dataRoma'
+import { formattaGiorno } from '@/lib/abbonamento'
 
 export default async function AreaSocioPage({
   searchParams,
@@ -70,7 +71,10 @@ export default async function AreaSocioPage({
       .eq('socio_id', socio?.id ?? '')
       .order('caricato_il', { ascending: false }),
     // Le RLS lasciano leggere questa riga solo a chi ha un abbonamento pagato
-    // nella stagione corrente: per gli altri torna semplicemente null.
+    // con il periodo in corso — non piu' "nella stagione corrente", che fra il
+    // 15 e il 31 agosto lasciava senza codice chi aveva pagato. Per gli altri
+    // torna semplicemente null. Un gestore la legge comunque, per la sua
+    // policy: per questo la scheda qui sotto chiede anche di essere un socio.
     supabase
       .from('impostazioni')
       .select('valore, aggiornato_il')
@@ -163,6 +167,14 @@ export default async function AreaSocioPage({
   })()
   const certificatoRiusabile =
     deveRinnovare && socio ? await certificatoAncoraValido(socio.id, oggiRoma) : null
+
+  // Ha pagato, ma il periodo comincia piu' avanti: il codice della cassetta non
+  // gli spetta ancora — non puo' entrare prima di aver cominciato — e la nuova
+  // regola infatti non glielo mostra. Senza dirglielo pero' sembra un guasto:
+  // ha pagato, il gestore ha confermato, e la scheda non c'e'.
+  const inAttesaDiPartire = abbonamentiFlattenati.find(
+    a => a.stato_pagamento === 'pagato' && a.data_inizio_validita && a.data_inizio_validita > oggiRoma
+  )
 
   const hasPending = abbonamentiFlattenati.some(a => a.stato_pagamento === 'da_saldare')
   const haAbbonamentoPagato = abbonamentiFlattenati.some(a => a.stato_pagamento === 'pagato')
@@ -299,7 +311,7 @@ export default async function AreaSocioPage({
               sopra filtra sulla stagione corrente, e fra il 15 e il 31 agosto
               un abbonamento ancora valido e' della stagione precedente, quindi
               la scheda spariva anche a chi il codice poteva vederlo. */}
-          {codiceCassetta?.valore && (
+          {socio && codiceCassetta?.valore && (
             <div className="bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-3xl border border-gray-100 p-6 sm:p-8">
               <div className="flex items-center mb-1">
                 <div className="w-1.5 h-5 bg-yellow-400 rounded-full mr-2.5 shrink-0" />
@@ -329,6 +341,26 @@ export default async function AreaSocioPage({
 
               <p className="text-xs text-gray-400 mt-4 leading-relaxed border-t border-gray-100 pt-4">
                 Il codice è riservato ai soci: non condividerlo con chi non è iscritto.
+              </p>
+            </div>
+          )}
+
+          {/* Ha pagato ma non e' ancora il suo momento: si dice quando arriva il
+              codice, invece di lasciare uno spazio vuoto che sembra un errore. */}
+          {socio && !codiceCassetta?.valore && inAttesaDiPartire && (
+            <div className="bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-3xl border border-gray-100 p-6 sm:p-8">
+              <div className="flex items-center mb-1">
+                <div className="w-1.5 h-5 bg-yellow-400 rounded-full mr-2.5 shrink-0" />
+                <h2 className="text-sm font-extrabold text-gray-900 tracking-tight">
+                  Cassetta delle chiavi
+                </h2>
+              </div>
+              <p className="text-xs text-gray-500 leading-relaxed pl-4">
+                Il tuo periodo di frequenza comincia il{' '}
+                <strong className="text-gray-900">
+                  {formattaGiorno(inAttesaDiPartire.data_inizio_validita)}
+                </strong>
+                : da quel giorno trovi qui la combinazione per entrare.
               </p>
             </div>
           )}

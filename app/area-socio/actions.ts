@@ -125,7 +125,19 @@ export async function uploadCertificato(
 
   if (uploadError) return { ok: false, error: `Caricamento fallito: ${uploadError.message}` }
 
-  const { data: tesseramentoAggiornato, error: updateError } = await supabase
+  // L'aggiornamento lo fa il client di servizio, non quello del socio: al ruolo
+  // `authenticated` il permesso di UPDATE su questa tabella non e' mai stato
+  // dato, ed e' giusto che non lo sia — e' quello che impedisce a un socio di
+  // riscrivere `url_modulo_firmato_pdf` e farsi dare il modulo di un altro.
+  // Ma passando di qui con la chiave pubblica il caricamento falliva sempre,
+  // con \"permission denied for table tesseramenti_annuali\", e il certificato
+  // appena caricato veniva subito ributtato via.
+  //
+  // Che la riga sia sua e' gia' accertato: `socioDellUtente` ha verificato il
+  // socio contro user_id, e il tesseramento e' stato cercato per socio_id e
+  // stagione. Qui non arriva niente scelto dal browser.
+  const admin = createAdminClient()
+  const { data: tesseramentoAggiornato, error: updateError } = await admin
     .from('tesseramenti_annuali')
     .update({
       url_certificato_pdf: uploadData.path,
@@ -144,7 +156,7 @@ export async function uploadCertificato(
 
   // Storico: ogni caricamento resta tracciato anche dopo un rinnovo,
   // così il socio può rivedere i certificati caricati in passato.
-  const { error: storicoError } = await supabase
+  const { error: storicoError } = await admin
     .from('certificati_medici_storico')
     .insert({
       socio_id: socio.id,

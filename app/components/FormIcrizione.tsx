@@ -1,9 +1,10 @@
 "use client"
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { normalizzaTelefono } from '@/lib/telefono'
 import { codiceFiscaleValido } from '@/lib/codiceFiscale'
+import { permessoDiCaricare, type PermessoRicordato } from '@/lib/caricaCertificato'
 import { Spinner } from '@/app/components/Spinner'
 
 export default function FormIscrizione() {
@@ -57,6 +58,8 @@ export default function FormIscrizione() {
   const [isInviandoOtp, setIsInviandoOtp] = useState(false)
   const [iscrizioneCompletata, setIscrizioneCompletata] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  // Sopravvive ai ritentativi senza far ridisegnare niente.
+  const permessoCaricamento = useRef<PermessoRicordato>(null)
 
   // Calcolo Minorenne
   const isMinorenne = () => {
@@ -262,21 +265,11 @@ export default function FormIscrizione() {
         if (formData.fileCertificato) {
           // Nome casuale: il percorso di un documento sanitario non deve
           // contenere nome e cognome dell'interessato.
-          const estensione = formData.fileCertificato.name.split('.').pop()?.toLowerCase() || 'pdf'
-
           // Il permesso di caricare lo firma il server: sceglie lui il percorso
           // e conta i caricamenti per provenienza. L'archivio non accetta piu'
           // scritture presentando la sola chiave pubblica, che essendo pubblica
           // lasciava depositare file a chiunque, senza limite.
-          const permesso = await fetch('/api/certificato-upload', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ estensione }),
-          })
-          const rilascio = await permesso.json()
-          if (!permesso.ok) {
-            throw new Error(rilascio.error || 'Non è stato possibile caricare il certificato.')
-          }
+          const rilascio = await permessoDiCaricare(formData.fileCertificato, permessoCaricamento)
 
           const { error } = await supabase.storage
             .from('certificati-medici')
