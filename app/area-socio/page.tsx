@@ -291,8 +291,15 @@ export default async function AreaSocioPage({
             </div>
           )}
 
-          {/* Codice della cassetta: solo per chi ha un abbonamento pagato */}
-          {haAbbonamentoPagato && codiceCassetta?.valore && (
+          {/* Codice della cassetta.
+              La condizione non si ripete qui: se `codiceCassetta` e' arrivato,
+              vuol dire che le RLS hanno gia' stabilito che questo socio ne ha
+              diritto — abbonamento pagato e periodo in corso. Ripetere la
+              regola a schermo l'aveva gia' fatta divergere: la lettura qui
+              sopra filtra sulla stagione corrente, e fra il 15 e il 31 agosto
+              un abbonamento ancora valido e' della stagione precedente, quindi
+              la scheda spariva anche a chi il codice poteva vederlo. */}
+          {codiceCassetta?.valore && (
             <div className="bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-3xl border border-gray-100 p-6 sm:p-8">
               <div className="flex items-center mb-1">
                 <div className="w-1.5 h-5 bg-yellow-400 rounded-full mr-2.5 shrink-0" />

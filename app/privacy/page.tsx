@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { VERSIONE_PRIVACY } from '@/lib/versioniTesti'
 import Link from 'next/link'
 
 export const metadata: Metadata = {
@@ -7,7 +8,9 @@ export const metadata: Metadata = {
     'Come la ASD Polisportiva Monesiglio tratta i dati personali dei soci: finalità, basi giuridiche, conservazione, destinatari e diritti dell’interessato.',
 }
 
-const VERSIONE = 'v1.0_2026'
+// Stessa costante che finisce in `consensi` alla firma: la versione mostrata
+// e quella registrata non possono divergere.
+const VERSIONE = VERSIONE_PRIVACY
 const ULTIMO_AGGIORNAMENTO = '13 agosto 2026'
 
 function Sezione({

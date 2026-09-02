@@ -23,7 +23,11 @@ export async function GET(request: Request) {
   }
 
   const userId = data.user.id
-  const email = data.user.email
+  // Supabase normalizza gia' in minuscolo l'indirizzo dell'account, ma qui il
+  // confronto e' esatto — sia in `.eq()` sia nelle policy `claim by email` —
+  // quindi l'assunzione va scritta invece che sperata. Dall'altra parte del
+  // confronto ci pensano l'iscrizione e il rinnovo, che salvano in minuscolo.
+  const email = data.user.email?.toLowerCase()
 
   // Gestore?
   const { data: gestore } = await supabase

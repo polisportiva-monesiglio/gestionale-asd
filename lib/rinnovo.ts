@@ -175,6 +175,11 @@ export function leggiModifiche(corpo: Record<string, unknown> | null | undefined
   return fuori
 }
 
+function minuscolo(valore: unknown): string | null {
+  const s = typeof valore === 'string' ? valore.trim().toLowerCase() : ''
+  return s.length > 0 ? s : null
+}
+
 /** Le colonne di `soci` da riscrivere dopo un rinnovo andato a buon fine. */
 export function aggiornamentoSocio(
   dati: Record<string, unknown>,
@@ -186,11 +191,15 @@ export function aggiornamentoSocio(
     citta: dati.cittaResidenza,
     provincia_residenza: dati.provinciaResidenza,
     telefono: dati.telefono,
-    email: dati.email,
+    // Gli indirizzi si salvano in minuscolo, come li normalizza Supabase per
+    // l'account: il callback di accesso li confronta esatti, e un'email
+    // riscritta con una maiuscola al rinnovo scollegherebbe il socio dal
+    // proprio accesso al giro successivo.
+    email: minuscolo(dati.email),
     minorenne,
     genitore_nome: minorenne ? dati.genitoreNome : null,
     genitore_cognome: minorenne ? dati.genitoreCognome : null,
-    genitore_email: minorenne ? dati.genitoreEmail : null,
+    genitore_email: minorenne ? minuscolo(dati.genitoreEmail) : null,
     genitore_contatto_preferito: minorenne ? dati.genitoreContattoScelta : null,
     genitore_recapito: minorenne ? dati.genitoreContatto : null,
   }

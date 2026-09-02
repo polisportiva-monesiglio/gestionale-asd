@@ -2,6 +2,7 @@
 
 import { after } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { getAnnoSportivo } from '@/lib/stagione'
 import { revalidatePath } from 'next/cache'
 import { notificaNuovaRichiesta } from '@/lib/notifiche'
@@ -248,7 +249,22 @@ export async function richiestaAbbonamento(
 
   const uispFee = giaPagato && giaPagato.length > 0 ? 0 : 20
 
-  const { error } = await supabase
+  // La riga la scrive il client di servizio, non quello del socio.
+  //
+  // Con la chiave pubblica l'unico controllo su questo inserimento erano le
+  // RLS, e la loro `with check` vincola soltanto `socio_id`: chiamando l'API a
+  // mano si poteva scrivere `stato_pagamento: 'pagato'` — che apre il codice
+  // della cassetta, azzera per sempre la quota UISP e non compare in area
+  // gestori, che elenca solo le richieste da saldare — oppure una quota a zero
+  // e date di validita' a piacere.
+  //
+  // Tutto quello che finisce nella riga e' deciso qui sopra dal server:
+  // l'attivita' e' stata riletta a listino, il periodo calcolato, la
+  // decorrenza verificata contro la stagione, e `socioDellUtente` ha gia'
+  // accertato che il socio sia di chi sta chiedendo. L'indice unico parziale
+  // su (socio_id, anno_sportivo) regge comunque le richieste simultanee.
+  const admin = createAdminClient()
+  const { error } = await admin
     .from('abbonamenti_soci')
     .insert({
       socio_id: socio.id,

@@ -260,14 +260,27 @@ export default function FormIscrizione() {
           // Nome casuale: il percorso di un documento sanitario non deve
           // contenere nome e cognome dell'interessato.
           const estensione = formData.fileCertificato.name.split('.').pop()?.toLowerCase() || 'pdf'
-          const nomeFile = `iscrizioni/${crypto.randomUUID()}.${estensione}`
 
-          const { data, error } = await supabase.storage
+          // Il permesso di caricare lo firma il server: sceglie lui il percorso
+          // e conta i caricamenti per provenienza. L'archivio non accetta piu'
+          // scritture presentando la sola chiave pubblica, che essendo pubblica
+          // lasciava depositare file a chiunque, senza limite.
+          const permesso = await fetch('/api/certificato-upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ estensione }),
+          })
+          const rilascio = await permesso.json()
+          if (!permesso.ok) {
+            throw new Error(rilascio.error || 'Non è stato possibile caricare il certificato.')
+          }
+
+          const { error } = await supabase.storage
             .from('certificati-medici')
-            .upload(nomeFile, formData.fileCertificato)
+            .uploadToSignedUrl(rilascio.percorso, rilascio.token, formData.fileCertificato)
 
           if (error) throw new Error(`Errore certificato: ${error.message}`)
-          certificatoPath = data.path
+          certificatoPath = rilascio.percorso
         }
 
         // 2. Unica chiamata al server: verifica dell'OTP, registrazione

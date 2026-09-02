@@ -15,13 +15,8 @@ import {
   aggiornamentoSocio,
 } from '@/lib/rinnovo'
 import { socioCheRinnova, certificatoAncoraValido } from '@/lib/rinnovoServer'
+import { VERSIONE_REGOLAMENTO, VERSIONE_STATUTO, VERSIONE_PRIVACY } from '@/lib/versioniTesti'
 
-// Le versioni dei testi le decide il server, come nella prima iscrizione: se
-// le dichiarasse il browser, un socio potrebbe risultare vincolato a una
-// versione del regolamento diversa da quella che gli e' stata mostrata.
-const VERSIONE_REGOLAMENTO = 'v1.0_2026'
-const VERSIONE_STATUTO = 'v1.0_2026'
-const VERSIONE_PRIVACY = 'v1.0_2026'
 
 function scadenzaDaEmissione(dataEmissione: string): string | null {
   const d = new Date(dataEmissione)

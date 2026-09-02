@@ -19,7 +19,14 @@ const TRASLITTERAZIONI: Record<string, string> = {
   'Æ': 'AE', 'æ': 'ae', 'Œ': 'OE', 'œ': 'oe', 'ı': 'i', 'Ŋ': 'N', 'ŋ': 'n',
 }
 
-function testoCompatibile(font: PDFFont, valore: unknown): string {
+/**
+ * Ripulisce un testo per la codifica WinAnsi dei font standard di pdf-lib.
+ *
+ * Esportata perche' serve a ogni documento generato con `StandardFonts`, non
+ * solo al modulo: la ricevuta usava gli stessi font senza passare di qui, e un
+ * cognome fuori dal Latin-1 faceva fallire `drawText` a conferma gia' presa.
+ */
+export function testoCompatibile(font: PDFFont, valore: unknown): string {
   const testo = valore == null ? '' : String(valore)
   if (!testo) return testo
   try {

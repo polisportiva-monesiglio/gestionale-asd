@@ -6,7 +6,9 @@ import { revalidatePath } from 'next/cache'
 import { notificaPagamentoConfermato, notificaRichiestaRifiutata } from '@/lib/notifiche'
 import { formattaGiorno } from '@/lib/abbonamento'
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
+import { testoCompatibile } from '@/lib/moduloPdf'
 import { getAnnoSportivo } from '@/lib/stagione'
+import { partiRomane, FUSO } from '@/lib/dataRoma'
 import fs from 'fs'
 import path from 'path'
 
@@ -80,7 +82,12 @@ export async function confermaPagamento(
   // salto permanente nella numerazione. La conferma e' esclusiva per
   // abbonamento (vedi il claim qui sopra), quindi non c'e' modo che due
   // ricevute diverse finiscano sullo stesso numero.
-  const anno = new Date().getFullYear()
+  // L'anno della ricevuta e' quello di Monesiglio, non quello del server: su
+  // Vercel il fuso e' UTC, e una conferma fatta alle 00:30 del 1° gennaio
+  // prendeva l'anno appena finito. Numero e cartella d'archivio finivano
+  // sotto un anno che sul documento non compare.
+  const adesso = new Date()
+  const anno = partiRomane(adesso).anno
   const riservato = ab.numero_ricevuta_riservato as string | null
 
   // Il numero riservato vale solo dentro il proprio anno. Una conferma iniziata
@@ -129,107 +136,129 @@ export async function confermaPagamento(
   const totale = prezzoBase + uisp
   const metodo = ab.metodo_pagamento ?? 'contanti'
 
-  // Genera PDF ricevuta
-  const annoSportivo = getAnnoSportivo()
-  const pdfDoc = await PDFDocument.create()
-  const page = pdfDoc.addPage([595, 460])
-  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
-  const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
-  const logoBytes = fs.readFileSync(path.join(process.cwd(), 'public', 'logo-asd-monesiglio.png'))
-  const logoImg = await pdfDoc.embedPng(logoBytes)
-  const { width, height } = page.getSize()
-  const black = rgb(0.13, 0.13, 0.13)
-  const gold = rgb(0.78, 0.62, 0.13)
-  const lightGold = rgb(0.92, 0.85, 0.6)
-  const gray = rgb(0.45, 0.45, 0.45)
-  const dark = rgb(0.1, 0.1, 0.1)
-  const lineGray = rgb(0.85, 0.85, 0.85)
-
-  // Header nero con filo oro
-  page.drawRectangle({ x: 0, y: height - 72, width, height: 72, color: black })
-  page.drawRectangle({ x: 0, y: height - 75, width, height: 3, color: gold })
-  const logoSize = 38
-  page.drawImage(logoImg, { x: 30, y: height - 55, width: logoSize, height: logoSize })
-  page.drawText(ASSOCIAZIONE.nome, { x: 30 + logoSize + 10, y: height - 28, size: 15, font: fontBold, color: rgb(1, 1, 1) })
-  page.drawText('RICEVUTA DI PAGAMENTO', { x: 30 + logoSize + 10, y: height - 48, size: 10, font, color: lightGold })
-  page.drawText(numeroRicevuta, { x: width - 160, y: height - 32, size: 13, font: fontBold, color: gold })
-  page.drawText(`Data: ${new Date().toLocaleDateString('it-IT')}`, { x: width - 160, y: height - 52, size: 9, font, color: rgb(0.85, 0.85, 0.85) })
-
-  // Dati associazione
-  const assY = height - 88
-  page.drawText(
-    `C.F. ${ASSOCIAZIONE.cf}  ·  P.IVA ${ASSOCIAZIONE.piva}  ·  ${ASSOCIAZIONE.sede}`,
-    { x: 30, y: assY, size: 8, font, color: gray }
-  )
-
-  // Dati socio
-  const secY = height - 116
-  page.drawText('SOCIO', { x: 30, y: secY, size: 8, font: fontBold, color: gold })
-  page.drawLine({ start: { x: 30, y: secY - 4 }, end: { x: 280, y: secY - 4 }, thickness: 0.5, color: gold })
-  page.drawText(`${socio?.nome ?? ''} ${socio?.cognome ?? ''}`, { x: 30, y: secY - 18, size: 13, font: fontBold, color: dark })
-  if (socio?.cf) page.drawText(`C.F.: ${socio.cf}`, { x: 30, y: secY - 34, size: 9, font, color: gray })
-  if (socio?.email) page.drawText(`Email: ${socio.email}`, { x: 30, y: secY - 48, size: 9, font, color: gray })
-
-  // Causale, con le voci del bilancio approvato dal commercialista: le "quote
-  // associative" sono i 20 euro di tesseramento, i "corrispettivi mensili" la
-  // frequenza della sala pesi. "Corrispettivi specifici" no: quella voce il
-  // bilancio la tiene per i corsi, che qui non si vendono.
-  const causale = uisp > 0
-    ? `Causale: quota associativa e corrispettivo mensile - stagione ${annoSportivo}`
-    : `Causale: corrispettivo mensile - stagione ${annoSportivo}`
-  page.drawText(causale, { x: 30, y: secY - 66, size: 9, font, color: gray })
-
-  // Dettaglio
-  const detY = height - 200
-  page.drawText('DETTAGLIO', { x: 30, y: detY, size: 8, font: fontBold, color: gold })
-  page.drawLine({ start: { x: 30, y: detY - 4 }, end: { x: width - 30, y: detY - 4 }, thickness: 0.5, color: lineGray })
-
-  page.drawText('Descrizione', { x: 30, y: detY - 18, size: 8, font: fontBold, color: gray })
-  page.drawText('Importo', { x: width - 90, y: detY - 18, size: 8, font: fontBold, color: gray })
-
-  let rowY = detY - 36
-  page.drawText(attivita?.nome_attivita ?? 'Periodo di frequenza', { x: 30, y: rowY, size: 11, font, color: dark })
-  page.drawText(`€ ${prezzoBase.toFixed(2)}`, { x: width - 90, y: rowY, size: 11, font, color: dark })
-
-  if (uisp > 0) {
-    rowY -= 20
-    page.drawText('Quota annuale di tesseramento', { x: 30, y: rowY, size: 11, font, color: dark })
-    page.drawText(`€ ${uisp.toFixed(2)}`, { x: width - 90, y: rowY, size: 11, font, color: dark })
-  }
-
-  // Totale
-  rowY -= 16
-  page.drawLine({ start: { x: 30, y: rowY }, end: { x: width - 30, y: rowY }, thickness: 0.5, color: lineGray })
-  rowY -= 20
-  page.drawText('TOTALE', { x: 30, y: rowY, size: 12, font: fontBold, color: dark })
-  page.drawText(`€ ${totale.toFixed(2)}`, { x: width - 110, y: rowY, size: 15, font: fontBold, color: black })
-
-  rowY -= 18
-  page.drawText(`Metodo: ${metodo.charAt(0).toUpperCase() + metodo.slice(1)}`, { x: 30, y: rowY, size: 9, font, color: gray })
-
-  // Il periodo di validita' e' il motivo per cui il socio tiene la ricevuta:
-  // gli dice fino a quando puo' entrare. Sta sotto il metodo, dove c'e' spazio
-  // libero fino al piede, cosi' non sposta niente di quello che c'e' sopra.
   const dataInizio = ab.data_inizio_validita as string | null
   const dataFine = ab.data_fine_validita as string | null
-  if (dataInizio) {
-    rowY -= 14
-    page.drawText(
-      `Periodo di validità: dal ${formattaGiorno(dataInizio)} al ${formattaGiorno(dataFine)}`,
-      { x: 30, y: rowY, size: 9, font, color: gray }
-    )
+
+  // Da qui il claim e' gia' preso: ogni uscita deve rilasciarlo, o la richiesta
+  // resta "pagata" senza ricevuta e sparisce dall'elenco delle cose da fare.
+  const rilasciaClaim = async () => {
+    await supabase.from('abbonamenti_soci')
+      .update({ stato_pagamento: 'da_saldare' })
+      .eq('id', abbonamentiId)
   }
 
-  // Footer
-  page.drawLine({ start: { x: 30, y: 45 }, end: { x: width - 30, y: 45 }, thickness: 0.3, color: lineGray })
-  page.drawText(`Emessa da: ${gestore.nome ?? gestore.email ?? 'Gestore'}  ·  ${new Date().toLocaleString('it-IT')}`, {
-    x: 30, y: 28, size: 8, font, color: gray,
-  })
-  page.drawText('Documento non fiscale – Ricevuta interna ASD', {
-    x: width - 255, y: 28, size: 8, font, color: gray,
-  })
+  // La composizione sta dentro un try perche' puo' fallire per il contenuto e
+  // non per un guasto: i font standard di pdf-lib codificano in WinAnsi, e un
+  // nome fuori dal Latin-1 fa lanciare drawText. Senza questo, l'eccezione
+  // scavalcava tutti i rilasci scritti piu' sotto e lasciava l'abbonamento a
+  // meta', con un numero di ricevuta gia' bruciato.
+  const annoSportivo = getAnnoSportivo()
 
-  const pdfBytes = await pdfDoc.save()
+  let pdfBytes: Uint8Array
+  try {
+    const pdfDoc = await PDFDocument.create()
+    const page = pdfDoc.addPage([595, 460])
+    const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
+    const logoBytes = fs.readFileSync(path.join(process.cwd(), 'public', 'logo-asd-monesiglio.png'))
+    const logoImg = await pdfDoc.embedPng(logoBytes)
+    const { width, height } = page.getSize()
+    const black = rgb(0.13, 0.13, 0.13)
+    const gold = rgb(0.78, 0.62, 0.13)
+    const lightGold = rgb(0.92, 0.85, 0.6)
+    const gray = rgb(0.45, 0.45, 0.45)
+    const dark = rgb(0.1, 0.1, 0.1)
+    const lineGray = rgb(0.85, 0.85, 0.85)
+
+    // Header nero con filo oro
+    page.drawRectangle({ x: 0, y: height - 72, width, height: 72, color: black })
+    page.drawRectangle({ x: 0, y: height - 75, width, height: 3, color: gold })
+    const logoSize = 38
+    page.drawImage(logoImg, { x: 30, y: height - 55, width: logoSize, height: logoSize })
+    page.drawText(ASSOCIAZIONE.nome, { x: 30 + logoSize + 10, y: height - 28, size: 15, font: fontBold, color: rgb(1, 1, 1) })
+    page.drawText('RICEVUTA DI PAGAMENTO', { x: 30 + logoSize + 10, y: height - 48, size: 10, font, color: lightGold })
+    page.drawText(numeroRicevuta, { x: width - 160, y: height - 32, size: 13, font: fontBold, color: gold })
+    page.drawText(`Data: ${adesso.toLocaleDateString('it-IT', { timeZone: FUSO })}`, { x: width - 160, y: height - 52, size: 9, font, color: rgb(0.85, 0.85, 0.85) })
+
+    // Dati associazione
+    const assY = height - 88
+    page.drawText(
+      `C.F. ${ASSOCIAZIONE.cf}  ·  P.IVA ${ASSOCIAZIONE.piva}  ·  ${ASSOCIAZIONE.sede}`,
+      { x: 30, y: assY, size: 8, font, color: gray }
+    )
+
+    // Dati socio
+    const secY = height - 116
+    page.drawText('SOCIO', { x: 30, y: secY, size: 8, font: fontBold, color: gold })
+    page.drawLine({ start: { x: 30, y: secY - 4 }, end: { x: 280, y: secY - 4 }, thickness: 0.5, color: gold })
+    page.drawText(testoCompatibile(fontBold, `${socio?.nome ?? ''} ${socio?.cognome ?? ''}`), { x: 30, y: secY - 18, size: 13, font: fontBold, color: dark })
+    if (socio?.cf) page.drawText(testoCompatibile(font, `C.F.: ${socio.cf}`), { x: 30, y: secY - 34, size: 9, font, color: gray })
+    if (socio?.email) page.drawText(testoCompatibile(font, `Email: ${socio.email}`), { x: 30, y: secY - 48, size: 9, font, color: gray })
+
+    // Causale, con le voci del bilancio approvato dal commercialista: le "quote
+    // associative" sono i 20 euro di tesseramento, i "corrispettivi mensili" la
+    // frequenza della sala pesi. "Corrispettivi specifici" no: quella voce il
+    // bilancio la tiene per i corsi, che qui non si vendono.
+    const causale = uisp > 0
+      ? `Causale: quota associativa e corrispettivo mensile - stagione ${annoSportivo}`
+      : `Causale: corrispettivo mensile - stagione ${annoSportivo}`
+    page.drawText(testoCompatibile(font, causale), { x: 30, y: secY - 66, size: 9, font, color: gray })
+
+    // Dettaglio
+    const detY = height - 200
+    page.drawText('DETTAGLIO', { x: 30, y: detY, size: 8, font: fontBold, color: gold })
+    page.drawLine({ start: { x: 30, y: detY - 4 }, end: { x: width - 30, y: detY - 4 }, thickness: 0.5, color: lineGray })
+
+    page.drawText('Descrizione', { x: 30, y: detY - 18, size: 8, font: fontBold, color: gray })
+    page.drawText('Importo', { x: width - 90, y: detY - 18, size: 8, font: fontBold, color: gray })
+
+    let rowY = detY - 36
+    page.drawText(testoCompatibile(font, attivita?.nome_attivita ?? 'Periodo di frequenza'), { x: 30, y: rowY, size: 11, font, color: dark })
+    page.drawText(`€ ${prezzoBase.toFixed(2)}`, { x: width - 90, y: rowY, size: 11, font, color: dark })
+
+    if (uisp > 0) {
+      rowY -= 20
+      page.drawText('Quota annuale di tesseramento', { x: 30, y: rowY, size: 11, font, color: dark })
+      page.drawText(`€ ${uisp.toFixed(2)}`, { x: width - 90, y: rowY, size: 11, font, color: dark })
+    }
+
+    // Totale
+    rowY -= 16
+    page.drawLine({ start: { x: 30, y: rowY }, end: { x: width - 30, y: rowY }, thickness: 0.5, color: lineGray })
+    rowY -= 20
+    page.drawText('TOTALE', { x: 30, y: rowY, size: 12, font: fontBold, color: dark })
+    page.drawText(`€ ${totale.toFixed(2)}`, { x: width - 110, y: rowY, size: 15, font: fontBold, color: black })
+
+    rowY -= 18
+    page.drawText(testoCompatibile(font, `Metodo: ${metodo.charAt(0).toUpperCase() + metodo.slice(1)}`), { x: 30, y: rowY, size: 9, font, color: gray })
+
+    // Il periodo di validita' e' il motivo per cui il socio tiene la ricevuta:
+    // gli dice fino a quando puo' entrare. Sta sotto il metodo, dove c'e' spazio
+    // libero fino al piede, cosi' non sposta niente di quello che c'e' sopra.
+    if (dataInizio) {
+      rowY -= 14
+      page.drawText(
+        `Periodo di validità: dal ${formattaGiorno(dataInizio)} al ${formattaGiorno(dataFine)}`,
+        { x: 30, y: rowY, size: 9, font, color: gray }
+      )
+    }
+
+    // Footer
+    page.drawLine({ start: { x: 30, y: 45 }, end: { x: width - 30, y: 45 }, thickness: 0.3, color: lineGray })
+    page.drawText(testoCompatibile(font, `Emessa da: ${gestore.nome ?? gestore.email ?? 'Gestore'}  ·  ${adesso.toLocaleString('it-IT', { timeZone: FUSO })}`), {
+      x: 30, y: 28, size: 8, font, color: gray,
+    })
+    page.drawText('Documento non fiscale – Ricevuta interna ASD', {
+      x: width - 255, y: 28, size: 8, font, color: gray,
+    })
+
+    pdfBytes = await pdfDoc.save()
+  } catch (e) {
+    console.error('Composizione della ricevuta fallita:', e)
+    await rilasciaClaim()
+    return { ok: false, error: 'Generazione della ricevuta fallita. La richiesta resta da confermare.' }
+  }
+
 
   // Upload storage
   const storagePath = `${anno}/${abbonamentiId}-${Date.now()}.pdf`

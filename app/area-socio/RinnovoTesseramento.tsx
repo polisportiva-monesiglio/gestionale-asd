@@ -133,18 +133,30 @@ export default function RinnovoTesseramento({ socio, annoSportivo, certificatoVa
           return
         }
         // Il file va diritto all'archivio: un PDF non passerebbe dai limiti di
-        // corpo di una funzione server. Nome casuale, perché il percorso di un
-        // documento sanitario non deve contenere nome e cognome.
+        // corpo di una funzione server. Quello che passa dal server e' il
+        // permesso: sceglie lui il percorso — casuale, perché quello di un
+        // documento sanitario non deve contenere nome e cognome — e conta i
+        // caricamenti per provenienza.
         const estensione = file.name.split('.').pop()?.toLowerCase() || 'pdf'
-        const nomeFile = `iscrizioni/${crypto.randomUUID()}.${estensione}`
-        const { data, error } = await supabase.storage
+        const permesso = await fetch('/api/certificato-upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ estensione }),
+        })
+        const rilascio = await permesso.json()
+        if (!permesso.ok) {
+          setErrore(rilascio.error || 'Caricamento del certificato fallito.')
+          return
+        }
+
+        const { error } = await supabase.storage
           .from('certificati-medici')
-          .upload(nomeFile, file)
+          .uploadToSignedUrl(rilascio.percorso, rilascio.token, file)
         if (error) {
           setErrore(`Caricamento del certificato fallito: ${error.message}`)
           return
         }
-        certificato = { path: data.path, dataCertificato }
+        certificato = { path: rilascio.percorso, dataCertificato }
       }
 
       const r = await fetch('/api/rinnovo', {

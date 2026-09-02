@@ -8,13 +8,8 @@ import { componiModuloFirmato } from '@/lib/moduloPdf'
 import { getAnnoSportivo } from '@/lib/stagione'
 import { normalizzaTelefono } from '@/lib/telefono'
 import { notificaNuovaIscrizione } from '@/lib/notifiche'
+import { VERSIONE_REGOLAMENTO, VERSIONE_STATUTO, VERSIONE_PRIVACY } from '@/lib/versioniTesti'
 
-// Versioni dei testi accettati: le decide il server, non il browser. Se le
-// dichiarasse il client, un socio potrebbe risultare vincolato a una versione
-// del regolamento diversa da quella che gli è stata effettivamente mostrata.
-const VERSIONE_REGOLAMENTO = 'v1.0_2026'
-const VERSIONE_STATUTO = 'v1.0_2026'
-const VERSIONE_PRIVACY = 'v1.0_2026'
 
 function scadenzaCertificato(dataEmissione: string): string | null {
   const d = new Date(dataEmissione)
@@ -108,10 +103,28 @@ export async function POST(req: NextRequest) {
   //    verifica dell'OTP ma prima di consumarlo: prima renderebbe l'endpoint un
   //    modo per scoprire chi è iscritto, dopo brucerebbe il codice del socio per
   //    un errore che deve solo correggere.
+  // Codice fiscale e indirizzi si normalizzano qui una volta sola, e da qui in
+  // poi si usano solo questi. Prima il controllo confrontava la versione
+  // maiuscola mentre l'inserimento scriveva quella arrivata dal browser: a
+  // tenerli allineati era solo il modulo, che alza le maiuscole mentre si
+  // scrive. Chiamando l'API a mano con il codice in minuscolo il controllo non
+  // trovava nulla, e `soci_cf_key` — che indicizza il valore grezzo — nemmeno:
+  // due righe per la stessa persona, due tesseramenti, due quote UISP.
+  //
+  // L'email va in minuscolo perche' Supabase normalizza cosi' quella
+  // dell'account, e il callback di accesso le confronta esatte: un indirizzo
+  // salvato con una maiuscola riceve il link, apre la sessione e poi non
+  // aggancia nessuna riga.
+  //
+  // Non si tocca invece `emailFirma`, che e' l'indirizzo con cui il token OTP
+  // e' stato firmato: normalizzarlo qui farebbe fallire la verifica.
+  const cfNormalizzato = String(dati.codiceFiscale).trim().toUpperCase()
+  const emailSocio = String(dati.email).trim().toLowerCase()
+
   const { data: giaIscritto, error: verificaCfErr } = await supabase
     .from('soci')
     .select('id')
-    .eq('cf', String(dati.codiceFiscale).toUpperCase())
+    .eq('cf', cfNormalizzato)
     .maybeSingle()
 
   if (verificaCfErr) {
@@ -214,7 +227,7 @@ export async function POST(req: NextRequest) {
     nome: dati.nome,
     cognome: dati.cognome,
     sesso: dati.sesso,
-    cf: dati.codiceFiscale,
+    cf: cfNormalizzato,
     data_nascita: dati.dataNascita,
     luogo_nascita: dati.luogoNascita,
     provincia_nascita: dati.provinciaNascita,
@@ -226,11 +239,11 @@ export async function POST(req: NextRequest) {
     telefono: normalizzaTelefono(dati.telefono),
     // L'email del socio resta la sua, anche quando a firmare e' il genitore:
     // l'indirizzo di chi ha firmato si conserva a parte, in genitore_email.
-    email: String(dati.email).trim(),
+    email: emailSocio,
     minorenne,
     genitore_nome: minorenne ? dati.genitoreNome : null,
     genitore_cognome: minorenne ? dati.genitoreCognome : null,
-    genitore_email: minorenne ? emailFirma : null,
+    genitore_email: minorenne ? emailFirma.trim().toLowerCase() : null,
     genitore_contatto_preferito: minorenne ? dati.genitoreContattoScelta : null,
     genitore_recapito: minorenne ? dati.genitoreContatto : null,
   })
@@ -331,7 +344,7 @@ export async function POST(req: NextRequest) {
     await notificaNuovaIscrizione({
       nome: String(dati.nome ?? ''),
       cognome: String(dati.cognome ?? ''),
-      emailSocio: String(dati.email ?? '').trim(),
+      emailSocio,
       annoSportivo,
       minorenne,
       scadenzaCertificato: scadenza,
