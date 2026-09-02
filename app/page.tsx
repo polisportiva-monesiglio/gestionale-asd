@@ -47,6 +47,17 @@ export default function Home() {
             </Link>
           </div>
 
+          {/* Chi non sa da dove cominciare: la guida sta prima del footer,
+              non sepolta in fondo insieme ai dati fiscali. */}
+          <p className="text-center text-sm">
+            <Link
+              href="/guida"
+              className="font-semibold text-gray-500 underline underline-offset-4 decoration-gray-300 hover:text-gray-800 hover:decoration-gray-500 transition-colors"
+            >
+              Come funziona, in breve
+            </Link>
+          </p>
+
           {/* Footer */}
           <div className="space-y-5">
             <p className="text-center text-xs text-gray-300">
