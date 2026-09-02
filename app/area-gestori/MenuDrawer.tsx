@@ -57,6 +57,13 @@ export function MenuDrawer({ codiceAttuale, isAdmin }: { codiceAttuale: string |
             >
               Catalogo abbonamenti →
             </Link>
+            <Link
+              href="/area-gestori/uisp"
+              onClick={() => setOpen(false)}
+              className="text-sm font-semibold text-gray-700 hover:bg-gray-50 px-3 py-2.5 rounded-xl border border-gray-100 transition-colors"
+            >
+              Tesseramenti per la UISP →
+            </Link>
             {isAdmin && (
               <Link
                 href="/area-gestori/admin"

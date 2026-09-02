@@ -61,6 +61,12 @@ const intestazioniSicurezza = [
 const nextConfig: NextConfig = {
   // Non regaliamo la versione del framework a chi cerca bersagli noti.
   poweredByHeader: false,
+  // Il modello .xlsx della UISP viene aperto a runtime con `fs`: senza questa
+  // voce il tracciamento dei file non lo riconosce come dipendenza e la
+  // funzione va in produzione senza il modulo da compilare.
+  outputFileTracingIncludes: {
+    '/api/uisp/modulo': ['./lib/uisp/**/*'],
+  },
   experimental: {
     serverActions: {
       bodySizeLimit: '5mb',
