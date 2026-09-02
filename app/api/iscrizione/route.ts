@@ -7,6 +7,7 @@ import { verificaOtp, consumaOtp } from '@/lib/otp'
 import { componiModuloFirmato } from '@/lib/moduloPdf'
 import { getAnnoSportivo } from '@/lib/stagione'
 import { normalizzaTelefono } from '@/lib/telefono'
+import { codiceFiscaleValido } from '@/lib/codiceFiscale'
 import { notificaNuovaIscrizione } from '@/lib/notifiche'
 import { VERSIONE_REGOLAMENTO, VERSIONE_STATUTO, VERSIONE_PRIVACY } from '@/lib/versioniTesti'
 
@@ -62,6 +63,17 @@ export async function POST(req: NextRequest) {
   if (OBBLIGATORI.some(campo => dati?.[campo] !== true)) {
     return NextResponse.json(
       { error: 'Per iscriverti devi accettare tutte le dichiarazioni obbligatorie.' },
+      { status: 400 }
+    )
+  }
+
+  // Il carattere di controllo si verifica anche qui, non solo nel modulo.
+  // Il browser non e' un controllo: chi chiama l'API a mano lo ignora, e
+  // soprattutto un codice inventato cambiando una lettera a uno vero passa
+  // l'unicita' della tabella e crea una seconda persona.
+  if (!codiceFiscaleValido(dati.codiceFiscale)) {
+    return NextResponse.json(
+      { error: 'Il codice fiscale non è valido. Ricopialo dalla tessera sanitaria.' },
       { status: 400 }
     )
   }
@@ -123,7 +135,7 @@ export async function POST(req: NextRequest) {
 
   const { data: giaIscritto, error: verificaCfErr } = await supabase
     .from('soci')
-    .select('id')
+    .select('id, email')
     .eq('cf', cfNormalizzato)
     .maybeSingle()
 
@@ -132,9 +144,27 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Errore interno del server' }, { status: 500 })
   }
   if (giaIscritto) {
+    // Due situazioni molto diverse, che dette allo stesso modo mandano la
+    // persona sbagliata a inventarsi un codice fiscale.
+    //
+    // Se l'indirizzo coincide, l'iscrizione l'ha gia' fatta lei: e' successo
+    // il 2 settembre 2026, quando una richiesta era andata a buon fine ma la
+    // risposta non era tornata al browser. Chi aveva firmato ha riprovato, si
+    // e' visto dire "codice fiscale gia' registrato" come se fosse di un
+    // altro, e ha cambiato una lettera per farlo passare — due righe in
+    // archivio per la stessa persona.
+    //
+    // Se invece l'indirizzo e' diverso non si dice di chi e': chi chiede non
+    // ha diritto di sapere che quel codice fiscale appartiene a un socio.
+    const eLaStessaPersona =
+      typeof giaIscritto.email === 'string' &&
+      giaIscritto.email.toLowerCase() === emailSocio
+
     return NextResponse.json(
       {
-        error: 'Risulta già un socio registrato con questo codice fiscale. Se sei tu, accedi alla tua area personale dalla pagina di accesso; se pensi sia un errore, contatta la segreteria.',
+        error: eLaStessaPersona
+          ? 'La tua iscrizione risulta già registrata: era andata a buon fine anche se non hai ricevuto conferma. Non rifarla e non cambiare il codice fiscale — entra dalla pagina di accesso con questo indirizzo email, e lì trovi il modulo firmato.'
+          : 'Risulta già un socio registrato con questo codice fiscale. Se sei tu, accedi alla tua area personale dalla pagina di accesso; se pensi sia un errore, contatta la segreteria.',
         codice: 'cf_duplicato',
       },
       { status: 409 }

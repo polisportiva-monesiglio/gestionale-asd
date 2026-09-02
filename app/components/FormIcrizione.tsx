@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { normalizzaTelefono } from '@/lib/telefono'
+import { codiceFiscaleValido } from '@/lib/codiceFiscale'
 import { Spinner } from '@/app/components/Spinner'
 
 export default function FormIscrizione() {
@@ -73,7 +74,6 @@ export default function FormIscrizione() {
   // Validazione Step 1
   const getErrors = () => {
     const errs: Record<string, string> = {}
-    const cfRegex = /^[A-Z]{6}[0-9LMNPQRSTUV]{2}[ABCDEHLMPRST][0-9LMNPQRSTUV]{2}[A-Z][0-9LMNPQRSTUV]{3}[A-Z]$/i
 
     if (!formData.nome) errs.nome = "Obbligatorio"
     if (!formData.cognome) errs.cognome = "Obbligatorio"
@@ -86,8 +86,11 @@ export default function FormIscrizione() {
     if (!formData.telefono) errs.telefono = "Obbligatorio"
     else if (!normalizzaTelefono(formData.telefono)) errs.telefono = "Numero non valido"
     
-    if (formData.codiceFiscale && !cfRegex.test(formData.codiceFiscale)) {
-        errs.codiceFiscale = "Codice errato"
+    // Anche il carattere di controllo, non solo la forma. Guardare solo la forma
+    // significava accettare un codice inventato cambiando una lettera a uno
+    // vero: e' cosi' che la stessa persona e' finita due volte in archivio.
+    if (formData.codiceFiscale && !codiceFiscaleValido(formData.codiceFiscale)) {
+        errs.codiceFiscale = "Codice fiscale non valido"
     }
 
     if (formData.provinciaNascita && formData.provinciaNascita.length !== 2) errs.provinciaNascita = "Es. CN"
