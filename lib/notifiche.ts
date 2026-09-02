@@ -276,7 +276,7 @@ export async function notificaRichiestaRifiutata(dati: {
 
   const corpo = `
     <p style="font-size: 15px;">Ciao ${testoSicuroHtml(dati.nomeSocio)},</p>
-    <p style="font-size: 15px;">la tua richiesta di abbonamento non è stata confermata. Puoi inviarne una nuova correggendo quanto indicato qui sotto.</p>
+    <p style="font-size: 15px;">la tua richiesta non è stata confermata. Puoi inviarne una nuova correggendo quanto indicato qui sotto.</p>
     <table style="border-collapse: collapse; margin: 16px 0;">
       ${voce('Attività richiesta', dati.attivita)}
       ${voce('Stagione', dati.annoSportivo)}
@@ -288,7 +288,7 @@ export async function notificaRichiestaRifiutata(dati: {
 
   await spedisci({
     a: unici,
-    oggetto: 'Richiesta di abbonamento non confermata',
+    oggetto: 'Richiesta non confermata',
     html: guscio('Richiesta rifiutata', corpo),
   })
 }

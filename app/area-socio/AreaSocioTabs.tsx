@@ -85,7 +85,7 @@ export default function AreaSocioTabs({
       <div className="flex gap-1.5 mb-8 bg-gray-100 p-1 rounded-2xl">
         {([
           { key: 'certificato', label: 'Certificato medico' },
-          { key: 'abbonamento', label: 'Abbonamento' },
+          { key: 'abbonamento', label: 'Frequenza' },
         ] as const).map(t => (
           <button
             key={t.key}
@@ -230,7 +230,7 @@ export default function AreaSocioTabs({
         </div>
       )}
 
-      {/* ── TAB 2: Abbonamento ───────────────────────────── */}
+      {/* ── TAB 2: periodo di frequenza ───────────────────── */}
       {tab === 'abbonamento' && (
         <div className="space-y-5">
 
@@ -241,7 +241,7 @@ export default function AreaSocioTabs({
                 Richiesta in attesa di conferma
               </p>
               <p className="text-sm text-yellow-700 mt-2 leading-relaxed">
-                La segreteria confermerà il tuo abbonamento a breve.
+                La segreteria confermerà il tuo periodo di frequenza a breve.
               </p>
             </div>
           ) : (
@@ -252,12 +252,12 @@ export default function AreaSocioTabs({
                     <div className="w-1.5 h-5 bg-yellow-400 rounded-full mr-2.5 shrink-0" />
                     <h3 className="text-sm font-extrabold text-gray-900 tracking-tight">
                       {abbonamenti.length > 0
-                        ? 'Richiedi un nuovo abbonamento'
-                        : 'Scegli il tuo abbonamento'}
+                        ? 'Richiedi un nuovo periodo di frequenza'
+                        : 'Scegli il tuo periodo di frequenza'}
                     </h3>
                   </div>
                   <p className="text-xs text-gray-400 mb-5 pl-4">
-                    Scegli l&apos;abbonamento e il metodo di pagamento. Riceverai conferma dalla segreteria.
+                    Scegli il periodo e il metodo di pagamento. Riceverai conferma dalla segreteria.
                   </p>
                   <RichiestaAbbonamentoForm
                     socioId={socioId}
@@ -268,21 +268,21 @@ export default function AreaSocioTabs({
                 </div>
               ) : (
                 <p className="text-sm text-gray-400 text-center py-4">
-                  Nessun abbonamento disponibile al momento. Contatta la segreteria.
+                  Nessun periodo di frequenza disponibile al momento. Contatta la segreteria.
                 </p>
               )}
             </>
           )}
 
-          {/* Storico abbonamenti stagione corrente */}
+          {/* Storico dei periodi di frequenza della stagione corrente */}
           {abbonamenti.length === 0 ? (
             <p className="text-sm text-gray-400 text-center">
-              Non hai ancora un abbonamento per la stagione {annoSportivo}.
+              Non hai ancora un periodo di frequenza per la stagione {annoSportivo}.
             </p>
           ) : (
             <div className="space-y-3">
               <h3 className="text-xs font-extrabold text-gray-400 uppercase tracking-wide">
-                Storico abbonamenti
+                Storico
               </h3>
               {abbonamenti.map(ab => {
                 const totale = (ab.prezzo_base ?? 0) + Number(ab.importo_tesseramento_uisp ?? 0)

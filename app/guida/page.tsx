@@ -5,7 +5,7 @@ import { GUIDA, pezzi } from '@/lib/guida'
 export const metadata: Metadata = {
   title: 'Come iscriversi · ASD Polisportiva Monesiglio',
   description:
-    'In breve: come tesserarsi, come scegliere l’abbonamento e le quattro cose che fanno perdere tempo.',
+    'In breve: come tesserarsi, come scegliere il periodo di frequenza e le quattro cose che fanno perdere tempo.',
 }
 
 /** Rende una frase della guida rispettando i due segni: enfasi e nomi di pulsanti. */

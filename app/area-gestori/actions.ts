@@ -42,7 +42,7 @@ export async function confermaPagamento(
   if (!gestore) return { ok: false, error: 'Accesso non autorizzato.' }
 
   const abbonamentiId = formData.get('abbonamento_id') as string
-  if (!abbonamentiId) return { ok: false, error: 'ID abbonamento mancante.' }
+  if (!abbonamentiId) return { ok: false, error: 'Richiesta non indicata.' }
 
   // Fetch abbonamento completo
   const { data: ab, error: abErr } = await supabase
@@ -171,7 +171,7 @@ export async function confermaPagamento(
   if (socio?.email) page.drawText(`Email: ${socio.email}`, { x: 30, y: secY - 48, size: 9, font, color: gray })
 
   // Causale
-  page.drawText(`Causale: tesseramento e abbonamento stagione sportiva ${annoSportivo}`, {
+  page.drawText(`Causale: quota associativa e corrispettivo specifico - stagione ${annoSportivo}`, {
     x: 30, y: secY - 66, size: 9, font, color: gray,
   })
 
@@ -184,7 +184,7 @@ export async function confermaPagamento(
   page.drawText('Importo', { x: width - 90, y: detY - 18, size: 8, font: fontBold, color: gray })
 
   let rowY = detY - 36
-  page.drawText(attivita?.nome_attivita ?? 'Abbonamento', { x: 30, y: rowY, size: 11, font, color: dark })
+  page.drawText(attivita?.nome_attivita ?? 'Periodo di frequenza', { x: 30, y: rowY, size: 11, font, color: dark })
   page.drawText(`€ ${prezzoBase.toFixed(2)}`, { x: width - 90, y: rowY, size: 11, font, color: dark })
 
   if (uisp > 0) {
@@ -267,7 +267,7 @@ export async function confermaPagamento(
       // a lui, non solo alla casella del ragazzo.
       emailGenitore: socio?.minorenne ? socio?.genitore_email : null,
       nomeSocio: `${socio?.nome ?? ''} ${socio?.cognome ?? ''}`.trim(),
-      attivita: attivita?.nome_attivita ?? 'Abbonamento',
+      attivita: attivita?.nome_attivita ?? 'Periodo di frequenza',
       importoAttivita: prezzoBase,
       importoUisp: uisp,
       metodo: metodo.charAt(0).toUpperCase() + metodo.slice(1),
@@ -327,7 +327,7 @@ export async function rifiutaPagamento(
   if (!gestore) return { ok: false, error: 'Accesso non autorizzato.' }
 
   const abbonamentoId = formData.get('abbonamento_id') as string
-  if (!abbonamentoId) return { ok: false, error: 'ID abbonamento mancante.' }
+  if (!abbonamentoId) return { ok: false, error: 'Richiesta non indicata.' }
 
   const motivo = ((formData.get('motivo') as string | null) ?? '').trim()
   if (!motivo) return { ok: false, error: 'Scrivi il motivo del rifiuto: lo legge il socio.' }
@@ -381,7 +381,7 @@ export async function rifiutaPagamento(
       emailSocio: socio?.email,
       emailGenitore: socio?.minorenne ? socio?.genitore_email : null,
       nomeSocio: `${socio?.nome ?? ''} ${socio?.cognome ?? ''}`.trim(),
-      attivita: attivita?.nome_attivita ?? 'Abbonamento',
+      attivita: attivita?.nome_attivita ?? 'Periodo di frequenza',
       motivo,
       annoSportivo: String(ab.anno_sportivo ?? ''),
     })

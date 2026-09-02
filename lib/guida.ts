@@ -32,7 +32,7 @@ export const GUIDA = {
   ente: 'A.S.D. Polisportiva Monesiglio',
   titolo: 'Iscriversi, in breve',
   sottotitolo:
-    'Due momenti separati: prima ti tesseri, una volta all’anno. Poi prendi l’abbonamento, quando ti serve. Tutto dal telefono.',
+    'Due momenti separati: prima ti tesseri, una volta l’anno. Poi scegli il periodo di frequenza, quando ti serve. Tutto dal telefono.',
 
   serveTitolo: 'Tieni a portata',
   serve: ['codice fiscale', 'certificato medico in foto o PDF', 'un’email che apri subito'],
@@ -50,26 +50,26 @@ export const GUIDA = {
     },
     {
       quando: 'Ogni volta che serve',
-      titolo: 'L’abbonamento',
+      titolo: 'Il periodo di frequenza',
       passi: [
         '[Accedi all’area personale]: basta l’email, nessuna password.',
-        'Nella scheda *Abbonamento* scegli durata e da quando parte.',
-        'Indichi come paghi e premi [Invia richiesta].',
+        'Nella scheda *Frequenza* scegli durata e da quando parte.',
+        'Paghi a un consigliere, con bonifico o con Satispay, e premi [Invia richiesta].',
       ],
-      esito: 'Paghi *in sede*. La segreteria conferma e scarichi la ricevuta.',
+      esito: 'La segreteria conferma e scarichi la *ricevuta*.',
     },
   ],
 
-  inciampiTitolo: 'Quattro cose che fanno perdere tempo',
+  inciampiTitolo: 'Da sapere',
   inciampi: [
-    '*Sul sito non si paga.* La richiesta prenota l’abbonamento; i soldi si portano in palestra.',
+    '*Sul sito non si paga.* Si paga a un consigliere, con bonifico o con Satispay: la richiesta serve a farsi dare la conferma.',
     '*Il codice dura dieci minuti.* E se torni indietro a correggere un dato non vale più: ne chiedi un altro.',
     '*Se sei minorenne* l’email da indicare è quella del genitore: il codice per firmare arriva lì.',
-    '*Una durata è spenta?* Nessun abbonamento può finire dopo il 31 agosto, quindi più la stagione avanza, meno durate restano.',
+    '*Una durata non è selezionabile?* Nessun periodo di frequenza può finire dopo il 31 agosto, quindi più la stagione avanza, meno durate restano.',
   ],
 
   rinnovo:
-    '*Eri già socio l’anno scorso?* Non rifare l’iscrizione: entra nell’area personale e premi [Rinnova].',
+    '*Eri già socio l’anno scorso?* Quest’anno l’iscrizione va rifatta lo stesso, perché i tuoi dati non li abbiamo ancora. Dall’anno prossimo basterà entrare nell’area personale e premere [Rinnova].',
   contatto: 'Il codice non arriva? Guarda nello spam. Per tutto il resto scrivi a',
   email: 'info@polisportiva-monesiglio.it',
 } as const

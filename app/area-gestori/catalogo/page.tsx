@@ -41,7 +41,7 @@ export default async function CatalogoPage() {
                     ASD Polisportiva Monesiglio
                   </p>
                   <h1 className="text-lg font-extrabold text-gray-900 tracking-tight leading-tight">
-                    Catalogo abbonamenti
+                    Catalogo attività
                   </h1>
                   <p className="text-xs text-gray-400 mt-0.5">{catalogo.length} voci</p>
                 </div>

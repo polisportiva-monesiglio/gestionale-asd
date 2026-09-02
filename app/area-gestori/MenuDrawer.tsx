@@ -55,7 +55,7 @@ export function MenuDrawer({ codiceAttuale, isAdmin }: { codiceAttuale: string |
               onClick={() => setOpen(false)}
               className="text-sm font-semibold text-gray-700 hover:bg-gray-50 px-3 py-2.5 rounded-xl border border-gray-100 transition-colors"
             >
-              Catalogo abbonamenti →
+              Catalogo attività →
             </Link>
             <Link
               href="/area-gestori/uisp"
@@ -78,7 +78,7 @@ export function MenuDrawer({ codiceAttuale, isAdmin }: { codiceAttuale: string |
           <div className="pt-4 border-t border-gray-100">
             <h3 className="text-sm font-bold text-gray-900 mb-1">Codice cassetta chiavi</h3>
             <p className="text-xs text-gray-400 mb-4">
-              Viene inviato automaticamente il 5 di ogni mese ai soci con abbonamento attivo.
+              Viene inviato automaticamente il 5 di ogni mese ai soci con un periodo di frequenza attivo.
             </p>
             <CodiceCassettaForm codiceAttuale={codiceAttuale} />
           </div>

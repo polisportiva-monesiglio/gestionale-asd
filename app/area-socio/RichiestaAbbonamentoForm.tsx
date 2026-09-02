@@ -20,11 +20,11 @@ type Attivita = {
 }
 
 type Props = {
-  /** Persona per cui si sta chiedendo l'abbonamento. */
+  /** Persona per cui si sta chiedendo il periodo di frequenza. */
   socioId: string
   attivita: Attivita[]
   uispApplicabile: boolean
-  /** Serve a fermare gli abbonamenti che sforerebbero nella stagione dopo. */
+  /** Serve a fermare i periodi che sforerebbero nella stagione dopo. */
   annoSportivo: string
 }
 
@@ -52,7 +52,7 @@ export default function RichiestaAbbonamentoForm({
         </div>
         <p className="text-sm font-extrabold text-green-800">Richiesta inviata!</p>
         <p className="text-sm text-green-700 mt-1.5 leading-relaxed">
-          La segreteria confermerà il tuo abbonamento a breve.
+          La segreteria confermerà il tuo periodo di frequenza a breve.
         </p>
       </div>
     )
@@ -69,7 +69,7 @@ export default function RichiestaAbbonamentoForm({
   const scegliePeriodo = durata >= 1
   const anteprima = scegliePeriodo && inizio ? periodoAbbonamento(inizio, durata) : null
 
-  // Un abbonamento non puo' sfociare nella stagione successiva. Piu' la
+  // Un periodo di frequenza non puo' sfociare nella stagione successiva. Piu' la
   // stagione avanza, piu' le durate lunghe si spengono: prima sparisce la
   // partenza dal mese dopo, poi l'attivita' intera.
   const ammesse = scegliePeriodo
@@ -85,7 +85,7 @@ export default function RichiestaAbbonamentoForm({
       {/* Dropdown attività */}
       <div>
         <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-          Tipo di abbonamento
+          Durata
         </label>
         <select
           name="attivita_id"
@@ -99,7 +99,7 @@ export default function RichiestaAbbonamentoForm({
           }}
           className={inputClass}
         >
-          <option value="">Seleziona un abbonamento…</option>
+          <option value="">Seleziona una durata…</option>
           {attivita.map(a => {
             const disponibile = acquistabile(a.durata_mesi ?? 0, annoSportivo)
             return (
@@ -119,7 +119,7 @@ export default function RichiestaAbbonamentoForm({
       {scegliePeriodo && (
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-2">
-            Da quando vuoi far partire l&apos;abbonamento
+            Da quando vuoi cominciare
           </label>
           <div className="grid gap-2.5">
             {([
@@ -176,7 +176,7 @@ export default function RichiestaAbbonamentoForm({
                 dal {formattaGiorno(anteprima.dataInizio)} al {formattaGiorno(anteprima.dataFine)}
               </p>
               <p className="text-xs text-gray-500 mt-1 leading-relaxed">
-                L&apos;abbonamento finisce sempre a fine mese. La segreteria confermerà queste
+                Il periodo finisce sempre a fine mese. La segreteria confermerà queste
                 date insieme al pagamento.
               </p>
             </div>
@@ -199,7 +199,7 @@ export default function RichiestaAbbonamentoForm({
               <p className="text-sm text-red-700 mt-1 leading-relaxed">
                 Verrà aggiunta la <strong>quota annuale di tesseramento di €20</strong>,
                 comprensiva della copertura assicurativa. Si versa una volta per stagione
-                sportiva e non è compresa nel costo dell&apos;abbonamento.
+                sportiva e non è compresa nel corrispettivo del periodo di frequenza.
               </p>
             </div>
           </div>
@@ -216,7 +216,7 @@ export default function RichiestaAbbonamentoForm({
               </p>
               {uispApplicabile && prezzoBase != null && (
                 <p className="text-xs text-gray-400 mt-0.5">
-                  €{prezzoBase} abbonamento + €20 quota tesseramento
+                  €{prezzoBase} periodo di frequenza + €20 quota tesseramento
                 </p>
               )}
             </div>
@@ -277,7 +277,7 @@ export default function RichiestaAbbonamentoForm({
         className="bg-yellow-400 text-gray-900 px-6 py-3.5 rounded-xl font-bold text-sm hover:bg-yellow-500 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed w-full inline-flex items-center justify-center gap-2"
       >
         {pending && <Spinner className="h-4 w-4" />}
-        {pending ? 'Invio in corso...' : 'Invia richiesta di abbonamento'}
+        {pending ? 'Invio in corso...' : 'Invia la richiesta'}
       </button>
     </form>
   )

@@ -199,7 +199,7 @@ export async function richiestaAbbonamento(
 
   if (durata >= 1) {
     if (!inizioValido(inizioRichiesto)) {
-      return { ok: false, error: "Scegli da quando vuoi far partire l'abbonamento." }
+      return { ok: false, error: 'Scegli da quando vuoi far partire il periodo di frequenza.' }
     }
 
     // Il modulo disattiva le decorrenze che sforerebbero nella stagione dopo,
@@ -209,7 +209,7 @@ export async function richiestaAbbonamento(
     if (!decorrenzeAmmesse(durata, annoSportivo)[inizioRichiesto]) {
       return {
         ok: false,
-        error: `Questo abbonamento finirebbe oltre la stagione ${annoSportivo}. Scegli una decorrenza diversa o una durata più breve.`,
+        error: `Questo periodo di frequenza finirebbe oltre la stagione ${annoSportivo}. Scegli una decorrenza diversa o una durata più breve.`,
       }
     }
 

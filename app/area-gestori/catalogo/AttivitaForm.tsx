@@ -37,7 +37,7 @@ export function AttivitaForm({ action, defaultValues, idAttivita, submitLabel, o
           type="text"
           required
           defaultValue={defaultValues?.nome_attivita}
-          placeholder="Nome (es. Abbonamento mensile – Fitness)"
+          placeholder="Nome (es. Sala pesi – 1 mese)"
           className="col-span-2 px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
 
@@ -47,7 +47,7 @@ export function AttivitaForm({ action, defaultValues, idAttivita, submitLabel, o
           onChange={e => setTipo(e.target.value)}
           className="px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
-          <option value="abbonamento_mensile">Abbonamento (a durata)</option>
+          <option value="abbonamento_mensile">Periodo di frequenza (a durata)</option>
           <option value="pacchetto_ingressi">Pacchetto ingressi</option>
         </select>
 

@@ -16,7 +16,7 @@ type Props = {
 }
 
 const TIPO_LABEL: Record<string, string> = {
-  abbonamento_mensile: 'Abbonamento',
+  abbonamento_mensile: 'A durata',
   pacchetto_ingressi: 'Pacchetto ingressi',
 }
 
