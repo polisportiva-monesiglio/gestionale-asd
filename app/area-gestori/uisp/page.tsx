@@ -2,7 +2,9 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getAnnoSportivo } from '@/lib/stagione'
+import { CHIAVI_INTESTAZIONE, INTESTAZIONE_VUOTA, type IntestazioneUisp } from '@/lib/uisp'
 import { ElencoDaInviare, type SocioDaInviare } from './ElencoDaInviare'
+import { IntestazioneForm } from './IntestazioneForm'
 import { StoricoInvii, type InvioFatto } from './StoricoInvii'
 
 /** I campi che la UISP pretende: senza uno di questi la riga viene respinta. */
@@ -63,7 +65,7 @@ export default async function ModuloUispPage() {
 
   const annoSportivo = getAnnoSportivo()
 
-  const [{ data: daInviareRaw }, { data: invatiRaw }, { data: quoteRaw }] = await Promise.all([
+  const [{ data: daInviareRaw }, { data: invatiRaw }, { data: quoteRaw }, { data: impostazioniRaw }] = await Promise.all([
     supabase
       .from('tesseramenti_annuali')
       .select(`
@@ -86,7 +88,22 @@ export default async function ModuloUispPage() {
       .eq('anno_sportivo', annoSportivo)
       .eq('stato_pagamento', 'pagato')
       .gt('importo_tesseramento_uisp', 0),
+    supabase
+      .from('impostazioni')
+      .select('chiave, valore')
+      .in('chiave', Object.values(CHIAVI_INTESTAZIONE)),
   ])
+
+  const valori = new Map(
+    ((impostazioniRaw ?? []) as { chiave: string; valore: string | null }[])
+      .map(r => [r.chiave, r.valore ?? ''])
+  )
+  const intestazione: IntestazioneUisp = {
+    presidenteCognome: valori.get(CHIAVI_INTESTAZIONE.presidenteCognome) ?? INTESTAZIONE_VUOTA.presidenteCognome,
+    presidenteNome: valori.get(CHIAVI_INTESTAZIONE.presidenteNome) ?? INTESTAZIONE_VUOTA.presidenteNome,
+    denominazione: valori.get(CHIAVI_INTESTAZIONE.denominazione) ?? INTESTAZIONE_VUOTA.denominazione,
+    codiceAffiliazione: valori.get(CHIAVI_INTESTAZIONE.codiceAffiliazione) ?? INTESTAZIONE_VUOTA.codiceAffiliazione,
+  }
 
   const conQuotaVersata = new Set(
     ((quoteRaw ?? []) as { socio_id: string | null }[])
@@ -133,6 +150,10 @@ export default async function ModuloUispPage() {
           >
             ← Indietro
           </Link>
+        </div>
+
+        <div className="bg-white rounded-3xl border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-5 sm:p-7">
+          <IntestazioneForm intestazione={intestazione} />
         </div>
 
         <div className="bg-white rounded-3xl border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-5 sm:p-7">

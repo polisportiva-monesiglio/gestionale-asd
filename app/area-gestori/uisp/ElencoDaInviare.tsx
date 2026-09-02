@@ -24,7 +24,7 @@ export function ElencoDaInviare({ soci }: { soci: SocioDaInviare[] }) {
   const [scelti, setScelti] = useState<Set<string>>(
     () => new Set(soci.filter(s => s.quotaVersata && s.mancanti.length === 0).map(s => s.tesseramentoId))
   )
-  const [inCorso, setInCorso] = useState(false)
+  const [inCorso, setInCorso] = useState<'pdf' | 'xlsx' | null>(null)
   const [errore, setErrore] = useState<string | null>(null)
 
   const selezionati = useMemo(() => soci.filter(s => scelti.has(s.tesseramentoId)), [soci, scelti])
@@ -40,14 +40,14 @@ export function ElencoDaInviare({ soci }: { soci: SocioDaInviare[] }) {
     })
   }
 
-  async function scarica() {
-    setInCorso(true)
+  async function scarica(formato: 'pdf' | 'xlsx') {
+    setInCorso(formato)
     setErrore(null)
     try {
       const risposta = await fetch('/api/uisp/modulo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tesseramentoIds: [...scelti] }),
+        body: JSON.stringify({ tesseramentoIds: [...scelti], formato }),
       })
 
       if (!risposta.ok) {
@@ -61,7 +61,7 @@ export function ElencoDaInviare({ soci }: { soci: SocioDaInviare[] }) {
       const blob = await risposta.blob()
       const intestazione = risposta.headers.get('Content-Disposition') ?? ''
       const trovato = /filename="([^"]+)"/.exec(intestazione)
-      const nome = trovato ? decodeURIComponent(trovato[1]) : 'modulo-uisp.xlsx'
+      const nome = trovato ? decodeURIComponent(trovato[1]) : `modulo-uisp.${formato}`
 
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
@@ -76,7 +76,7 @@ export function ElencoDaInviare({ soci }: { soci: SocioDaInviare[] }) {
     } catch {
       setErrore('Connessione persa durante la generazione del modulo.')
     } finally {
-      setInCorso(false)
+      setInCorso(null)
     }
   }
 
@@ -162,17 +162,28 @@ export function ElencoDaInviare({ soci }: { soci: SocioDaInviare[] }) {
 
       {errore && <p className="text-red-600 text-xs font-medium pl-1">{errore}</p>}
 
-      <button
-        type="button"
-        onClick={scarica}
-        disabled={inCorso || selezionati.length === 0}
-        className="bg-yellow-400 text-gray-900 px-6 py-3.5 rounded-xl font-bold text-sm hover:bg-yellow-500 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed w-full inline-flex items-center justify-center gap-2"
-      >
-        {inCorso && <Spinner className="h-4 w-4" />}
-        {inCorso
-          ? 'Preparazione del modulo...'
-          : `Scarica il modulo e segna come inviati (${selezionati.length})`}
-      </button>
+      <div className="space-y-2">
+        <button
+          type="button"
+          onClick={() => scarica('pdf')}
+          disabled={!!inCorso || selezionati.length === 0}
+          className="bg-yellow-400 text-gray-900 px-6 py-3.5 rounded-xl font-bold text-sm hover:bg-yellow-500 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed w-full inline-flex items-center justify-center gap-2"
+        >
+          {inCorso === 'pdf' && <Spinner className="h-4 w-4" />}
+          {inCorso === 'pdf'
+            ? 'Preparazione del modulo...'
+            : `Scarica il modulo in PDF e segna come inviati (${selezionati.length})`}
+        </button>
+        <button
+          type="button"
+          onClick={() => scarica('xlsx')}
+          disabled={!!inCorso || selezionati.length === 0}
+          className="text-xs font-semibold text-gray-500 hover:text-gray-800 underline underline-offset-2 disabled:opacity-40 disabled:no-underline disabled:cursor-not-allowed w-full text-center py-1 inline-flex items-center justify-center gap-1.5"
+        >
+          {inCorso === 'xlsx' && <Spinner className="h-3 w-3" />}
+          oppure scaricalo in Excel
+        </button>
+      </div>
     </div>
   )
 }

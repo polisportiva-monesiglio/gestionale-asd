@@ -59,12 +59,22 @@ function RigaInvio({ invio }: { invio: InvioFatto }) {
 
         {!annullato && (
           <div className="shrink-0 flex flex-col items-end gap-1.5">
-            <a
-              href={`/api/uisp/modulo?invio_id=${encodeURIComponent(invio.id)}`}
-              className="text-xs font-semibold text-green-700 underline underline-offset-2 hover:text-green-900"
-            >
-              ↗ Riscarica
-            </a>
+            <span className="text-xs font-semibold text-green-700">
+              ↗{' '}
+              <a
+                href={`/api/uisp/modulo?invio_id=${encodeURIComponent(invio.id)}&formato=pdf`}
+                className="underline underline-offset-2 hover:text-green-900"
+              >
+                PDF
+              </a>
+              {' · '}
+              <a
+                href={`/api/uisp/modulo?invio_id=${encodeURIComponent(invio.id)}&formato=xlsx`}
+                className="underline underline-offset-2 hover:text-green-900"
+              >
+                Excel
+              </a>
+            </span>
             <form action={azione}>
               <input type="hidden" name="invio_id" value={invio.id} />
               <button

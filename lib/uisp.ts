@@ -18,6 +18,35 @@ export const ULTIMA_RIGA = 63
 export const RIGHE_MODELLO = ULTIMA_RIGA - PRIMA_RIGA + 1
 export const MASSIMO_RAGIONEVOLE = 500
 
+/**
+ * L'intestazione del modulo: chi firma la richiesta e per quale associazione.
+ *
+ * Non e' nel codice perche' cambia col presidente e col codice di
+ * affiliazione: sta in `impostazioni` e la compilano i gestori. Se manca, il
+ * campo resta bianco come nei moduli riempiti a mano finora.
+ */
+export type IntestazioneUisp = {
+  presidenteCognome: string
+  presidenteNome: string
+  denominazione: string
+  codiceAffiliazione: string
+}
+
+/** Le chiavi in `impostazioni` che tengono l'intestazione. */
+export const CHIAVI_INTESTAZIONE = {
+  presidenteCognome: 'uisp_presidente_cognome',
+  presidenteNome: 'uisp_presidente_nome',
+  denominazione: 'uisp_denominazione',
+  codiceAffiliazione: 'uisp_codice_affiliazione',
+} as const
+
+export const INTESTAZIONE_VUOTA: IntestazioneUisp = {
+  presidenteCognome: '',
+  presidenteNome: '',
+  denominazione: '',
+  codiceAffiliazione: '',
+}
+
 export type RigaUisp = {
   cognome: string | null
   nome: string | null
@@ -57,6 +86,6 @@ export function formattaDataItaliana(iso: string | null): string {
 }
 
 /** Il nome che i file hanno sempre avuto su Drive: "3 - Modulo ... 2026-2027.xlsx". */
-export function nomeFileModulo(numero: number, annoSportivo: string): string {
-  return `${numero} - Modulo Richiesta Tesseramento ${annoSportivo.replace('/', '-')}.xlsx`
+export function nomeFileModulo(numero: number, annoSportivo: string, estensione: 'xlsx' | 'pdf' = 'xlsx'): string {
+  return `${numero} - Modulo Richiesta Tesseramento ${annoSportivo.replace('/', '-')}.${estensione}`
 }

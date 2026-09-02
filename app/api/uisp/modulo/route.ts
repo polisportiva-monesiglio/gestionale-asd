@@ -2,8 +2,16 @@ import { type NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getAnnoSportivo } from '@/lib/stagione'
-import { nomeFileModulo, MASSIMO_RAGIONEVOLE, type RigaUisp } from '@/lib/uisp'
+import {
+  CHIAVI_INTESTAZIONE,
+  INTESTAZIONE_VUOTA,
+  MASSIMO_RAGIONEVOLE,
+  nomeFileModulo,
+  type IntestazioneUisp,
+  type RigaUisp,
+} from '@/lib/uisp'
 import { compilaModuloUisp } from '@/lib/uispServer'
+import { compilaModuloUispPdf } from '@/lib/uispPdf'
 
 // exceljs legge il modello dal disco: serve il runtime Node, non l'edge.
 export const runtime = 'nodejs'
@@ -51,14 +59,55 @@ function inRiga(socio: SocioUisp | null): RigaUisp {
   }
 }
 
-function comeAllegato(file: Buffer, nome: string) {
+type Formato = 'pdf' | 'xlsx'
+
+const TIPI: Record<Formato, string> = {
+  pdf: 'application/pdf',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+}
+
+function formatoDi(valore: unknown): Formato {
+  return valore === 'xlsx' ? 'xlsx' : 'pdf'
+}
+
+function comeAllegato(file: Buffer, nome: string, formato: Formato) {
   return new NextResponse(new Uint8Array(file), {
     headers: {
-      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Type': TIPI[formato],
       'Content-Disposition': `attachment; filename="${encodeURIComponent(nome)}"`,
       'Cache-Control': 'no-store',
     },
   })
+}
+
+/**
+ * L'intestazione del modulo, dalle impostazioni. Se i gestori non l'hanno
+ * ancora compilata i campi restano bianchi, come nei moduli riempiti a mano.
+ */
+async function intestazione(admin: ReturnType<typeof createAdminClient>): Promise<IntestazioneUisp> {
+  const { data } = await admin
+    .from('impostazioni')
+    .select('chiave, valore')
+    .in('chiave', Object.values(CHIAVI_INTESTAZIONE))
+
+  const per = new Map((data ?? []).map(r => [r.chiave, r.valore ?? '']))
+  return {
+    presidenteCognome: per.get(CHIAVI_INTESTAZIONE.presidenteCognome) ?? INTESTAZIONE_VUOTA.presidenteCognome,
+    presidenteNome: per.get(CHIAVI_INTESTAZIONE.presidenteNome) ?? INTESTAZIONE_VUOTA.presidenteNome,
+    denominazione: per.get(CHIAVI_INTESTAZIONE.denominazione) ?? INTESTAZIONE_VUOTA.denominazione,
+    codiceAffiliazione: per.get(CHIAVI_INTESTAZIONE.codiceAffiliazione) ?? INTESTAZIONE_VUOTA.codiceAffiliazione,
+  }
+}
+
+/** Il file vero e proprio, nel formato chiesto. */
+async function generaFile(
+  formato: Formato,
+  righe: RigaUisp[],
+  admin: ReturnType<typeof createAdminClient>,
+  annoSportivo: string
+): Promise<Buffer> {
+  if (formato === 'xlsx') return compilaModuloUisp(righe)
+  return compilaModuloUispPdf(righe, await intestazione(admin), annoSportivo)
 }
 
 /** Chi sta chiamando è un gestore attivo? La riga serve anche per firmare l'invio. */
@@ -96,6 +145,7 @@ export async function POST(req: NextRequest) {
 
   const richiesti = (corpo as { tesseramentoIds?: unknown })?.tesseramentoIds
   const ids = Array.isArray(richiesti) ? richiesti.filter((v): v is string => typeof v === 'string') : []
+  const formato = formatoDi((corpo as { formato?: unknown })?.formato)
 
   if (ids.length === 0) {
     return NextResponse.json({ error: 'Non hai selezionato nessun socio.' }, { status: 400 })
@@ -164,8 +214,8 @@ export async function POST(req: NextRequest) {
   await admin.from('invii_uisp').update({ conteggio: righe.length }).eq('id', invio.id)
 
   try {
-    const file = await compilaModuloUisp(righe.map(t => inRiga(socioDi(t))))
-    return comeAllegato(file, nomeFileModulo(invio.numero, annoSportivo))
+    const file = await generaFile(formato, righe.map(t => inRiga(socioDi(t))), admin, annoSportivo)
+    return comeAllegato(file, nomeFileModulo(invio.numero, annoSportivo, formato), formato)
   } catch (e) {
     // Il file non è uscito: le righe devono tornare da mandare, o resterebbero
     // marcate come spedite senza che nulla sia mai stato spedito.
@@ -183,6 +233,7 @@ export async function GET(req: NextRequest) {
 
   const invioId = req.nextUrl.searchParams.get('invio_id')
   if (!invioId) return new NextResponse('Parametro mancante', { status: 400 })
+  const formato = formatoDi(req.nextUrl.searchParams.get('formato'))
 
   const admin = createAdminClient()
 
@@ -205,6 +256,6 @@ export async function GET(req: NextRequest) {
     return new NextResponse('Questo invio non ha più soci collegati', { status: 404 })
   }
 
-  const file = await compilaModuloUisp(righe.map(t => inRiga(socioDi(t))))
-  return comeAllegato(file, nomeFileModulo(invio.numero, invio.anno_sportivo))
+  const file = await generaFile(formato, righe.map(t => inRiga(socioDi(t))), admin, invio.anno_sportivo)
+  return comeAllegato(file, nomeFileModulo(invio.numero, invio.anno_sportivo, formato), formato)
 }
