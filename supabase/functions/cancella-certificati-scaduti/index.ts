@@ -28,6 +28,76 @@ function terminePassato(annoSportivo: string | null, oggi: Date): boolean | null
 
 type Riga = { id: string; anno_sportivo: string | null; url_certificato_pdf: string | null }
 
+/** Giorni dopo i quali un file caricato e mai collegato si considera abbandonato. */
+const GIORNI_PRIMA_DI_BUTTARE_UN_ORFANO = 7
+
+/**
+ * I certificati caricati e mai collegati a un'iscrizione.
+ *
+ * Nel modulo pubblico il certificato si carica prima di firmare, quindi prima
+ * che esista una riga che lo richiami. Chi non arriva in fondo — sbaglia il
+ * codice, chiude la scheda, scopre di essere gia' iscritto — lascia il file
+ * nell'archivio senza che nessuna riga lo nomini. La cancellazione qui sopra
+ * parte dai riferimenti in tabella, quindi un file che nessuna riga nomina non
+ * entra nemmeno nell'elenco dei candidati: non viene trattenuto, proprio non
+ * viene guardato. Restava li' per sempre, contro quanto dichiara l'informativa,
+ * e su un documento sanitario.
+ *
+ * La soglia dei giorni non e' prudenza sprecata: fra il caricamento e la firma
+ * passano minuti, ma un socio puo' interrompersi e riprendere piu' tardi, e un
+ * file cancellato mentre lui sta ancora compilando gli farebbe fallire
+ * l'iscrizione senza capire perche'.
+ */
+async function orfaniDaButtare(
+  supabase: ReturnType<typeof createClient>,
+  adesso: Date
+): Promise<{ percorsi: string[]; errore: string | null }> {
+  // Tutti i riferimenti esistenti, non solo quelli nei termini: un file
+  // nominato da una riga qualsiasi non e' un orfano, qualunque sia la sua eta'.
+  const [tess, stor] = await Promise.all([
+    supabase.from('tesseramenti_annuali').select('url_certificato_pdf').not('url_certificato_pdf', 'is', null),
+    supabase.from('certificati_medici_storico').select('url_certificato_pdf').not('url_certificato_pdf', 'is', null),
+  ])
+  if (tess.error || stor.error) {
+    return { percorsi: [], errore: tess.error?.message ?? stor.error?.message ?? 'errore' }
+  }
+
+  const nominati = new Set<string>()
+  for (const r of [...(tess.data ?? []), ...(stor.data ?? [])]) {
+    if (r.url_certificato_pdf) nominati.add(r.url_certificato_pdf as string)
+  }
+
+  // Solo `iscrizioni/`, che e' la cartella dove finisce il caricamento fatto
+  // prima della firma. Quelli sotto l'id dell'utente li scrive l'area
+  // personale, che rimuove da se' il file se la riga non riesce a scriversi.
+  const limite = new Date(adesso.getTime() - GIORNI_PRIMA_DI_BUTTARE_UN_ORFANO * 86400_000)
+  const orfani: string[] = []
+  const PAGINA = 100
+
+  for (let scarto = 0; ; scarto += PAGINA) {
+    const { data, error } = await supabase.storage
+      .from(ARCHIVIO)
+      .list('iscrizioni', { limit: PAGINA, offset: scarto })
+
+    if (error) return { percorsi: [], errore: error.message }
+    if (!data || data.length === 0) break
+
+    for (const oggetto of data) {
+      // `list` restituisce anche le cartelle, che non hanno id.
+      if (!oggetto.id) continue
+      const percorso = `iscrizioni/${oggetto.name}`
+      if (nominati.has(percorso)) continue
+      const creato = oggetto.created_at ? new Date(oggetto.created_at) : null
+      if (!creato || Number.isNaN(creato.getTime())) continue
+      if (creato < limite) orfani.push(percorso)
+    }
+
+    if (data.length < PAGINA) break
+  }
+
+  return { percorsi: orfani, errore: null }
+}
+
 Deno.serve(async (req: Request) => {
   const cronSecret = Deno.env.get('CRON_SECRET')
   if (!cronSecret || req.headers.get('x-cron-secret') !== cronSecret) {
@@ -104,6 +174,11 @@ Deno.serve(async (req: Request) => {
   const daCancellare = [...candidati].filter((p) => !daConservare.has(p))
   const trattenuti = [...candidati].filter((p) => daConservare.has(p))
 
+  // Seconda passata: i file che nessuna riga nomina. Non hanno una stagione da
+  // cui contare il termine — non hanno niente — quindi si datano da soli, dal
+  // momento in cui sono stati caricati.
+  const { percorsi: orfani, errore: erroreOrfani } = await orfaniDaButtare(supabase, oggi)
+
   if (simulazione) {
     return new Response(JSON.stringify({
       simulazione: true,
@@ -113,6 +188,9 @@ Deno.serve(async (req: Request) => {
       righeStoricoInteressate: storicoScaduto.length,
       righeTesseramentoInteressate: tesseramentiScaduti.length,
       nonDatabili,
+      orfaniOltre: `${GIORNI_PRIMA_DI_BUTTARE_UN_ORFANO} giorni`,
+      orfaniDaCancellare: orfani,
+      erroreRicercaOrfani: erroreOrfani,
     }, null, 2), { headers: { 'Content-Type': 'application/json' } })
   }
 
@@ -121,8 +199,14 @@ Deno.serve(async (req: Request) => {
   const errori: { percorso: string; messaggio: string }[] = []
   const cancellati = new Set<string>()
 
-  for (let i = 0; i < daCancellare.length; i += 100) {
-    const gruppo = daCancellare.slice(i, i + 100)
+  // Gli orfani si cancellano insieme agli scaduti: stesso archivio, stessa API.
+  // Non entrano invece negli aggiornamenti di riga qui sotto, perche' righe che
+  // li nominino non ce ne sono — e' esattamente questo che li rende orfani.
+  if (erroreOrfani) errori.push({ percorso: 'ricerca orfani', messaggio: erroreOrfani })
+  const tuttiDaCancellare = [...daCancellare, ...orfani]
+
+  for (let i = 0; i < tuttiDaCancellare.length; i += 100) {
+    const gruppo = tuttiDaCancellare.slice(i, i + 100)
     const { error } = await supabase.storage.from(ARCHIVIO).remove(gruppo)
     if (error) {
       for (const p of gruppo) errori.push({ percorso: p, messaggio: error.message })
@@ -171,6 +255,7 @@ Deno.serve(async (req: Request) => {
   return new Response(JSON.stringify({
     oggi: oggi.toISOString().slice(0, 10),
     fileCancellati: cancellati.size,
+    diCuiOrfaniMaiCollegati: orfani.filter((p) => cancellati.has(p)).length,
     righeStoricoAggiornate,
     righeTesseramentoAggiornate,
     trattenutiPerchePuntatiDaRigheNeiTermini: trattenuti.length,
