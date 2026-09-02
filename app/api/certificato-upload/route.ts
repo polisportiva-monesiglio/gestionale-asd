@@ -58,7 +58,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Richiesta non valida' }, { status: 400 })
   }
 
-  const estensione = ESTENSIONI[estensioneRichiesta] ?? DA_TIPO[tipoDichiarato]
+  // `Object.hasOwn` e non la sola lettura: su un oggetto letterale le chiavi
+  // ereditate rispondono lo stesso. `constructor` e `__proto__` restituiscono
+  // valori veri, superano il controllo qui sotto e producono nomi come
+  // `iscrizioni/<uuid>.[object Object]`. Non si esce dalla cartella e
+  // l'archivio controlla comunque il tipo, ma un nome di file non deve venire
+  // dalla catena dei prototipi.
+  const daNome = Object.hasOwn(ESTENSIONI, estensioneRichiesta) ? ESTENSIONI[estensioneRichiesta] : undefined
+  const daTipo = Object.hasOwn(DA_TIPO, tipoDichiarato) ? DA_TIPO[tipoDichiarato] : undefined
+
+  const estensione = daNome ?? daTipo
   if (!estensione) {
     return NextResponse.json(
       { error: 'Il certificato deve essere un PDF o una foto (JPG, PNG, WEBP, HEIC).' },

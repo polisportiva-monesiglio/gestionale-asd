@@ -66,10 +66,17 @@ async function orfaniDaButtare(
 
   for (const tabella of ['tesseramenti_annuali', 'certificati_medici_storico']) {
     for (let da = 0; ; da += RIGHE) {
+      // Ordinate per chiave primaria, che e' unica. Senza ORDER BY, Postgres non
+      // garantisce lo stesso ordine fra due query con OFFSET diversi: una riga
+      // potrebbe non comparire in nessuna delle pagine, il certificato che
+      // nomina sembrerebbe un orfano e verrebbe cancellato per sempre. Qui non
+      // e' una finezza teorica — dall'altra parte c'e' la distruzione
+      // irreversibile di un documento sanitario di un socio in regola.
       const { data, error } = await supabase
         .from(tabella)
-        .select('url_certificato_pdf')
+        .select('id, url_certificato_pdf')
         .not('url_certificato_pdf', 'is', null)
+        .order('id')
         .range(da, da + RIGHE - 1)
 
       if (error) return { percorsi: [], errore: `${tabella}: ${error.message}` }

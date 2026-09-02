@@ -135,7 +135,7 @@ export async function POST(req: NextRequest) {
 
   const { data: giaIscritto, error: verificaCfErr } = await supabase
     .from('soci')
-    .select('id, email')
+    .select('id, email, genitore_email')
     .eq('cf', cfNormalizzato)
     .maybeSingle()
 
@@ -156,9 +156,23 @@ export async function POST(req: NextRequest) {
     //
     // Se invece l'indirizzo e' diverso non si dice di chi e': chi chiede non
     // ha diritto di sapere che quel codice fiscale appartiene a un socio.
+    // Il confronto usa l'indirizzo che l'OTP ha autenticato, non quello
+    // dichiarato nel modulo. Per un maggiorenne i due coincidono, ma per un
+    // minorenne no: il codice va al genitore, e `email` resta un campo che il
+    // chiamante riempie come vuole. Confrontando quello, chi conoscesse il
+    // codice fiscale di un socio poteva dichiararlo minorenne, farsi mandare
+    // l'OTP alla propria casella e usare la differenza fra i due messaggi per
+    // sapere se un certo indirizzo e' quello in archivio.
+    //
+    // Si guardano entrambe le colonne perche' chi ha firmato per un minorenne
+    // ha il proprio indirizzo in `genitore_email`: e' li' che lo scrive questa
+    // stessa rotta poco piu' sotto.
+    const firmatarioNormalizzato = emailFirma.trim().toLowerCase()
     const eLaStessaPersona =
-      typeof giaIscritto.email === 'string' &&
-      giaIscritto.email.toLowerCase() === emailSocio
+      (typeof giaIscritto.email === 'string' &&
+        giaIscritto.email.toLowerCase() === firmatarioNormalizzato) ||
+      (typeof giaIscritto.genitore_email === 'string' &&
+        giaIscritto.genitore_email.toLowerCase() === firmatarioNormalizzato)
 
     return NextResponse.json(
       {
