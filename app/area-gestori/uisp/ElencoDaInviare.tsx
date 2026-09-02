@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from 'react'
 import { Spinner } from '@/app/components/Spinner'
-import { CAPIENZA } from '@/lib/uisp'
 
 export type SocioDaInviare = {
   tesseramentoId: string
@@ -29,8 +28,8 @@ export function ElencoDaInviare({ soci }: { soci: SocioDaInviare[] }) {
   const [errore, setErrore] = useState<string | null>(null)
 
   const selezionati = useMemo(() => soci.filter(s => scelti.has(s.tesseramentoId)), [soci, scelti])
-  const troppi = selezionati.length > CAPIENZA
   const conBuchi = selezionati.filter(s => s.mancanti.length > 0)
+  const tuttiScelti = selezionati.length === soci.length
 
   function commuta(id: string) {
     setScelti(prec => {
@@ -95,14 +94,16 @@ export function ElencoDaInviare({ soci }: { soci: SocioDaInviare[] }) {
         <button
           type="button"
           onClick={() => setScelti(new Set(soci.map(s => s.tesseramentoId)))}
-          className="text-xs font-semibold text-gray-500 hover:text-gray-800 underline underline-offset-2"
+          disabled={tuttiScelti}
+          className="text-xs font-bold text-gray-800 hover:text-gray-900 px-3 py-2 rounded-xl border border-gray-200 hover:border-gray-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          Seleziona tutti
+          Seleziona tutti ({soci.length})
         </button>
         <button
           type="button"
           onClick={() => setScelti(new Set())}
-          className="text-xs font-semibold text-gray-500 hover:text-gray-800 underline underline-offset-2"
+          disabled={selezionati.length === 0}
+          className="text-xs font-semibold text-gray-500 hover:text-gray-800 underline underline-offset-2 disabled:opacity-40 disabled:no-underline disabled:cursor-not-allowed"
         >
           Deseleziona tutti
         </button>
@@ -159,19 +160,12 @@ export function ElencoDaInviare({ soci }: { soci: SocioDaInviare[] }) {
         </p>
       )}
 
-      {troppi && (
-        <p className="rounded-2xl bg-red-50 border border-red-200 px-4 py-3 text-xs text-red-800">
-          Il modulo tiene {CAPIENZA} soci per volta e ne hai scelti {selezionati.length}.
-          Togline {selezionati.length - CAPIENZA} e fai un secondo invio.
-        </p>
-      )}
-
       {errore && <p className="text-red-600 text-xs font-medium pl-1">{errore}</p>}
 
       <button
         type="button"
         onClick={scarica}
-        disabled={inCorso || selezionati.length === 0 || troppi}
+        disabled={inCorso || selezionati.length === 0}
         className="bg-yellow-400 text-gray-900 px-6 py-3.5 rounded-xl font-bold text-sm hover:bg-yellow-500 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed w-full inline-flex items-center justify-center gap-2"
       >
         {inCorso && <Spinner className="h-4 w-4" />}

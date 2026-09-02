@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getAnnoSportivo } from '@/lib/stagione'
-import { nomeFileModulo, CAPIENZA, type RigaUisp } from '@/lib/uisp'
+import { nomeFileModulo, MASSIMO_RAGIONEVOLE, type RigaUisp } from '@/lib/uisp'
 import { compilaModuloUisp } from '@/lib/uispServer'
 
 // exceljs legge il modello dal disco: serve il runtime Node, non l'edge.
@@ -100,9 +100,11 @@ export async function POST(req: NextRequest) {
   if (ids.length === 0) {
     return NextResponse.json({ error: 'Non hai selezionato nessun socio.' }, { status: 400 })
   }
-  if (ids.length > CAPIENZA) {
+  if (ids.length > MASSIMO_RAGIONEVOLE) {
+    // Il modulo si allunga quanto serve: questo tetto non e' la capienza del
+    // foglio, e' il confine oltre il quale la richiesta e' un errore.
     return NextResponse.json(
-      { error: `Il modulo tiene ${CAPIENZA} soci per volta: fai più invii.` },
+      { error: `Hai chiesto ${ids.length} soci in un colpo solo: e' troppo.` },
       { status: 400 }
     )
   }

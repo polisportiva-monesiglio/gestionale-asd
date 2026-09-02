@@ -2,7 +2,6 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getAnnoSportivo } from '@/lib/stagione'
-import { CAPIENZA } from '@/lib/uisp'
 import { ElencoDaInviare, type SocioDaInviare } from './ElencoDaInviare'
 import { StoricoInvii, type InvioFatto } from './StoricoInvii'
 
@@ -145,7 +144,7 @@ export default async function ModuloUispPage() {
           </div>
           <p className="text-xs text-gray-400 mb-5 pl-4">
             Scarichi il modulo già compilato e i soci scelti spariscono da qui: al prossimo
-            invio trovi solo i nuovi. Il modulo tiene {CAPIENZA} soci per volta.
+            invio trovi solo i nuovi. Il modulo esce con una riga per socio, né vuote né in meno.
           </p>
           <ElencoDaInviare soci={daInviare} />
         </div>

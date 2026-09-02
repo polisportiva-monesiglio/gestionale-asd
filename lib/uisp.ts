@@ -8,10 +8,15 @@
  * entrano in un modulo.
  */
 
-/** Il modulo ha 54 righe gia' bordate: dalla 10 alla 63. Oltre non si va. */
+/**
+ * Il modello arriva con 54 righe gia' bordate, dalla 10 alla 63. Non e' un
+ * limite: quelle che avanzano si tolgono, e se i soci sono di piu' se ne
+ * aggiungono. Il tetto serve solo a distinguere un invio grosso da un errore.
+ */
 export const PRIMA_RIGA = 10
 export const ULTIMA_RIGA = 63
-export const CAPIENZA = ULTIMA_RIGA - PRIMA_RIGA + 1
+export const RIGHE_MODELLO = ULTIMA_RIGA - PRIMA_RIGA + 1
+export const MASSIMO_RAGIONEVOLE = 500
 
 export type RigaUisp = {
   cognome: string | null
