@@ -757,7 +757,7 @@ export default function FormIscrizione() {
                       {isInviandoOtp ? 'Invio in corso...' : 'Invia Codice OTP'}
                     </button>
                     <p className="text-xs text-gray-400 mt-4 font-medium">
-                      Accetta i 4 consensi obbligatori per sbloccare il pulsante.
+                      Accetta i 5 consensi obbligatori per sbloccare il pulsante.
                     </p>
                   </div>
                 ) : datiCambiatiDopoOtp ? (
