@@ -174,7 +174,14 @@ export default function LoginPage() {
                   value={codice}
                   onChange={(e) => setCodice(e.target.value.replace(/\D/g, ''))}
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-center text-xl font-mono tracking-[0.3em] focus:outline-none focus:ring-2 focus:ring-yellow-400"
-                  placeholder="– – – – – –"
+                  // Otto trattini perche' otto sono le cifre del codice su questo
+                  // progetto (Authentication -> Sign In / Providers -> Email ->
+                  // *Email OTP Length*). E' un aiuto visivo, non un controllo:
+                  // chi valida e' la rotta, che accetta un intervallo. Se un
+                  // giorno la lunghezza cambia, qui va cambiato il segnaposto —
+                  // sbagliarlo non blocca nessuno, ma dice una cosa falsa a chi
+                  // sta contando le cifre mentre le copia.
+                  placeholder="– – – – – – – –"
                   autoFocus
                 />
               </div>
