@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Spinner } from '@/app/components/Spinner'
 
 /**
@@ -25,6 +25,20 @@ export default function LoginPage() {
   const [inCorso, setInCorso] = useState(false)
   const [errore, setErrore] = useState('')
 
+  // Supabase non manda un secondo codice allo stesso indirizzo prima di un
+  // minuto (impostazione *Minimum interval per user*). La pagina pero'
+  // risponde sempre "se l'indirizzo e' registrato riceverai un codice", di
+  // proposito, per non dire a nessuno chi e' socio: senza questo conto alla
+  // rovescia chi ripreme troppo presto si sente dire di si' e non riceve
+  // niente, e chiama la segreteria.
+  const [attesa, setAttesa] = useState(0)
+
+  useEffect(() => {
+    if (attesa <= 0) return
+    const t = setTimeout(() => setAttesa((s) => s - 1), 1000)
+    return () => clearTimeout(t)
+  }, [attesa])
+
   async function chiediCodice(e: React.FormEvent) {
     e.preventDefault()
     setInCorso(true)
@@ -48,6 +62,7 @@ export default function LoginPage() {
       }
 
       setPasso('codice')
+      setAttesa(60)
     } catch {
       setErrore("Non è stato possibile contattare il server. Riprova.")
     } finally {
@@ -115,12 +130,23 @@ export default function LoginPage() {
 
               <button
                 type="submit"
-                disabled={inCorso}
+                disabled={inCorso || attesa > 0}
                 className="w-full rounded-lg bg-yellow-400 hover:bg-yellow-500 disabled:opacity-60 text-gray-900 font-semibold py-2 transition-colors inline-flex items-center justify-center gap-2"
               >
                 {inCorso && <Spinner className="h-4 w-4" />}
-                {inCorso ? 'Invio in corso...' : 'Invia il codice'}
+                {inCorso
+                  ? 'Invio in corso...'
+                  : attesa > 0
+                    ? `Attendi ${attesa} secondi`
+                    : 'Invia il codice'}
               </button>
+
+              {attesa > 0 && (
+                <p className="text-xs text-gray-400 text-center">
+                  Un codice &egrave; gi&agrave; partito poco fa. Controlla la posta, anche
+                  nello spam: se non arriva, riprova fra {attesa} secondi.
+                </p>
+              )}
             </form>
           </>
         ) : (
@@ -169,7 +195,9 @@ export default function LoginPage() {
                 onClick={() => { setPasso('email'); setCodice(''); setErrore('') }}
                 className="w-full text-sm text-gray-500 hover:text-gray-800 transition-colors"
               >
-                Cambia indirizzo o richiedi un altro codice
+                {attesa > 0
+                  ? `Cambia indirizzo (nuovo codice fra ${attesa}s)`
+                  : 'Cambia indirizzo o richiedi un altro codice'}
               </button>
 
               <p className="text-xs text-gray-400 text-center pt-2 border-t border-gray-100">
