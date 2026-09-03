@@ -13,10 +13,11 @@ import { Spinner } from '@/app/components/Spinner'
  * sito che risponde "non autorizzata". Un codice digitato non ha browser di
  * partenza — si legge l'email sul telefono e si scrive sul computer.
  *
- * La pagina accetta comunque anche il link: finché i modelli di email su
- * Supabase contengono `{{ .ConfirmationURL }}` arriva quello, e `/auth/callback`
- * resta al suo posto. Quando conterranno `{{ .Token }}` arriverà il codice, e
- * questa schermata è già pronta a riceverlo.
+ * Dal 3 settembre 2026 entrambi i modelli di email su Supabase — *Magic Link*
+ * per chi è già registrato e *Confirm signup* per chi accede la prima volta —
+ * contengono `{{ .Token }}`, quindi arriva il codice. `/auth/callback` resta al
+ * suo posto per i link spediti prima del cambio, che restano validi finché non
+ * scadono.
  */
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -155,6 +156,14 @@ export default function LoginPage() {
               Se l&apos;indirizzo &egrave; registrato, hai ricevuto un&apos;email con un
               codice numerico. Scrivilo qui sotto: puoi leggerlo dal telefono anche se
               stai usando il computer.
+            </p>
+
+            {/* L'indirizzo si rimostra perche' e' l'errore piu' comune e il piu'
+                muto: chi sbaglia a digitarlo aspetta un codice che non arrivera'
+                mai, e non ha modo di accorgersene. Non rivela niente — l'ha
+                appena scritto lui. */}
+            <p className="text-sm text-gray-700 -mt-4 mb-6 break-all">
+              Inviato a <strong className="font-semibold">{email}</strong>
             </p>
 
             <form onSubmit={verificaCodice} className="space-y-4">
