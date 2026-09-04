@@ -8,6 +8,7 @@ import { componiModuloFirmato } from '@/lib/moduloPdf'
 import { getAnnoSportivo } from '@/lib/stagione'
 import { normalizzaTelefono } from '@/lib/telefono'
 import { codiceFiscaleValido } from '@/lib/codiceFiscale'
+import { nomeProprio, indirizzoNormalizzato } from '@/lib/nomiPropri'
 import { notificaNuovaIscrizione } from '@/lib/notifiche'
 import { VERSIONE_REGOLAMENTO, VERSIONE_STATUTO, VERSIONE_PRIVACY } from '@/lib/versioniTesti'
 
@@ -132,6 +133,20 @@ export async function POST(req: NextRequest) {
   // e' stato firmato: normalizzarlo qui farebbe fallire la verifica.
   const cfNormalizzato = String(dati.codiceFiscale).trim().toUpperCase()
   const emailSocio = String(dati.email).trim().toLowerCase()
+
+  // Nomi, luoghi e indirizzi presi in mano qui, sulla stessa `dati` che
+  // alimenta il PDF del modulo, la riga in tabella e l'avviso alla segreteria:
+  // normalizzarne una sola farebbe dire tre cose diverse ai tre documenti.
+  //
+  // Sta **dopo** `verificaOtp`, e deve restarci: il token e' firmato su
+  // un'impronta dei dati come sono arrivati, e ritoccarli prima farebbe fallire
+  // la verifica a chi non ha sbagliato niente.
+  for (const campo of ['nome', 'cognome', 'luogoNascita', 'cittaResidenza', 'genitoreNome', 'genitoreCognome'] as const) {
+    if (dati[campo] != null) dati[campo] = nomeProprio(String(dati[campo]))
+  }
+  if (dati.indirizzoResidenza != null) {
+    dati.indirizzoResidenza = indirizzoNormalizzato(String(dati.indirizzoResidenza))
+  }
 
   const { data: giaIscritto, error: verificaCfErr } = await supabase
     .from('soci')

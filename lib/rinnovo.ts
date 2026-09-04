@@ -1,4 +1,5 @@
 import { eMinorenne } from '@/lib/firmatario'
+import { nomeProprio, indirizzoNormalizzato } from '@/lib/nomiPropri'
 
 /**
  * Il rinnovo del tesseramento per una nuova stagione.
@@ -112,9 +113,13 @@ export function datiRinnovo(
     codiceFiscale: socio.cf ?? '',
 
     // Recapiti e residenza: correggibili dal socio.
-    indirizzoResidenza: aggiornato(modifiche.indirizzoResidenza, socio.indirizzo),
+    // Normalizzati qui e non piu' avanti: `datiRinnovo` la chiamano tutte e
+    // due le rotte, quella che spedisce il codice e quella che verifica la
+    // firma. Ritoccare i valori piu' tardi, da una parte sola, farebbe
+    // divergere le due impronte e nessun rinnovo andrebbe mai a buon fine.
+    indirizzoResidenza: indirizzoNormalizzato(aggiornato(modifiche.indirizzoResidenza, socio.indirizzo)),
     capResidenza: aggiornato(modifiche.capResidenza, socio.cap),
-    cittaResidenza: aggiornato(modifiche.cittaResidenza, socio.citta),
+    cittaResidenza: nomeProprio(aggiornato(modifiche.cittaResidenza, socio.citta)),
     provinciaResidenza: aggiornato(modifiche.provinciaResidenza, socio.provincia_residenza),
     telefono: aggiornato(modifiche.telefono, socio.telefono),
     email: aggiornato(modifiche.email, socio.email),
@@ -122,8 +127,8 @@ export function datiRinnovo(
     // I dati del genitore esistono solo finché il socio è minorenne. Per un
     // maggiorenne restano vuoti, così il modulo firmato non porta i dati di
     // un terzo che non c'entra più.
-    genitoreNome: minorenne ? aggiornato(modifiche.genitoreNome, socio.genitore_nome) : '',
-    genitoreCognome: minorenne ? aggiornato(modifiche.genitoreCognome, socio.genitore_cognome) : '',
+    genitoreNome: minorenne ? nomeProprio(aggiornato(modifiche.genitoreNome, socio.genitore_nome)) : '',
+    genitoreCognome: minorenne ? nomeProprio(aggiornato(modifiche.genitoreCognome, socio.genitore_cognome)) : '',
     genitoreEmail: minorenne ? aggiornato(modifiche.genitoreEmail, socio.genitore_email) : '',
     genitoreContattoScelta: minorenne
       ? aggiornato(modifiche.genitoreContattoScelta, socio.genitore_contatto_preferito)
