@@ -4,6 +4,11 @@ import { useMemo, useState } from 'react'
 import { ListaDecisioni } from '../ListaDecisioni'
 import type { Decisione } from '@/lib/storicoDecisioni'
 import { ordinaSoci, type Colonna, type Verso } from '@/lib/ordinaSoci'
+import {
+  filtraSoci, statoCertificato, quantiFiltriAttivi, FILTRI_VUOTI,
+  VOCI_FREQUENZA, VOCI_CERTIFICATO, VOCI_ISCRITTO, type Filtri,
+} from '@/lib/filtraSoci'
+import { giorniAllaScadenza } from '@/lib/analisi'
 
 type Socio = {
   id: string
@@ -26,12 +31,21 @@ function formatData(d: string | null) {
   return new Date(d).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
+// Quello che scrive la pastiglia e quello per cui filtra l'elenco a tendina
+// vengono dalla **stessa** funzione: erano due conti separati sullo stesso
+// dato, ed e' il modo classico in cui una tabella comincia a mentire — filtri
+// "Scaduto" e ti restano righe che dicono "Valido".
 function badgeScadenza(scadenza: string | null) {
-  if (!scadenza) return { label: 'Mancante', cls: 'bg-gray-100 text-gray-500' }
-  const days = Math.ceil((new Date(scadenza).getTime() - Date.now()) / 86400000)
-  if (days < 0) return { label: 'Scaduto', cls: 'bg-red-100 text-red-700' }
-  if (days <= 30) return { label: `${days}g`, cls: 'bg-yellow-100 text-yellow-700' }
-  return { label: 'Valido', cls: 'bg-green-100 text-green-700' }
+  switch (statoCertificato(scadenza)) {
+    case 'mancante':
+      return { label: 'Mancante', cls: 'bg-gray-100 text-gray-500' }
+    case 'scaduto':
+      return { label: 'Scaduto', cls: 'bg-red-100 text-red-700' }
+    case 'in_scadenza':
+      return { label: `${giorniAllaScadenza(scadenza as string)}g`, cls: 'bg-yellow-100 text-yellow-700' }
+    default:
+      return { label: 'Valido', cls: 'bg-green-100 text-green-700' }
+  }
 }
 
 function badgeAbbonamento(stato: string | null) {
@@ -43,6 +57,10 @@ function badgeAbbonamento(stato: string | null) {
 /* Le regole di ordinamento stanno in `lib/ordinaSoci.ts`: hanno due eccezioni
    volute (certificato e frequenza si ordinano per urgenza, non per valore) e
    dentro un file di JSX non si potevano provare senza aprire un browser. */
+
+const CLASSE_FILTRO =
+  'w-full min-w-[7rem] px-2 py-1.5 text-xs font-normal border border-gray-200 rounded-lg bg-white ' +
+  'text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500'
 
 const INTESTAZIONI: { chiave: Colonna; testo: string }[] = [
   { chiave: 'socio', testo: 'Socio' },
@@ -68,10 +86,17 @@ export function SociList({
    */
   decisioniPerSocio?: Record<string, Decisione[]>
 }) {
-  const [query, setQuery] = useState('')
   const [aperto, setAperto] = useState<string | null>(null)
   const [colonna, setColonna] = useState<Colonna>('socio')
   const [verso, setVerso] = useState<Verso>('su')
+  const [filtri, setFiltri] = useState<Filtri>(FILTRI_VUOTI)
+  // La riga dei filtri sta nascosta finche' non serve: su venti soci la si usa
+  // di rado, e sei caselle sempre aperte sopra la tabella la allontanano.
+  const [mostraFiltri, setMostraFiltri] = useState(false)
+
+  const attivi = quantiFiltriAttivi(filtri)
+  const cambia = (campo: keyof Filtri, valore: string) =>
+    setFiltri(f => ({ ...f, [campo]: valore }) as Filtri)
 
   function ordinaPer(c: Colonna) {
     if (c === colonna) {
@@ -85,17 +110,10 @@ export function SociList({
     setVerso('su')
   }
 
-  const righe = useMemo(() => {
-    const q = query.trim().toLocaleLowerCase('it')
-    const filtrati = q
-      ? soci.filter(s =>
-          `${s.nome} ${s.cognome} ${s.email ?? ''} ${s.telefono ?? ''}`
-            .toLocaleLowerCase('it')
-            .includes(q)
-        )
-      : soci
-    return ordinaSoci(filtrati, colonna, verso)
-  }, [soci, query, colonna, verso])
+  const righe = useMemo(
+    () => ordinaSoci(filtraSoci(soci, filtri), colonna, verso),
+    [soci, filtri, colonna, verso]
+  )
 
   const socioAperto = aperto ? soci.find(s => s.id === aperto) ?? null : null
   const storicoAperto = aperto ? decisioniPerSocio[aperto] ?? [] : []
@@ -103,13 +121,39 @@ export function SociList({
   return (
     <>
       <div className="bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-3xl border border-gray-100 p-4 sm:p-5">
-        <input
-          type="text"
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-          placeholder="Cerca per nome, email o telefono…"
-          className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={filtri.ovunque}
+            onChange={e => cambia('ovunque', e.target.value)}
+            placeholder="Cerca per nome, email o telefono…"
+            className="flex-1 min-w-0 px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <button
+            type="button"
+            onClick={() => setMostraFiltri(v => !v)}
+            aria-expanded={mostraFiltri}
+            className={`shrink-0 px-3 py-2.5 text-sm font-semibold rounded-xl border transition-colors ${
+              attivi > 0
+                ? 'border-blue-300 bg-blue-50 text-blue-700'
+                : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            Filtri{attivi > 0 ? ` (${attivi})` : ''}
+          </button>
+          {/* Il pulsante per azzerare compare **solo con un filtro acceso**, e
+              accanto al conteggio: e' la via d'uscita da "la lista e' vuota e
+              non capisco perche'". */}
+          {attivi > 0 && (
+            <button
+              type="button"
+              onClick={() => setFiltri(FILTRI_VUOTI)}
+              className="shrink-0 px-3 py-2.5 text-sm font-semibold rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors"
+            >
+              Azzera
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-3xl border border-gray-100 border-t-[6px] border-t-blue-600 overflow-hidden">
@@ -159,6 +203,95 @@ export function SociList({
                       Documenti
                     </th>
                   </tr>
+
+                  {/* La riga dei filtri sta **dentro la tabella, sotto le
+                      intestazioni**: ogni controllo cade nella colonna che
+                      filtra, e scorre insieme a lei. Sopra la tabella
+                      avrebbe voluto dire ripetere il nome di ogni colonna
+                      accanto alla sua casella. */}
+                  {mostraFiltri && (
+                    <tr className="border-b border-gray-200 bg-gray-50">
+                      <th scope="col" className="sticky left-0 z-20 bg-gray-50 px-3 pb-2.5 font-normal">
+                        <input
+                          type="text"
+                          value={filtri.socio}
+                          onChange={e => cambia('socio', e.target.value)}
+                          placeholder="Cognome"
+                          aria-label="Filtra per cognome o nome"
+                          className={CLASSE_FILTRO}
+                        />
+                      </th>
+
+                      <th scope="col" className="px-3 pb-2.5 font-normal">
+                        <select
+                          value={filtri.frequenza}
+                          onChange={e => cambia('frequenza', e.target.value)}
+                          aria-label="Filtra per stato della frequenza"
+                          className={CLASSE_FILTRO}
+                        >
+                          <option value="">Tutte</option>
+                          {VOCI_FREQUENZA.map(v => (
+                            <option key={v.valore} value={v.valore}>{v.testo}</option>
+                          ))}
+                        </select>
+                      </th>
+
+                      <th scope="col" className="px-3 pb-2.5 font-normal">
+                        <select
+                          value={filtri.certificato}
+                          onChange={e => cambia('certificato', e.target.value)}
+                          aria-label="Filtra per stato del certificato"
+                          className={CLASSE_FILTRO}
+                        >
+                          <option value="">Tutti</option>
+                          {VOCI_CERTIFICATO.map(v => (
+                            <option key={v.valore} value={v.valore}>{v.testo}</option>
+                          ))}
+                        </select>
+                      </th>
+
+                      <th scope="col" className="px-3 pb-2.5 font-normal">
+                        <select
+                          value={filtri.iscritto}
+                          onChange={e => cambia('iscritto', e.target.value)}
+                          aria-label="Filtra per data di iscrizione"
+                          className={CLASSE_FILTRO}
+                        >
+                          <option value="">Da sempre</option>
+                          {VOCI_ISCRITTO.map(v => (
+                            <option key={v.valore} value={v.valore}>{v.testo}</option>
+                          ))}
+                        </select>
+                      </th>
+
+                      <th scope="col" className="px-3 pb-2.5 font-normal">
+                        <input
+                          type="text"
+                          value={filtri.email}
+                          onChange={e => cambia('email', e.target.value)}
+                          placeholder="Indirizzo"
+                          aria-label="Filtra per email"
+                          className={CLASSE_FILTRO}
+                        />
+                      </th>
+
+                      <th scope="col" className="px-3 pb-2.5 font-normal">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={filtri.telefono}
+                          onChange={e => cambia('telefono', e.target.value)}
+                          placeholder="Numero"
+                          aria-label="Filtra per telefono"
+                          className={CLASSE_FILTRO}
+                        />
+                      </th>
+
+                      {/* I documenti non si filtrano: sono due bottoni, non un
+                          valore. */}
+                      <th scope="col" className="px-3 pb-2.5" />
+                    </tr>
+                  )}
                 </thead>
 
                 <tbody>
@@ -290,7 +423,8 @@ export function SociList({
 
       <p className="text-[11px] text-gray-400 px-2">
         {righe.length} {righe.length === 1 ? 'socio' : 'soci'}
-        {query ? ` su ${soci.length}` : ''} · tocca l&apos;intestazione di una colonna per ordinare
+        {attivi > 0 ? ` su ${soci.length}, con ${attivi} ${attivi === 1 ? 'filtro' : 'filtri'}` : ''}
+        {' · tocca l’intestazione di una colonna per ordinare'}
       </p>
     </>
   )
