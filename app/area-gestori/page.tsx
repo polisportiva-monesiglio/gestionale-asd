@@ -5,6 +5,8 @@ import { AzioniRichiesta } from './AzioniRichiesta'
 import { etichettaInizio, formattaGiorno } from '@/lib/abbonamento'
 import { MenuDrawer } from './MenuDrawer'
 import { etichettaMetodo } from '@/lib/pagamenti'
+import { contaPer, andamentoIscrizioni, giorniAllaScadenza } from '@/lib/analisi'
+import { SchedaGrafico, BarreOrizzontali, Colonne, Riquadro } from './Grafici'
 
 function formatData(d: string | null) {
   if (!d) return '—'
@@ -42,6 +44,8 @@ export default async function AreaGestoriPage() {
     { data: richiesteRaw },
     { data: certInScadenzaRaw },
     { data: impostazione },
+    { data: tesseramentiRaw },
+    { data: abbonamentiRaw },
   ] = await Promise.all([
     supabase
       .from('abbonamenti_soci')
@@ -65,6 +69,22 @@ export default async function AreaGestoriPage() {
       .select('valore')
       .eq('chiave', 'codice_cassetta')
       .maybeSingle(),
+    // Per i grafici. `timestamp_firma` e non `soci.data_registrazione`: la
+    // seconda dice quando una persona si e' iscritta la prima volta in
+    // assoluto, e a stagione nuova un socio che rinnova non comparirebbe mai
+    // piu' nell'andamento.
+    supabase
+      .from('tesseramenti_annuali')
+      .select('id, timestamp_firma')
+      .eq('anno_sportivo', annoSportivo),
+    supabase
+      .from('abbonamenti_soci')
+      .select(`
+        id, stato_pagamento, metodo_pagamento, data_fine_validita,
+        catalogo_attivita(nome_attivita),
+        soci(nome, cognome)
+      `)
+      .eq('anno_sportivo', annoSportivo),
   ])
 
   type RawRichiesta = {
@@ -98,6 +118,57 @@ export default async function AreaGestoriPage() {
       dataFine: r.data_fine_validita,
     }
   })
+
+  /* ---------------- I conti per i grafici ---------------- */
+
+  type RawAbbonamento = {
+    id: string
+    stato_pagamento: string | null
+    metodo_pagamento: string | null
+    data_fine_validita: string | null
+    catalogo_attivita: { nome_attivita: string }[] | { nome_attivita: string } | null
+    soci: { nome: string; cognome: string }[] | { nome: string; cognome: string } | null
+  }
+
+  const abbonamenti = ((abbonamentiRaw ?? []) as unknown as RawAbbonamento[]).map(a => {
+    const att = Array.isArray(a.catalogo_attivita) ? a.catalogo_attivita[0] : a.catalogo_attivita
+    const s = Array.isArray(a.soci) ? a.soci[0] : a.soci
+    return {
+      id: a.id,
+      stato: a.stato_pagamento,
+      metodo: a.metodo_pagamento,
+      fine: a.data_fine_validita,
+      attivita: att?.nome_attivita ?? null,
+      socio: s ? `${s.cognome} ${s.nome}` : 'Socio non trovato',
+    }
+  })
+
+  const pagati = abbonamenti.filter(a => a.stato === 'pagato')
+
+  const andamento = andamentoIscrizioni(
+    ((tesseramentiRaw ?? []) as { timestamp_firma: string | null }[]).map(t => t.timestamp_firma)
+  )
+
+  // Solo sui pagati: un metodo indicato in una richiesta ancora da confermare
+  // e' un'intenzione, non un incasso, e mescolarlo falserebbe il conto.
+  const metodi = contaPer(pagati, a => etichettaMetodo(a.metodo))
+
+  // Su tutte le richieste invece, comprese le rifiutate: la domanda e' cosa
+  // chiede la gente, e una richiesta rifiutata l'ha chiesta lo stesso.
+  const tipiRichiesti = contaPer(abbonamenti, a => a.attivita)
+
+  const GIORNI_DI_PREAVVISO = 30
+
+  // Quelli gia' finiti non sono "in scadenza": sono finiti, e chi li aveva o
+  // ha gia' rinnovato o non e' piu' in palestra. Qui interessa chi va
+  // richiamato prima che scada.
+  const inScadenza = pagati
+    .filter(a => a.fine !== null)
+    .map(a => ({ ...a, giorni: giorniAllaScadenza(a.fine as string) }))
+    .filter(a => a.giorni >= 0 && a.giorni <= GIORNI_DI_PREAVVISO)
+    .sort((a, b) => a.giorni - b.giorni)
+
+  const attiviOggi = pagati.filter(a => a.fine !== null && giorniAllaScadenza(a.fine as string) >= 0).length
 
   type RawCert = {
     id: string
@@ -258,6 +329,106 @@ export default async function AreaGestoriPage() {
           </div>
 
           </div>{/* fine grid affiancato */}
+
+          {/* ---------------- Analisi ----------------
+              Sta **sotto** le richieste da confermare e i certificati in
+              scadenza, non sopra: la Dashboard e' prima di tutto l'elenco di
+              cosa c'e' da fare, e mettere i grafici in cima spingerebbe il
+              lavoro sotto la piega dello schermo. */}
+          <div className="pt-2">
+            <h2 className="text-base font-bold text-gray-900 px-1">Analisi</h2>
+            <p className="text-xs text-gray-400 px-1 mt-0.5">
+              Stagione {annoSportivo}. I conti si aggiornano da soli a ogni apertura.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <Riquadro
+              etichetta="Tesserati"
+              valore={(tesseramentiRaw ?? []).length}
+              nota={`Moduli firmati per la stagione ${annoSportivo}`}
+            />
+            <Riquadro
+              etichetta="Frequenze attive"
+              valore={attiviOggi}
+              nota="Periodi pagati e non ancora finiti"
+            />
+            <Riquadro
+              etichetta="In scadenza"
+              valore={inScadenza.length}
+              nota={`Periodi che finiscono entro ${GIORNI_DI_PREAVVISO} giorni`}
+              tono={inScadenza.length > 0 ? 'attenzione' : 'neutro'}
+            />
+            <Riquadro
+              etichetta="Da confermare"
+              valore={richieste.length}
+              nota="Richieste in attesa di una decisione"
+              tono={richieste.length > 0 ? 'attenzione' : 'neutro'}
+            />
+          </div>
+
+          <SchedaGrafico
+            titolo="Andamento delle iscrizioni"
+            sottotitolo={
+              andamento.totale === 0
+                ? 'Nessun modulo firmato per ora.'
+                : `${andamento.totale} ${andamento.totale === 1 ? 'modulo firmato' : 'moduli firmati'}, ` +
+                  `contati per ${andamento.passo === 'giorno' ? 'giorno' : 'settimana'}`
+            }
+          >
+            <Colonne punti={andamento.punti} />
+          </SchedaGrafico>
+
+          <div className="grid md:grid-cols-2 gap-5">
+            <SchedaGrafico
+              titolo="Come hanno pagato"
+              sottotitolo="Solo i periodi gia' incassati"
+            >
+              <BarreOrizzontali dati={metodi} vuoto="Nessun pagamento incassato per ora." />
+            </SchedaGrafico>
+
+            <SchedaGrafico
+              titolo="Periodi richiesti"
+              sottotitolo="Tutte le richieste, comprese quelle rifiutate"
+            >
+              <BarreOrizzontali dati={tipiRichiesti} vuoto="Nessuna richiesta per ora." />
+            </SchedaGrafico>
+          </div>
+
+          <SchedaGrafico
+            titolo="Frequenze in scadenza"
+            sottotitolo={`Chi va richiamato entro ${GIORNI_DI_PREAVVISO} giorni, dal piu' vicino`}
+          >
+            {inScadenza.length === 0 ? (
+              <p className="text-sm text-gray-400 py-6 text-center">
+                Nessun periodo di frequenza in scadenza nei prossimi {GIORNI_DI_PREAVVISO} giorni.
+              </p>
+            ) : (
+              <ul className="space-y-2">
+                {inScadenza.map(a => (
+                  <li
+                    key={a.id}
+                    className="flex items-center justify-between gap-3 rounded-xl border border-gray-100 bg-gray-50 px-4 py-2.5"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 truncate">{a.socio}</p>
+                      <p className="text-xs text-gray-400 truncate">{a.attivita ?? '—'}</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <span
+                        className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                          a.giorni <= 7 ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-600'
+                        }`}
+                      >
+                        {a.giorni === 0 ? 'Scade oggi' : a.giorni === 1 ? 'Fra 1 giorno' : `Fra ${a.giorni} giorni`}
+                      </span>
+                      <p className="text-[10px] text-gray-400 mt-0.5">{formatData(a.fine)}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </SchedaGrafico>
 
         </div>
       </main>
