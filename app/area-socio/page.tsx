@@ -56,7 +56,7 @@ export default async function AreaSocioPage({
       .maybeSingle(),
     supabase
       .from('abbonamenti_soci')
-      .select('id, stato_pagamento, importo_tesseramento_uisp, note_socio, data_acquisto, inizio_scelto, data_inizio_validita, data_fine_validita, motivo_rifiuto, catalogo_attivita(nome_attivita, prezzo_base), pagamenti_ricevute(id, numero_ricevuta)')
+      .select('id, stato_pagamento, importo_tesseramento_uisp, note_socio, data_acquisto, inizio_scelto, data_inizio_validita, data_fine_validita, motivo_rifiuto, rifiutato_il, catalogo_attivita(nome_attivita, prezzo_base), pagamenti_ricevute(id, numero_ricevuta, confermato_il, data_incasso)')
       .eq('socio_id', socio?.id ?? '')
       .eq('anno_sportivo', annoSportivo)
       .order('data_acquisto', { ascending: false }),
@@ -131,8 +131,9 @@ export default async function AreaSocioPage({
     data_inizio_validita: string | null
     data_fine_validita: string | null
     motivo_rifiuto: string | null
+    rifiutato_il: string | null
     catalogo_attivita: { nome_attivita: string; prezzo_base: number | null }[] | { nome_attivita: string; prezzo_base: number | null } | null
-    pagamenti_ricevute: { id: string; numero_ricevuta: string | null }[] | null
+    pagamenti_ricevute: { id: string; numero_ricevuta: string | null; confermato_il: string | null; data_incasso: string | null }[] | null
   }
 
   const abbonamentiFlattenati = ((abbonamenti ?? []) as unknown as RawAb[]).map(ab => {
@@ -154,6 +155,18 @@ export default async function AreaSocioPage({
       prezzo_base: act?.prezzo_base ?? null,
       ricevutaId: ricevuta?.id ?? null,
       numeroRicevuta: ricevuta?.numero_ricevuta ?? null,
+      // Quando la richiesta e' stata decisa. Il socio vede il **cosa** e il
+      // **quando**, non chi: verso di lui decide l'associazione, non il
+      // singolo consigliere che si e' trovato davanti la richiesta. Il nome
+      // resta scritto e si legge dall'area gestori.
+      decisaIl: ab.stato_pagamento === 'rifiutato'
+        ? ab.rifiutato_il ?? null
+        : ricevuta?.confermato_il ?? ricevuta?.data_incasso ?? null,
+      // Falso per le ricevute emesse prima del 7 settembre 2026, di cui si
+      // conosce solo il giorno: scrivere "00:00" sarebbe un orario inventato.
+      oraDecisioneNota: ab.stato_pagamento === 'rifiutato'
+        ? ab.rifiutato_il != null
+        : ricevuta?.confermato_il != null,
     }
   })
 

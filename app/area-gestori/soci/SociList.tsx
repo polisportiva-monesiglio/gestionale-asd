@@ -1,6 +1,8 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { ListaDecisioni } from '../ListaDecisioni'
+import type { Decisione } from '@/lib/storicoDecisioni'
 
 type Socio = {
   id: string
@@ -37,8 +39,24 @@ function badgeAbbonamento(stato: string | null) {
   return { label: 'Da saldare', cls: 'bg-yellow-100 text-yellow-700' }
 }
 
-export function SociList({ soci }: { soci: Socio[] }) {
+export function SociList({
+  soci,
+  decisioniPerSocio = {},
+}: {
+  soci: Socio[]
+  /**
+   * Lo storico di ogni socio, gia' pronto: arriva dalla pagina in una lettura
+   * sola invece di una richiesta per riga aperta. Sono poche decine di righe
+   * per una stagione, e l'alternativa - chiederle quando si apre - avrebbe
+   * fatto aspettare a ogni clic per risparmiare niente.
+   *
+   * Non e' filtrato per stagione di proposito: la lista mostra i soci della
+   * stagione scelta, ma la storia di una persona non si ferma a fine agosto.
+   */
+  decisioniPerSocio?: Record<string, Decisione[]>
+}) {
   const [query, setQuery] = useState('')
+  const [aperto, setAperto] = useState<string | null>(null)
 
   const filtrati = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -68,6 +86,8 @@ export function SociList({ soci }: { soci: Socio[] }) {
             {filtrati.map(s => {
               const certBadge = badgeScadenza(s.scadenzaCert)
               const abBadge = badgeAbbonamento(s.statoAbbonamento)
+              const storico = decisioniPerSocio[s.id] ?? []
+              const apertoQui = aperto === s.id
               return (
                 <div key={s.id} className="rounded-2xl border border-gray-100 px-4 py-3 bg-gray-50">
                   <div className="flex items-start justify-between gap-2">
@@ -126,7 +146,23 @@ export function SociList({ soci }: { soci: Socio[] }) {
                         🩺 Certificato
                       </a>
                     )}
+                    {storico.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setAperto(apertoQui ? null : s.id)}
+                        aria-expanded={apertoQui}
+                        className="text-[10px] px-2 py-0.5 bg-white border border-gray-300 rounded-lg text-gray-600 font-semibold hover:bg-gray-100 transition-colors"
+                      >
+                        {apertoQui ? '▾' : '▸'} Storico richieste ({storico.length})
+                      </button>
+                    )}
                   </div>
+
+                  {apertoQui && (
+                    <div className="mt-3 pt-3 border-t border-gray-200">
+                      <ListaDecisioni decisioni={storico} mostraSocio={false} />
+                    </div>
+                  )}
                 </div>
               )
             })}

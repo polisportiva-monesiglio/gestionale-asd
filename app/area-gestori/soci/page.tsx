@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getAnnoSportivo } from '@/lib/stagione'
 import { SociList } from './SociList'
 import { StagioneSelect } from './StagioneSelect'
+import { leggiDecisioni, type Decisione } from '@/lib/storicoDecisioni'
 
 const GIORNI_NUOVO_ISCRITTO = 7
 
@@ -105,6 +106,16 @@ export default async function ListaSociPage({
 
   const soci = sociConStagione.map(({ presenteStagione, ...rest }) => rest)
 
+  // Lo storico di tutti, raggruppato per socio, in una lettura sola. Senza
+  // filtro di stagione: la lista mostra i soci della stagione scelta, ma
+  // aprendo una persona si vuole vedere la sua storia intera.
+  const { decisioni } = await leggiDecisioni(supabase)
+  const decisioniPerSocio = decisioni.reduce<Record<string, Decisione[]>>((acc, d) => {
+    if (!d.socioId) return acc
+    ;(acc[d.socioId] ??= []).push(d)
+    return acc
+  }, {})
+
   return (
     <>
 
@@ -137,7 +148,7 @@ export default async function ListaSociPage({
 
           <StagioneSelect stagioni={stagioniDisponibili} selezionata={stagioneSelezionata} />
 
-          <SociList soci={soci} />
+          <SociList soci={soci} decisioniPerSocio={decisioniPerSocio} />
 
         </div>
       </main>

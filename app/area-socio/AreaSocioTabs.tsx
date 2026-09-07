@@ -4,6 +4,7 @@ import { useState } from 'react'
 import UploadCertificatoForm from './UploadCertificatoForm'
 import RichiestaAbbonamentoForm from './RichiestaAbbonamentoForm'
 import { etichettaInizio, formattaGiorno } from '@/lib/abbonamento'
+import { quandoLeggibile } from '@/lib/storicoDecisioni'
 
 export type AbbonamentoFlat = {
   id: string
@@ -19,6 +20,9 @@ export type AbbonamentoFlat = {
   prezzo_base: number | null
   ricevutaId: string | null
   numeroRicevuta: string | null
+  /** Quando la richiesta e' stata decisa. Chi l'ha decisa non arriva qui. */
+  decisaIl: string | null
+  oraDecisioneNota: boolean
 }
 
 export type AttivitaOption = {
@@ -323,6 +327,18 @@ export default function AreaSocioTabs({
                             <span className="text-gray-400">
                               {' '}({etichettaInizio(ab.inizio_scelto).toLowerCase()})
                             </span>
+                          </p>
+                        )}
+                        {/* Quando e' stata decisa. Prima la sua area diceva
+                            che una richiesta era stata accettata, non quando,
+                            e per saperlo bisognava chiedere in segreteria. Chi
+                            ha deciso non si scrive: verso il socio decide
+                            l'associazione, non il singolo consigliere. Il nome
+                            resta registrato e si legge dall'area gestori. */}
+                        {ab.decisaIl && (isPagato || isRifiutato) && (
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            {isRifiutato ? 'Rifiutata' : 'Accettata'} il{' '}
+                            {quandoLeggibile(ab.decisaIl, ab.oraDecisioneNota)}
                           </p>
                         )}
                         {isRifiutato && ab.motivo_rifiuto && (

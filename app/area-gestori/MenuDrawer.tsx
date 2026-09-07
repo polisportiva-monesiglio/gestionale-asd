@@ -51,6 +51,13 @@ export function MenuDrawer({ codiceAttuale, isAdmin }: { codiceAttuale: string |
               Lista soci →
             </Link>
             <Link
+              href="/area-gestori/storico"
+              onClick={() => setOpen(false)}
+              className="text-sm font-semibold text-gray-700 hover:bg-gray-50 px-3 py-2.5 rounded-xl border border-gray-100 transition-colors"
+            >
+              Storico delle richieste &rarr;
+            </Link>
+            <Link
               href="/area-gestori/catalogo"
               onClick={() => setOpen(false)}
               className="text-sm font-semibold text-gray-700 hover:bg-gray-50 px-3 py-2.5 rounded-xl border border-gray-100 transition-colors"

@@ -7,9 +7,14 @@ import { Spinner } from '@/app/components/Spinner'
 export function StagioneSelect({
   stagioni,
   selezionata,
+  // La pagina di destinazione era inchiodata alla lista soci. Lo storico usa
+  // lo stesso selettore, e senza questo lo mandava altrove appena si cambiava
+  // stagione.
+  base = '/area-gestori/soci',
 }: {
   stagioni: string[]
   selezionata: string
+  base?: string
 }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -25,7 +30,7 @@ export function StagioneSelect({
         disabled={isPending}
         onChange={e =>
           startTransition(() => {
-            router.push(`/area-gestori/soci?stagione=${encodeURIComponent(e.target.value)}`)
+            router.push(`${base}?stagione=${encodeURIComponent(e.target.value)}`)
           })
         }
         className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60"

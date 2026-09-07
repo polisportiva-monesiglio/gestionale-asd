@@ -278,7 +278,15 @@ export async function confermaPagamento(
       abbonamento_id: abbonamentiId,
       importo_pagato: totale,
       metodo_pagamento: metodo,
+      // `operatore` resta il nome scritto per esteso, `gestore_id` e' il
+      // riferimento: il primo sopravvive a un gestore cancellato, il secondo
+      // serve a raggruppare le decisioni per persona nello storico.
       operatore: gestore.nome ?? gestore.email,
+      gestore_id: gestore.id,
+      // `data_incasso` e' una `date` e dice solo il giorno. Per rispondere a
+      // "chi ha deciso cosa e quando" serve l'ora, come gia' l'aveva il
+      // rifiuto.
+      confermato_il: new Date().toISOString(),
       url_ricevuta_pdf: storagePath,
       numero_ricevuta: numeroRicevuta,
     })
@@ -392,6 +400,10 @@ export async function rifiutaPagamento(
       stato_pagamento: 'rifiutato',
       motivo_rifiuto: motivo,
       rifiutato_il: new Date().toISOString(),
+      // Prima non si scriveva: si sapeva l'istante del rifiuto al secondo e
+      // non si sapeva chi lo avesse deciso.
+      rifiutato_da: gestore.id,
+      rifiutato_da_nome: gestore.nome ?? gestore.email,
     })
     .eq('id', abbonamentoId)
     .eq('stato_pagamento', 'da_saldare')
