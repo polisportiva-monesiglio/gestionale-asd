@@ -10,6 +10,7 @@ import {
   acquistabile,
   type InizioScelto,
 } from '@/lib/abbonamento'
+import { METODI_PAGAMENTO } from '@/lib/pagamenti'
 
 type Attivita = {
   id: string
@@ -230,25 +231,27 @@ export default function RichiestaAbbonamentoForm({
         <label className="block text-sm font-semibold text-gray-700 mb-2">
           Metodo di pagamento
         </label>
-        <div className="grid grid-cols-2 gap-2.5">
-          {([
-            { value: 'contanti', label: 'Contanti' },
-            { value: 'bonifico', label: 'Bonifico' },
-            { value: 'carta', label: 'Carta' },
-            { value: 'satispay', label: 'Satispay' },
-          ] as const).map(opt => (
+        {/* Le scelte sono tre dal 7 settembre 2026: "Carta" e' stata tolta.
+            L'elenco vero e' `METODI_PAGAMENTO` in `lib/pagamenti.ts`, che lo
+            controlla anche sul server: togliere il bottone e basta nasconde la
+            scelta a chi usa il sito, non a chi manda la richiesta a mano.
+            Restano pero' tre abbonamenti gia' registrati con "carta", uno dei
+            quali con ricevuta emessa, e per quelli l'area gestori deve ancora
+            saper scrivere "Carta". */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+          {METODI_PAGAMENTO.map(opt => (
             <label
-              key={opt.value}
+              key={opt.valore}
               className="relative flex items-center gap-2.5 cursor-pointer rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm transition-all hover:border-yellow-400 has-[:checked]:border-yellow-400 has-[:checked]:bg-yellow-50 has-[:checked]:shadow-[0_0_0_1px_theme(colors.yellow.400)]"
             >
               <input
                 type="radio"
                 name="metodo_pagamento"
-                value={opt.value}
+                value={opt.valore}
                 required
                 className="accent-yellow-400 w-4 h-4 shrink-0"
               />
-              <span className="text-sm font-semibold text-gray-800">{opt.label}</span>
+              <span className="text-sm font-semibold text-gray-800">{opt.etichetta}</span>
             </label>
           ))}
         </div>

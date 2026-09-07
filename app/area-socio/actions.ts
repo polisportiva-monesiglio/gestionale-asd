@@ -7,6 +7,7 @@ import { getAnnoSportivo } from '@/lib/stagione'
 import { revalidatePath } from 'next/cache'
 import { notificaNuovaRichiesta } from '@/lib/notifiche'
 import { periodoAbbonamento, inizioValido, decorrenzeAmmesse } from '@/lib/abbonamento'
+import { metodoAccettabile } from '@/lib/pagamenti'
 
 export type ActionResult = { ok: true } | { ok: false; error: string }
 
@@ -184,6 +185,15 @@ export async function richiestaAbbonamento(
   const note = (formData.get('note') as string | null) || null
   const metodoPagamento = (formData.get('metodo_pagamento') as string | null) || null
   if (!attivitaId) return { ok: false, error: "Seleziona un'attività." }
+
+  // Il metodo arrivava dal modulo e finiva in tabella senza che nessuno lo
+  // guardasse: togliere un bottone nascondeva la scelta a chi usa il sito, non
+  // a chi manda la richiesta a mano. Il `CHECK` in tabella non basta a
+  // sostituire questo controllo, perche' continua ad ammettere 'carta' per le
+  // tre righe che ce l'hanno gia' scritta.
+  if (metodoPagamento !== null && !metodoAccettabile(metodoPagamento)) {
+    return { ok: false, error: 'Scegli un metodo di pagamento fra quelli proposti.' }
+  }
 
   // La chiave esterna garantisce che l'attività esista, non che sia ancora in
   // vendita. Senza questo controllo, chi rimanda l'identificativo di

@@ -4,6 +4,7 @@ import { getAnnoSportivo } from '@/lib/stagione'
 import { AzioniRichiesta } from './AzioniRichiesta'
 import { etichettaInizio, formattaGiorno } from '@/lib/abbonamento'
 import { MenuDrawer } from './MenuDrawer'
+import { etichettaMetodo } from '@/lib/pagamenti'
 
 function formatData(d: string | null) {
   if (!d) return '—'
@@ -17,16 +18,6 @@ function badgeScadenza(scadenza: string | null) {
   if (days <= 14) return { label: `Scade in ${days}g`, cls: 'bg-red-100 text-red-600' }
   if (days <= 30) return { label: `Scade in ${days}g`, cls: 'bg-yellow-100 text-yellow-700' }
   return { label: `Valido (${days}g)`, cls: 'bg-green-100 text-green-700' }
-}
-
-function metodoPagamentoBadge(metodo: string | null) {
-  const map: Record<string, string> = {
-    contanti: 'Contanti',
-    bonifico: 'Bonifico',
-    carta: 'Carta',
-    satispay: 'Satispay',
-  }
-  return map[metodo ?? ''] ?? metodo ?? '—'
 }
 
 export default async function AreaGestoriPage() {
@@ -178,7 +169,7 @@ export default async function AreaGestoriPage() {
                         <p className="text-lg font-extrabold text-blue-700">
                           € {(r.prezzoBase + r.uisp).toFixed(2)}
                         </p>
-                        <p className="text-[10px] text-gray-400">{metodoPagamentoBadge(r.metodo)}</p>
+                        <p className="text-[10px] text-gray-400">{etichettaMetodo(r.metodo)}</p>
                       </div>
                     </div>
 
