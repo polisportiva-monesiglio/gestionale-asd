@@ -128,9 +128,15 @@ export function Colonne({
   const massimo = Math.max(...punti.map(p => p.valore), 1)
   const indiceMassimo = punti.findIndex(p => p.valore === massimo)
 
-  // Con una stagione intera le etichette non ci starebbero tutte: se ne
-  // mostrano circa sei, sempre comprese la prima e l'ultima.
-  const passoEtichette = Math.max(1, Math.ceil(punti.length / 6))
+  // Fin che sono poche ci stanno tutte, e tutte e' meglio: dodici mesi da tre
+  // lettere entrano senza fatica, ed erano proprio la vista in cui saltarne
+  // una su due faceva piu' danno — "set" e poi "nov" sembra che manchi un
+  // mese. Oltre la dozzina se ne mostrano circa sei, sempre comprese la prima
+  // e l'ultima.
+  const CI_STANNO_TUTTE = 13
+  const passoEtichette = punti.length <= CI_STANNO_TUTTE
+    ? 1
+    : Math.max(1, Math.ceil(punti.length / 6))
   const daEtichettare = (i: number) =>
     i === 0 || i === punti.length - 1 || i % passoEtichette === 0
 

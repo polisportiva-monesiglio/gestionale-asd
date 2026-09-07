@@ -373,7 +373,7 @@ export default async function AreaGestoriPage() {
               andamento.totale === 0
                 ? 'Nessun modulo firmato per ora.'
                 : `${andamento.totale} ${andamento.totale === 1 ? 'modulo firmato' : 'moduli firmati'}, ` +
-                  `contati per ${andamento.passo === 'giorno' ? 'giorno' : 'settimana'}`
+                  `contati per ${andamento.passo}`
             }
           >
             <Colonne punti={andamento.punti} />
