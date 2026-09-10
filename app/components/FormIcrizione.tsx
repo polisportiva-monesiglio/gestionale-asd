@@ -7,6 +7,19 @@ import { codiceFiscaleValido } from '@/lib/codiceFiscale'
 import { permessoDiCaricare, type PermessoRicordato } from '@/lib/caricaCertificato'
 import { Spinner } from '@/app/components/Spinner'
 
+/**
+ * Oggi, in ora italiana, per il limite del campo "data di nascita".
+ *
+ * Si calcola a ogni disegno e non una volta sola all'avvio: una scheda lasciata
+ * aperta la sera e ripresa la mattina dopo terrebbe il limite di ieri.
+ *
+ * E' un aiuto, non il controllo: chi chiama l'API a mano non passa di qui.
+ * Quello vero e' `dataNascitaPlausibile` sul server.
+ */
+function oggiIso(): string {
+  return new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Rome' })
+}
+
 export default function FormIscrizione() {
   const [step, setStep] = useState(1)
   const [formData, setFormData] = useState({
@@ -461,7 +474,7 @@ export default function FormIscrizione() {
 
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1.5">Data di Nascita</label>
-                  <input type="date" name="dataNascita" value={formData.dataNascita} onChange={handleChange} onBlur={handleBlur} className={getInputClass('dataNascita')} />
+                  <input type="date" name="dataNascita" max={oggiIso()} value={formData.dataNascita} onChange={handleChange} onBlur={handleBlur} className={getInputClass('dataNascita')} />
                   <ErrorMsg name="dataNascita" />
                 </div>
                 <div>

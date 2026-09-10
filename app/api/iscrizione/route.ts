@@ -2,7 +2,7 @@ import { after, type NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { ipDellaRichiesta } from '@/lib/ip'
-import { eMinorenne, firmatarioDi } from '@/lib/firmatario'
+import { eMinorenne, firmatarioDi, dataNascitaPlausibile } from '@/lib/firmatario'
 import { verificaOtp, consumaOtp } from '@/lib/otp'
 import { componiModuloFirmato } from '@/lib/moduloPdf'
 import { getAnnoSportivo } from '@/lib/stagione'
@@ -47,6 +47,16 @@ export async function POST(req: NextRequest) {
       { error: `Dati incompleti: ${mancanti.join(', ')}` },
       { status: 400 }
     )
+  }
+
+  // La data di nascita si controlla **prima** di verificare l'OTP, e non dopo
+  // come il codice fiscale: quello, chiesto prima, direbbe a un estraneo chi e'
+  // gia' iscritto, mentre questo non rivela niente di nessuno — parla solo del
+  // valore appena digitato. Messo qui, chi sbaglia l'anno se lo sente dire
+  // senza bruciare il codice che ha appena ricevuto.
+  const dataOk = dataNascitaPlausibile(dati.dataNascita)
+  if (!dataOk.ok) {
+    return NextResponse.json({ error: dataOk.motivo }, { status: 400 })
   }
 
   // I consensi obbligatori si controllano anche qui, non solo nel modulo. Il

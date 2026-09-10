@@ -14,6 +14,53 @@ import { partiRomane } from './dataRoma'
  * una data di nascita diversa per spostare il codice dove si preferisce.
  */
 
+/** Nessuno arriva a centoventi. Oltre, e' un errore di battitura sull'anno. */
+const ETA_MASSIMA_PLAUSIBILE = 120
+
+/**
+ * Se una data di nascita puo' appartenere a una persona viva.
+ *
+ * Nasce da un caso vero dell'8 settembre 2026: un socio ha digitato 2026
+ * invece di 2006 sull'anno, e nessuno l'ha fermato. Il guaio non e' stato il
+ * refuso — e' quello che il refuso ha innescato. `eMinorenne` su una data
+ * futura risponde di si', quindi il modulo gli ha chiesto i dati del genitore,
+ * lui ha messo i propri, e ha firmato **come genitore di se stesso**. Il
+ * modulo firmato, che e' il documento che vale, dice che e' minorenne.
+ *
+ * Un refuso su una cifra non deve poter cambiare chi ha diritto di firmare.
+ */
+export function dataNascitaPlausibile(
+  valore: unknown,
+  riferimento: Date = new Date()
+): { ok: true } | { ok: false; motivo: string } {
+  if (typeof valore !== 'string' || valore.trim() === '') {
+    return { ok: false, motivo: 'La data di nascita e’ obbligatoria.' }
+  }
+
+  const nascita = new Date(valore)
+  if (Number.isNaN(nascita.getTime())) {
+    return { ok: false, motivo: 'La data di nascita non e’ una data valida.' }
+  }
+
+  // Confronto sul calendario italiano, come `eMinorenne`: chi nasce oggi non
+  // deve risultare "nel futuro" per via del fuso del server.
+  const n = partiRomane(nascita)
+  const r = partiRomane(riferimento)
+
+  const comeNumero = (d: { anno: number; mese: number; giorno: number }) =>
+    d.anno * 10000 + d.mese * 100 + d.giorno
+
+  if (comeNumero(n) > comeNumero(r)) {
+    return { ok: false, motivo: 'La data di nascita e’ nel futuro: controlla l’anno.' }
+  }
+
+  if (r.anno - n.anno > ETA_MASSIMA_PLAUSIBILE) {
+    return { ok: false, motivo: 'La data di nascita non sembra corretta: controlla l’anno.' }
+  }
+
+  return { ok: true }
+}
+
 export function eMinorenne(dataNascita: unknown, riferimento: Date = new Date()): boolean {
   if (typeof dataNascita !== 'string') return false
   const nascita = new Date(dataNascita)
