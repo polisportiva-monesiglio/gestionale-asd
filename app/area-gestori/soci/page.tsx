@@ -52,6 +52,8 @@ export default async function ListaSociPage({
     .from('soci')
     .select(`
       id, nome, cognome, email, telefono, data_registrazione,
+      luogo_nascita, provincia_nascita, data_nascita, cf,
+      indirizzo, cap, citta, provincia_residenza, minorenne,
       tesseramenti_annuali(id, anno_sportivo, data_scadenza_certificato, url_modulo_firmato_pdf, url_certificato_pdf),
       abbonamenti_soci(anno_sportivo, stato_pagamento, data_acquisto, catalogo_attivita(nome_attivita))
     `)
@@ -64,6 +66,15 @@ export default async function ListaSociPage({
     email: string | null
     telefono: string | null
     data_registrazione: string | null
+    luogo_nascita: string | null
+    provincia_nascita: string | null
+    data_nascita: string | null
+    cf: string | null
+    indirizzo: string | null
+    cap: string | null
+    citta: string | null
+    provincia_residenza: string | null
+    minorenne: boolean | null
     tesseramenti_annuali: { id: string; anno_sportivo: string; data_scadenza_certificato: string | null; url_modulo_firmato_pdf: string | null; url_certificato_pdf: string | null }[] | null
     abbonamenti_soci: {
       anno_sportivo: string | null
@@ -100,6 +111,26 @@ export default async function ListaSociPage({
         haCertificato: !!tess?.url_certificato_pdf,
         nuovoIscritto,
         presenteStagione: !!tess || !!abCorrente,
+        // I campi che il gestore puo' correggere, tenuti a parte dal resto:
+        // la tabella ne mostra alcuni, il modulo di correzione ne tocca altri,
+        // e mescolarli renderebbe difficile capire quali finiscono dove.
+        daCorreggere: {
+          id: s.id,
+          nome: s.nome,
+          cognome: s.cognome,
+          email: s.email,
+          telefono: s.telefono,
+          luogo_nascita: s.luogo_nascita,
+          provincia_nascita: s.provincia_nascita,
+          data_nascita: s.data_nascita,
+          cf: s.cf,
+          indirizzo: s.indirizzo,
+          cap: s.cap,
+          citta: s.citta,
+          provincia_residenza: s.provincia_residenza,
+          minorenne: s.minorenne,
+          haModuloFirmato: !!tess?.url_modulo_firmato_pdf,
+        },
       }
     })
     .filter(s => s.presenteStagione)

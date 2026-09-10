@@ -9,6 +9,7 @@ import {
   VOCI_FREQUENZA, VOCI_CERTIFICATO, VOCI_ISCRITTO, type Filtri,
 } from '@/lib/filtraSoci'
 import { giorniAllaScadenza } from '@/lib/analisi'
+import { ModificaSocio, type SocioDaCorreggere } from './ModificaSocio'
 
 type Socio = {
   id: string
@@ -24,6 +25,7 @@ type Socio = {
   haModulo: boolean
   haCertificato: boolean
   nuovoIscritto: boolean
+  daCorreggere: SocioDaCorreggere
 }
 
 function formatData(d: string | null) {
@@ -93,6 +95,9 @@ export function SociList({
   // La riga dei filtri sta nascosta finche' non serve: su venti soci la si usa
   // di rado, e sei caselle sempre aperte sopra la tabella la allontanano.
   const [mostraFiltri, setMostraFiltri] = useState(false)
+  // Una riga per volta: due moduli di correzione aperti insieme sono due modi
+  // di perdere quello che si stava scrivendo nell'altro.
+  const [inCorrezione, setInCorrezione] = useState<string | null>(null)
 
   const attivi = quantiFiltriAttivi(filtri)
   const cambia = (campo: keyof Filtri, valore: string) =>
@@ -116,6 +121,7 @@ export function SociList({
   )
 
   const socioAperto = aperto ? soci.find(s => s.id === aperto) ?? null : null
+  const socioInCorrezione = inCorrezione ? soci.find(s => s.id === inCorrezione) ?? null : null
   const storicoAperto = aperto ? decisioniPerSocio[aperto] ?? [] : []
 
   return (
@@ -327,6 +333,17 @@ export function SociList({
                               {apertoQui ? '▾' : '▸'} Storico ({storico.length})
                             </button>
                           )}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setInCorrezione(inCorrezione === s.id ? null : s.id)
+                              setAperto(null)
+                            }}
+                            aria-expanded={inCorrezione === s.id}
+                            className="block mt-1 text-[10px] font-semibold text-gray-500 hover:text-blue-700 transition-colors whitespace-nowrap"
+                          >
+                            {inCorrezione === s.id ? '▾' : '▸'} Correggi i dati
+                          </button>
                         </td>
 
                         <td className="px-3 py-3 whitespace-nowrap">
@@ -409,6 +426,18 @@ export function SociList({
             {/* Lo storico aperto sta sotto la tabella e non dentro una riga:
                 dentro seguirebbe lo scorrimento orizzontale e scivolerebbe
                 fuori schermo proprio mentre lo si legge. */}
+            {socioInCorrezione && (
+              <div className="border-t border-gray-200 bg-gray-50 p-4 sm:p-5">
+                <p className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-3">
+                  Correggi i dati — {socioInCorrezione.cognome} {socioInCorrezione.nome}
+                </p>
+                <ModificaSocio
+                  socio={socioInCorrezione.daCorreggere}
+                  onFatto={() => setInCorrezione(null)}
+                />
+              </div>
+            )}
+
             {socioAperto && storicoAperto.length > 0 && (
               <div className="border-t border-gray-200 bg-gray-50 p-4 sm:p-5">
                 <p className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2.5">
