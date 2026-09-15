@@ -243,7 +243,63 @@ export async function invitaTecnico(
   }
 
   aggiornaPagineTecnici()
-  return { ok: true, message: 'Tecnico aggiunto. Ora assegnalo ai suoi corsi dal catalogo.' }
+  return { ok: true, message: 'Tecnico aggiunto. Ora scegli i suoi corsi da «Assegna corsi».' }
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/**
+ * I corsi di un tecnico, scelti dalla sua scheda.
+ *
+ * Scrive la stessa tabella delle caselle del catalogo, guardata dall'altro
+ * lato: li' si riscrivono i tecnici di un corso, qui i corsi di un tecnico.
+ * Sono poche righe, quindi si cancella e si rimette invece di calcolare la
+ * differenza, come fa il catalogo.
+ */
+export async function assegnaCorsiTecnico(
+  _prev: AdminResult | null,
+  formData: FormData
+): Promise<AdminResult> {
+  const supabase = await createClient()
+  const admin = await getGestoreAdmin(supabase)
+  if (!admin) return { ok: false, error: 'Accesso non autorizzato.' }
+
+  const id = formData.get('id') as string | null
+  if (!id || !UUID.test(id)) return { ok: false, error: 'Tecnico non indicato.' }
+
+  const scelti = [...new Set(formData.getAll('corsi').map(String).filter(v => UUID.test(v)))]
+
+  // Solo voci che sono davvero corsi: `tecnico_segue_corso()` ignora le altre,
+  // e resterebbe un'assegnazione che fa credere a un accesso che non c'e'.
+  if (scelti.length > 0) {
+    const { data, error } = await supabase
+      .from('catalogo_attivita')
+      .select('id')
+      .in('id', scelti)
+      .eq('tipo', 'corso')
+    if (error) return { ok: false, error: `Lettura del catalogo fallita: ${error.message}` }
+    if ((data ?? []).length !== scelti.length) {
+      return { ok: false, error: 'Uno dei corsi scelti non è più un corso: ricarica la pagina.' }
+    }
+  }
+
+  const { error: erroreCancella } = await supabase.from('corsi_tecnici').delete().eq('tecnico_id', id)
+  if (erroreCancella) return { ok: false, error: `Salvataggio fallito: ${erroreCancella.message}` }
+
+  if (scelti.length > 0) {
+    const { error } = await supabase
+      .from('corsi_tecnici')
+      .insert(scelti.map(attivita_id => ({ attivita_id, tecnico_id: id })))
+    if (error) {
+      aggiornaPagineTecnici()
+      revalidatePath('/area-tecnico')
+      return { ok: false, error: `I corsi precedenti sono stati tolti ma i nuovi non salvati: ${error.message}. Riprova.` }
+    }
+  }
+
+  aggiornaPagineTecnici()
+  revalidatePath('/area-tecnico')
+  return { ok: true, message: scelti.length === 0 ? 'Nessun corso assegnato.' : 'Corsi salvati.' }
 }
 
 export async function aggiornaTecnico(

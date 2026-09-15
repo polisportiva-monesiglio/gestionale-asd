@@ -28,12 +28,20 @@ export default async function AdminGestoriPage() {
 
   const gestori = gestoriRaw ?? []
 
-  const { data: tecniciRaw } = await supabase
-    .from('tecnici')
-    .select('id, user_id, nome, email, telefono, attivo, corsi_tecnici(catalogo_attivita(nome_attivita))')
-    .order('email')
+  const [{ data: tecniciRaw }, { data: corsiRaw }] = await Promise.all([
+    supabase
+      .from('tecnici')
+      .select('id, user_id, nome, email, telefono, attivo, corsi_tecnici(attivita_id)')
+      .order('email'),
+    // Anche i corsi tolti dal listino: un tecnico puo' restarci assegnato, e
+    // la sua casella deve comparire spuntata invece di sparire.
+    supabase
+      .from('catalogo_attivita')
+      .select('id, nome_attivita, attivo')
+      .eq('tipo', 'corso')
+      .order('nome_attivita'),
+  ])
 
-  type RigaCorso = { catalogo_attivita: { nome_attivita: string } | { nome_attivita: string }[] | null }
   type RawTecnico = {
     id: string
     user_id: string | null
@@ -41,15 +49,14 @@ export default async function AdminGestoriPage() {
     email: string
     telefono: string | null
     attivo: boolean | null
-    corsi_tecnici: RigaCorso[] | null
+    corsi_tecnici: { attivita_id: string }[] | null
   }
+
+  const corsi = (corsiRaw ?? []).map(c => ({ id: c.id, nome: c.nome_attivita, attivo: c.attivo ?? false }))
 
   const tecnici = ((tecniciRaw ?? []) as unknown as RawTecnico[]).map(t => ({
     ...t,
-    corsi: (t.corsi_tecnici ?? []).flatMap(r => {
-      const a = r.catalogo_attivita
-      return (Array.isArray(a) ? a : a ? [a] : []).map(x => x.nome_attivita)
-    }),
+    corsiAssegnati: (t.corsi_tecnici ?? []).map(r => r.attivita_id),
   }))
 
   return (
@@ -121,9 +128,10 @@ export default async function AdminGestoriPage() {
               <h2 className="text-base font-bold text-gray-900">Tecnici dei corsi</h2>
               <p className="text-xs text-gray-400 mt-1 leading-relaxed">
                 Un tecnico entra con la sua email e vede solo i partecipanti dei corsi a cui lo
-                assegni dal catalogo: nome, cognome, se il certificato è valido e se la quota è in
-                regola. Conferma i pagamenti di quei corsi. Non vede codice fiscale, data di
-                nascita, recapiti, dati del genitore né certificati.
+                assegni, qui con «Assegna corsi» o dal catalogo: nome, cognome, se il certificato è
+                valido, se la quota è in regola e fino a quando è pagata. Conferma i pagamenti di
+                quei corsi. Non vede codice fiscale, data di nascita, recapiti, dati del genitore né
+                certificati.
               </p>
             </div>
             <AggiungiTecnicoForm />
@@ -140,7 +148,8 @@ export default async function AdminGestoriPage() {
                     telefono={t.telefono}
                     attivo={t.attivo ?? false}
                     haClaim={!!t.user_id}
-                    corsi={t.corsi}
+                    corsiAssegnati={t.corsiAssegnati}
+                    corsi={corsi}
                   />
                 ))}
               </div>

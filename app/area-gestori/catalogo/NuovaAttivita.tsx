@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { creaAttivita } from './actions'
 import { AttivitaForm, type TecnicoOpzione } from './AttivitaForm'
 
-export function NuovaAttivita({ tecnici }: { tecnici: TecnicoOpzione[] }) {
+export function NuovaAttivita({ tecnici, puoAssegnare }: { tecnici: TecnicoOpzione[]; puoAssegnare: boolean }) {
   const [open, setOpen] = useState(false)
 
   if (!open) {
@@ -23,6 +23,7 @@ export function NuovaAttivita({ tecnici }: { tecnici: TecnicoOpzione[] }) {
       <AttivitaForm
         action={creaAttivita}
         tecnici={tecnici}
+        puoAssegnare={puoAssegnare}
         submitLabel="Crea voce"
         onSuccess={() => setOpen(false)}
       />

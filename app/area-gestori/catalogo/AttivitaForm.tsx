@@ -29,9 +29,11 @@ type Props = {
   onSuccess?: () => void
   /** Chi puo' tenere un corso. Serve solo quando il tipo e' "Corso". */
   tecnici: TecnicoOpzione[]
+  /** Solo un amministratore sceglie i tecnici; gli altri li vedono e basta. */
+  puoAssegnare: boolean
 }
 
-export function AttivitaForm({ action, defaultValues, idAttivita, submitLabel, onSuccess, tecnici }: Props) {
+export function AttivitaForm({ action, defaultValues, idAttivita, submitLabel, onSuccess, tecnici, puoAssegnare }: Props) {
   const [state, formAction, isPending] = useActionState(action, null)
   const [tipo, setTipo] = useState(defaultValues?.tipo ?? 'abbonamento_mensile')
 
@@ -102,7 +104,17 @@ export function AttivitaForm({ action, defaultValues, idAttivita, submitLabel, o
           <legend className="px-1 text-[10px] font-bold uppercase tracking-wide text-gray-400">
             Chi tiene il corso
           </legend>
-          {tecnici.length === 0 ? (
+          {!puoAssegnare ? (
+            <p className="text-xs text-gray-600">
+              {(() => {
+                const nomi = tecnici.filter(t => defaultValues?.tecnici?.includes(t.id)).map(t => t.nome ?? t.email)
+                return nomi.length > 0 ? nomi.join(', ') : 'Nessun tecnico: le richieste le confermano i gestori.'
+              })()}
+              <span className="block mt-1 text-[10px] text-gray-400">
+                I tecnici li assegna un amministratore.
+              </span>
+            </p>
+          ) : tecnici.length === 0 ? (
             <p className="text-xs text-orange-600">
               Nessun tecnico ancora: aggiungilo da Gestori → Tecnici dei corsi. Intanto le
               richieste di questo corso le confermano i gestori.

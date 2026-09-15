@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getAnnoSportivo } from '@/lib/stagione'
 import { etichettaInizio, formattaGiorno } from '@/lib/abbonamento'
 import { etichettaMetodo } from '@/lib/pagamenti'
+import { giorniAllaScadenza } from '@/lib/analisi'
 import { ConfermaCorso } from './ConfermaCorso'
 
 /**
@@ -28,6 +29,8 @@ type Partecipante = {
   certificato: StatoCertificato
   quota_in_regola: boolean
   in_attesa: boolean
+  /** L'ultimo giorno pagato di questo corso nella stagione; null se non ha ancora un periodo pagato. */
+  frequenza_fino_al: string | null
 }
 
 type Richiesta = {
@@ -58,6 +61,19 @@ function quota(p: Partecipante) {
   if (p.quota_in_regola) return { testo: 'In regola', cls: 'bg-green-100 text-green-700' }
   if (p.in_attesa) return { testo: 'Da confermare', cls: 'bg-yellow-100 text-yellow-800' }
   return { testo: 'Non in regola', cls: 'bg-red-100 text-red-700' }
+}
+
+// Stessa soglia dei sette giorni che nella Dashboard dei gestori colora le
+// frequenze in scadenza: il tecnico e la segreteria vedono lo stesso allarme.
+const GIORNI_ALLARME_FREQUENZA = 7
+
+function frequenza(p: Partecipante) {
+  if (!p.frequenza_fino_al) return null
+  const giorno = formattaGiorno(p.frequenza_fino_al)
+  const giorni = giorniAllaScadenza(p.frequenza_fino_al)
+  if (giorni < 0) return { testo: `Finita il ${giorno}`, cls: 'bg-red-100 text-red-700' }
+  if (giorni <= GIORNI_ALLARME_FREQUENZA) return { testo: `Fino al ${giorno}`, cls: 'bg-amber-100 text-amber-800' }
+  return { testo: `Fino al ${giorno}`, cls: 'bg-gray-100 text-gray-600' }
 }
 
 export default async function AreaTecnicoPage() {
@@ -246,13 +262,15 @@ export default async function AreaTecnicoPage() {
                           <tr className="border-b border-gray-200 text-[10px] font-bold uppercase tracking-wide text-gray-500">
                             <th scope="col" className="py-2 pr-3">Nome</th>
                             <th scope="col" className="py-2 pr-3">Certificato</th>
-                            <th scope="col" className="py-2">Quota</th>
+                            <th scope="col" className="py-2 pr-3">Quota</th>
+                            <th scope="col" className="py-2">Frequenza</th>
                           </tr>
                         </thead>
                         <tbody>
                           {iscritti.map((p, i) => {
                             const cert = CERTIFICATO[p.certificato] ?? CERTIFICATO.non_valido
                             const q = quota(p)
+                            const f = frequenza(p)
                             return (
                               <tr key={`${p.cognome}-${p.nome}-${i}`} className="border-b border-gray-100 last:border-0">
                                 <td className="py-2.5 pr-3 text-sm font-semibold text-gray-900 whitespace-nowrap">
@@ -263,10 +281,19 @@ export default async function AreaTecnicoPage() {
                                     {cert.testo}
                                   </span>
                                 </td>
-                                <td className="py-2.5 whitespace-nowrap">
+                                <td className="py-2.5 pr-3 whitespace-nowrap">
                                   <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${q.cls}`}>
                                     {q.testo}
                                   </span>
+                                </td>
+                                <td className="py-2.5 whitespace-nowrap">
+                                  {f ? (
+                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${f.cls}`}>
+                                      {f.testo}
+                                    </span>
+                                  ) : (
+                                    <span className="text-xs text-gray-400">—</span>
+                                  )}
                                 </td>
                               </tr>
                             )
@@ -290,6 +317,12 @@ export default async function AreaTecnicoPage() {
           <p>
             <strong className="text-gray-500">Non valido</strong>: scaduto o mai caricato. Finché
             non lo carica non può partecipare.
+          </p>
+          <p>
+            <strong className="text-gray-500">Frequenza</strong>: l&apos;ultimo giorno pagato del
+            corso in questa stagione, contando anche i mesi già pagati in anticipo. In giallo se
+            finisce entro {GIORNI_ALLARME_FREQUENZA} giorni: è il momento di ricordargli di rinnovare.
+            Un trattino vuol dire che non ha ancora un periodo confermato.
           </p>
         </div>
       </div>

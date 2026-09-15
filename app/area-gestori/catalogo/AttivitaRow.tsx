@@ -15,6 +15,7 @@ type Props = {
   attivo: boolean
   tecnici: TecnicoOpzione[]
   tecniciAssegnati: string[]
+  puoAssegnare: boolean
 }
 
 const TIPO_LABEL: Record<string, string> = {
@@ -42,6 +43,7 @@ export function AttivitaRow(props: Props) {
             tecnici: props.tecniciAssegnati,
           }}
           tecnici={props.tecnici}
+          puoAssegnare={props.puoAssegnare}
           submitLabel="Salva modifiche"
           onSuccess={() => setEditing(false)}
         />

@@ -12,7 +12,7 @@ export default async function CatalogoPage() {
 
   const { data: gestore } = await supabase
     .from('gestori')
-    .select('nome')
+    .select('nome, is_admin')
     .eq('user_id', user.id)
     .eq('attivo', true)
     .maybeSingle()
@@ -70,7 +70,7 @@ export default async function CatalogoPage() {
 
           {/* Nuova voce */}
           <div className="bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-3xl border border-gray-100 p-6 sm:p-8">
-            <NuovaAttivita tecnici={tecnici} />
+            <NuovaAttivita tecnici={tecnici} puoAssegnare={!!gestore.is_admin} />
           </div>
 
           {/* Lista */}
@@ -91,6 +91,7 @@ export default async function CatalogoPage() {
                     attivo={a.attivo ?? false}
                     tecnici={tecnici}
                     tecniciAssegnati={tecniciPerCorso.get(a.id) ?? []}
+                    puoAssegnare={!!gestore.is_admin}
                   />
                 ))}
               </div>

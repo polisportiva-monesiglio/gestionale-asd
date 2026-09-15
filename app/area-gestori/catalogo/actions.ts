@@ -15,7 +15,7 @@ async function getGestore(supabase: Awaited<ReturnType<typeof createClient>>) {
   if (!user) return null
   const { data } = await supabase
     .from('gestori')
-    .select('id')
+    .select('id, is_admin')
     .eq('user_id', user.id)
     .eq('attivo', true)
     .maybeSingle()
@@ -84,6 +84,29 @@ async function salvaTecnici(
   return error?.message ?? null
 }
 
+/**
+ * I tecnici di un corso li sceglie solo un amministratore: assegnarne uno gli
+ * apre i nomi dei partecipanti, ed e' la stessa decisione di crearlo. Il
+ * modulo di chi non e' amministratore non manda le caselle, e qui non si
+ * tocca niente — altrimenti salvare un prezzo cancellerebbe i tecnici. Lo
+ * stesso limite lo mette il database (policy `corsi_tecnici insert/update/
+ * delete admin`); questo controllo evita che ci arrivi e dia errore.
+ *
+ * Se chi non e' amministratore cambia il tipo da corso ad altro, le
+ * assegnazioni restano in tabella ma non aprono niente:
+ * `tecnico_segue_corso()` guarda solo le voci di tipo corso.
+ */
+function salvaTecniciSeAdmin(
+  gestore: { is_admin: boolean | null },
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  attivitaId: string,
+  tipo: string,
+  tecnici: string[]
+): Promise<string | null> {
+  if (!gestore.is_admin) return Promise.resolve(null)
+  return salvaTecnici(supabase, attivitaId, tipo, tecnici)
+}
+
 function aggiornaPagine() {
   revalidatePath('/area-gestori/catalogo')
   revalidatePath('/area-gestori/admin')
@@ -108,7 +131,7 @@ export async function creaAttivita(
     .single()
   if (error || !creata) return { ok: false, error: `Inserimento fallito: ${error?.message ?? 'nessuna riga'}` }
 
-  const erroreTecnici = await salvaTecnici(supabase, creata.id, parsed.values.tipo, parsed.tecnici)
+  const erroreTecnici = await salvaTecniciSeAdmin(gestore, supabase, creata.id, parsed.values.tipo, parsed.tecnici)
   aggiornaPagine()
   if (erroreTecnici) {
     return { ok: false, error: `Voce creata, ma i tecnici non sono stati assegnati: ${erroreTecnici}` }
@@ -133,7 +156,7 @@ export async function aggiornaAttivita(
   const { error } = await supabase.from('catalogo_attivita').update(parsed.values).eq('id', id)
   if (error) return { ok: false, error: `Aggiornamento fallito: ${error.message}` }
 
-  const erroreTecnici = await salvaTecnici(supabase, id, parsed.values.tipo, parsed.tecnici)
+  const erroreTecnici = await salvaTecniciSeAdmin(gestore, supabase, id, parsed.values.tipo, parsed.tecnici)
   aggiornaPagine()
   if (erroreTecnici) {
     return { ok: false, error: `Voce aggiornata, ma i tecnici non sono stati salvati: ${erroreTecnici}` }

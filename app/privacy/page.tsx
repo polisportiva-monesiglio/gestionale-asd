@@ -187,7 +187,8 @@ export default function PrivacyPage() {
               Gli <strong className="text-gray-900">istruttori dei corsi</strong> hanno un accesso
               personale più ristretto. Solo per chi è iscritto ai corsi che tengono vedono nome e
               cognome, se il certificato medico è valido, in scadenza o non valido (senza vedere il
-              documento né la data di scadenza) e se la quota del corso è in regola. Per i propri
+              documento né la data di scadenza), se la quota del corso è in regola e fino a quale
+              giorno è pagata la frequenza al corso. Per i propri
               corsi possono anche confermare i pagamenti ricevuti, e in quel caso vedono
               l&apos;importo, il metodo scelto e le note della richiesta. Non vedono il codice
               fiscale, la data di nascita, i recapiti, i dati del genitore né i certificati.

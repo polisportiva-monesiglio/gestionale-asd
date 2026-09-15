@@ -42,7 +42,11 @@
  *   pagamenti. La v1.0 prometteva che i dati li vedessero solo le persone
  *   addette ai tesseramenti: dare accesso agli istruttori senza cambiarla
  *   avrebbe reso falsa la promessa fatta a chi aveva gia' firmato.
+ * - `v1.2_2026` — 15 settembre 2026. Gli istruttori vedono anche fino a quale
+ *   giorno e' pagata la frequenza al proprio corso. E' un dato in piu' che
+ *   passa a una persona diversa: l'informativa che non lo dice sarebbe
+ *   incompleta per chi firma da oggi.
  */
 export const VERSIONE_REGOLAMENTO = 'v1.1_2026'
 export const VERSIONE_STATUTO = 'v1.0_2026'
-export const VERSIONE_PRIVACY = 'v1.1_2026'
+export const VERSIONE_PRIVACY = 'v1.2_2026'
