@@ -54,7 +54,7 @@ export const GUIDA = {
       passi: [
         '[Accedi all’area personale]: basta l’email, nessuna password.',
         'Nella scheda *Frequenza* scegli durata e da quando parte.',
-        'Paghi a un consigliere, con bonifico o con Satispay, e premi [Invia richiesta].',
+        'Scegli come pagare: contanti o Satispay a un consigliere, oppure bonifico — i dati da copiare compaiono appena lo scegli. Poi premi [Invia richiesta].',
       ],
       esito: 'La segreteria conferma e scarichi la *ricevuta*.',
     },
@@ -62,7 +62,7 @@ export const GUIDA = {
 
   inciampiTitolo: 'Da sapere',
   inciampi: [
-    '*Sul sito non si paga.* Si paga a un consigliere, con bonifico o con Satispay: la richiesta serve a farsi dare la conferma.',
+    '*Sul sito non si paga.* Contanti e Satispay si danno a un consigliere, il bonifico lo fai tu dalla tua banca: la richiesta serve a farsi dare la conferma.',
     '*Il codice dura dieci minuti.* E se torni indietro a correggere un dato non vale più: ne chiedi un altro.',
     '*Se sei minorenne* l’email da indicare è quella del genitore: il codice per firmare arriva lì.',
     '*Una durata non è selezionabile?* Nessun periodo di frequenza può finire dopo il 31 agosto, quindi più la stagione avanza, meno durate restano.',

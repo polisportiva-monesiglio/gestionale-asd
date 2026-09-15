@@ -11,6 +11,7 @@ import {
   type InizioScelto,
 } from '@/lib/abbonamento'
 import { METODI_PAGAMENTO } from '@/lib/pagamenti'
+import { IstruzioniPagamento } from './IstruzioniPagamento'
 
 type Attivita = {
   id: string
@@ -23,6 +24,8 @@ type Attivita = {
 type Props = {
   /** Persona per cui si sta chiedendo il periodo di frequenza. */
   socioId: string
+  /** Per la causale del bonifico. */
+  nomeSocio: string
   attivita: Attivita[]
   uispApplicabile: boolean
   /** Serve a fermare i periodi che sforerebbero nella stagione dopo. */
@@ -34,6 +37,7 @@ const inputClass =
 
 export default function RichiestaAbbonamentoForm({
   socioId,
+  nomeSocio,
   attivita,
   uispApplicabile,
   annoSportivo,
@@ -44,6 +48,9 @@ export default function RichiestaAbbonamentoForm({
   )
   const [selectedId, setSelectedId] = useState('')
   const [inizio, setInizio] = useState<InizioScelto | ''>('')
+  // Serve solo a sapere quali istruzioni mostrare: il valore inviato resta
+  // quello del bottone scelto, controllato di nuovo sul server.
+  const [metodo, setMetodo] = useState('')
 
   if (state?.ok) {
     return (
@@ -213,7 +220,7 @@ export default function RichiestaAbbonamentoForm({
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
-                Totale da versare in sede
+                Totale da versare
               </p>
               {uispApplicabile && prezzoBase != null && (
                 <p className="text-xs text-gray-400 mt-0.5">
@@ -248,12 +255,26 @@ export default function RichiestaAbbonamentoForm({
                 type="radio"
                 name="metodo_pagamento"
                 value={opt.valore}
+                onChange={() => setMetodo(opt.valore)}
                 required
                 className="accent-yellow-400 w-4 h-4 shrink-0"
               />
               <span className="text-sm font-semibold text-gray-800">{opt.etichetta}</span>
             </label>
           ))}
+        </div>
+
+        {/* Sotto la scelta, non in una pagina a parte: chi paga con un
+            bonifico apre l'app della banca e torna qui a copiare, e i dati
+            devono stare dove ha appena cliccato. */}
+        <div className="mt-3">
+          <IstruzioniPagamento
+            metodo={metodo}
+            totale={totale}
+            nomeSocio={nomeSocio}
+            nomeAttivita={selected?.nome_attivita ?? null}
+            annoSportivo={annoSportivo}
+          />
         </div>
       </div>
 

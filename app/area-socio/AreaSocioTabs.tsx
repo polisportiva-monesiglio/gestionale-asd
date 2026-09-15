@@ -43,6 +43,8 @@ export type StoricoCertificato = {
 type Props = {
   /** Persona a cui si riferisce quello che si vede e si invia da qui. */
   socioId: string
+  /** Serve alla causale del bonifico: e' quella che dice ai gestori di chi e'. */
+  nomeSocio: string
   tesseramento: {
     id: string
     data_scadenza_certificato: string | null
@@ -71,6 +73,7 @@ function statoScadenza(scadenza: string | null | undefined) {
 
 export default function AreaSocioTabs({
   socioId,
+  nomeSocio,
   tesseramento,
   certificatoUrl,
   storicoCertificati,
@@ -265,6 +268,7 @@ export default function AreaSocioTabs({
                   </p>
                   <RichiestaAbbonamentoForm
                     socioId={socioId}
+                    nomeSocio={nomeSocio}
                     attivita={attivita}
                     uispApplicabile={uispApplicabile}
                     annoSportivo={annoSportivo}

@@ -283,6 +283,7 @@ export default async function AreaSocioPage({
           <div className="bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-3xl border border-gray-100 border-t-[6px] border-t-yellow-400 p-6 sm:p-8">
             <AreaSocioTabs
               socioId={socio?.id ?? ''}
+              nomeSocio={`${socio?.nome ?? ''} ${socio?.cognome ?? ''}`.trim()}
               tesseramento={tesseramento ?? null}
               certificatoUrl={certificatoUrl}
               storicoCertificati={storicoCertificatiConUrl}
