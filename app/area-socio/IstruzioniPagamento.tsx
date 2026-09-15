@@ -166,8 +166,8 @@ export function IstruzioniPagamento({
         <Riga etichetta="Importo" valore={`€${totale}`} daCopiare={String(totale)} />
         <Riga etichetta="Causale" valore={causale} daCopiare={causale} />
         <p className="text-[11px] text-gray-400 leading-relaxed py-2.5">
-          Fai il bonifico e poi invia la richiesta: la segreteria la conferma quando vede
-          arrivare il pagamento, di solito in un paio di giorni lavorativi.
+          La richiesta è già registrata: la segreteria la conferma quando vede arrivare il
+          bonifico, di solito in un paio di giorni lavorativi.
         </p>
       </div>
     )
@@ -197,8 +197,8 @@ export function IstruzioniPagamento({
         </a>
         <p className="text-[11px] text-gray-400 leading-relaxed">
           {s.importoGiaDentro
-            ? 'L’importo è già impostato. Dopo aver pagato, torna qui e invia la richiesta.'
-            : `Si apre Satispay: inserisci €${totale}. Dopo aver pagato, torna qui e invia la richiesta.`}
+            ? 'L’importo è già impostato. La richiesta è già registrata: dopo aver pagato non devi fare altro.'
+            : `Si apre Satispay: inserisci €${totale}. La richiesta è già registrata: dopo aver pagato non devi fare altro.`}
         </p>
       </div>
     )

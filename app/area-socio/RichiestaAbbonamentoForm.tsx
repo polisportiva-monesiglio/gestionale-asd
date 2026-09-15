@@ -11,7 +11,6 @@ import {
   type InizioScelto,
 } from '@/lib/abbonamento'
 import { METODI_PAGAMENTO } from '@/lib/pagamenti'
-import { IstruzioniPagamento } from './IstruzioniPagamento'
 
 type Attivita = {
   id: string
@@ -24,8 +23,6 @@ type Attivita = {
 type Props = {
   /** Persona per cui si sta chiedendo il periodo di frequenza. */
   socioId: string
-  /** Per la causale del bonifico. */
-  nomeSocio: string
   attivita: Attivita[]
   uispApplicabile: boolean
   /** Serve a fermare i periodi che sforerebbero nella stagione dopo. */
@@ -37,7 +34,6 @@ const inputClass =
 
 export default function RichiestaAbbonamentoForm({
   socioId,
-  nomeSocio,
   attivita,
   uispApplicabile,
   annoSportivo,
@@ -267,18 +263,19 @@ export default function RichiestaAbbonamentoForm({
           ))}
         </div>
 
-        {/* Sotto la scelta, non in una pagina a parte: chi paga con un
-            bonifico apre l'app della banca e torna qui a copiare, e i dati
-            devono stare dove ha appena cliccato. */}
-        <div className="mt-3">
-          <IstruzioniPagamento
-            metodo={metodo}
-            totale={totale}
-            nomeSocio={nomeSocio}
-            nomeAttivita={selected?.nome_attivita ?? null}
-            annoSportivo={annoSportivo}
-          />
-        </div>
+        {/* Prima la richiesta, poi il pagamento. Fino al 16 settembre 2026 i
+            dati per pagare comparivano qui, prima dell'invio: chi toccava
+            "Paga con Satispay" usciva dal sito e poteva non tornare a
+            inviare, e un socio ha pagato senza che la segreteria sapesse per
+            cosa. Ora compaiono dopo l'invio, nel riquadro della richiesta in
+            attesa, e restano li' finche' non viene confermata. */}
+        {metodo && metodo !== 'contanti' && (
+          <p className="mt-3 text-xs text-gray-500 rounded-xl bg-gray-50 border border-gray-100 px-4 py-3 leading-relaxed">
+            {metodo === 'satispay'
+              ? 'Invia la richiesta: subito dopo trovi il pulsante per pagare con Satispay, con l’importo già impostato.'
+              : 'Invia la richiesta: subito dopo trovi l’IBAN e la causale da copiare.'}
+          </p>
+        )}
       </div>
 
       {/* Note */}
@@ -304,7 +301,7 @@ export default function RichiestaAbbonamentoForm({
         className="bg-yellow-400 text-gray-900 px-6 py-3.5 rounded-xl font-bold text-sm hover:bg-yellow-500 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed w-full inline-flex items-center justify-center gap-2"
       >
         {pending && <Spinner className="h-4 w-4" />}
-        {pending ? 'Invio in corso...' : 'Invia la richiesta'}
+        {pending ? 'Invio in corso...' : metodo && metodo !== 'contanti' ? 'Invia la richiesta e vai al pagamento' : 'Invia la richiesta'}
       </button>
     </form>
   )

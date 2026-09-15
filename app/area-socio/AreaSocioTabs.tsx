@@ -3,12 +3,14 @@
 import { useState } from 'react'
 import UploadCertificatoForm from './UploadCertificatoForm'
 import RichiestaAbbonamentoForm from './RichiestaAbbonamentoForm'
+import { IstruzioniPagamento } from './IstruzioniPagamento'
 import { etichettaInizio, formattaGiorno } from '@/lib/abbonamento'
 import { quandoLeggibile } from '@/lib/storicoDecisioni'
 
 export type AbbonamentoFlat = {
   id: string
   stato_pagamento: string
+  metodo_pagamento: string | null
   importo_tesseramento_uisp: number | null
   note_socio: string | null
   data_acquisto: string | null
@@ -243,14 +245,49 @@ export default function AreaSocioTabs({
 
           {/* Blocco richiesta: sempre in alto, è l'azione principale del tab */}
           {hasPending ? (
-            <div className="rounded-2xl bg-yellow-50 border border-yellow-200 px-5 py-6 text-center">
-              <p className="text-sm font-extrabold text-yellow-800">
-                Richiesta in attesa di conferma
-              </p>
-              <p className="text-sm text-yellow-700 mt-2 leading-relaxed">
-                La segreteria confermerà il tuo periodo di frequenza a breve.
-              </p>
-            </div>
+            (() => {
+              // Prima la richiesta, poi il pagamento: i dati per pagare stanno
+              // qui, nel riquadro della richiesta gia' registrata, e non piu'
+              // prima dell'invio. Chi esce per pagare con Satispay e non torna
+              // ha comunque lasciato la richiesta, e rientrando ritrova il
+              // pulsante al suo posto finche' la segreteria non conferma.
+              const inAttesa = abbonamenti.find(a => a.stato_pagamento === 'da_saldare')
+              const totale = inAttesa
+                ? Number(inAttesa.prezzo_base ?? 0) + Number(inAttesa.importo_tesseramento_uisp ?? 0)
+                : null
+              const pagaDaSolo = inAttesa?.metodo_pagamento === 'satispay' || inAttesa?.metodo_pagamento === 'bonifico'
+              return (
+                <div className="space-y-3">
+                  <div className="rounded-2xl bg-yellow-50 border border-yellow-200 px-5 py-6 text-center">
+                    <p className="text-sm font-extrabold text-yellow-800">
+                      Richiesta in attesa di conferma
+                    </p>
+                    <p className="text-sm text-yellow-700 mt-2 leading-relaxed">
+                      {pagaDaSolo
+                        ? 'La richiesta è registrata. Qui sotto trovi come pagare: la segreteria conferma appena vede arrivare il pagamento.'
+                        : 'La segreteria confermerà il tuo periodo di frequenza a breve.'}
+                    </p>
+                  </div>
+                  {inAttesa?.metodo_pagamento && totale !== null && (
+                    <div>
+                      <IstruzioniPagamento
+                        metodo={inAttesa.metodo_pagamento}
+                        totale={totale}
+                        nomeSocio={nomeSocio}
+                        nomeAttivita={inAttesa.nome_attivita}
+                        annoSportivo={annoSportivo}
+                      />
+                      {pagaDaSolo && (
+                        <p className="text-[11px] text-gray-400 mt-2 leading-relaxed">
+                          Hai già pagato? Non serve fare altro, e non pagare una seconda volta: la
+                          segreteria conferma appena vede il pagamento.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            })()
           ) : (
             <>
               {attivita.length > 0 ? (
@@ -268,7 +305,6 @@ export default function AreaSocioTabs({
                   </p>
                   <RichiestaAbbonamentoForm
                     socioId={socioId}
-                    nomeSocio={nomeSocio}
                     attivita={attivita}
                     uispApplicabile={uispApplicabile}
                     annoSportivo={annoSportivo}
