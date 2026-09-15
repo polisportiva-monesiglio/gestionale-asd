@@ -56,7 +56,7 @@ export default async function AreaSocioPage({
       .maybeSingle(),
     supabase
       .from('abbonamenti_soci')
-      .select('id, stato_pagamento, importo_tesseramento_uisp, note_socio, data_acquisto, inizio_scelto, data_inizio_validita, data_fine_validita, motivo_rifiuto, rifiutato_il, catalogo_attivita(nome_attivita, prezzo_base), pagamenti_ricevute(id, numero_ricevuta, confermato_il, data_incasso)')
+      .select('id, stato_pagamento, importo_tesseramento_uisp, note_socio, data_acquisto, inizio_scelto, data_inizio_validita, data_fine_validita, motivo_rifiuto, rifiutato_il, catalogo_attivita(nome_attivita, prezzo_base, tipo), pagamenti_ricevute(id, numero_ricevuta, confermato_il, data_incasso)')
       .eq('socio_id', socio?.id ?? '')
       .eq('anno_sportivo', annoSportivo)
       .order('data_acquisto', { ascending: false }),
@@ -132,7 +132,7 @@ export default async function AreaSocioPage({
     data_fine_validita: string | null
     motivo_rifiuto: string | null
     rifiutato_il: string | null
-    catalogo_attivita: { nome_attivita: string; prezzo_base: number | null }[] | { nome_attivita: string; prezzo_base: number | null } | null
+    catalogo_attivita: { nome_attivita: string; prezzo_base: number | null; tipo: string | null }[] | { nome_attivita: string; prezzo_base: number | null; tipo: string | null } | null
     pagamenti_ricevute: { id: string; numero_ricevuta: string | null; confermato_il: string | null; data_incasso: string | null }[] | null
   }
 
@@ -152,6 +152,7 @@ export default async function AreaSocioPage({
       data_fine_validita: ab.data_fine_validita,
       motivo_rifiuto: ab.motivo_rifiuto,
       nome_attivita: act?.nome_attivita ?? null,
+      tipo: act?.tipo ?? null,
       prezzo_base: act?.prezzo_base ?? null,
       ricevutaId: ricevuta?.id ?? null,
       numeroRicevuta: ricevuta?.numero_ricevuta ?? null,
@@ -186,7 +187,9 @@ export default async function AreaSocioPage({
   // regola infatti non glielo mostra. Senza dirglielo pero' sembra un guasto:
   // ha pagato, il gestore ha confermato, e la scheda non c'e'.
   const inAttesaDiPartire = abbonamentiFlattenati.find(
-    a => a.stato_pagamento === 'pagato' && a.data_inizio_validita && a.data_inizio_validita > oggiRoma
+    // Solo i periodi che danno la cassetta: un corso che parte piu' avanti non
+    // la dara' mai, e promettergliela "da quel giorno" sarebbe falso.
+    a => a.stato_pagamento === 'pagato' && a.tipo !== 'corso' && a.data_inizio_validita && a.data_inizio_validita > oggiRoma
   )
 
   const hasPending = abbonamentiFlattenati.some(a => a.stato_pagamento === 'da_saldare')

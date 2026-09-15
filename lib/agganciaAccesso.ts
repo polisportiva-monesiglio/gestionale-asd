@@ -34,17 +34,15 @@ export async function agganciaEDecidiDove(
     return { destinazione: '/auth/non-autorizzato' }
   }
 
-  // Gestore?
-  const { data: gestore } = await supabase
-    .from('gestori')
-    .select('id')
-    .eq('email', indirizzo)
-    .maybeSingle()
-
-  if (gestore) {
-    await supabase.from('gestori').update({ user_id: userId }).eq('email', indirizzo).is('user_id', null)
-    return { destinazione: '/area-gestori' }
-  }
+  // Gestore? Come per i tecnici, l'aggancio lo fa una funzione del database
+  // che scrive soltanto `user_id`. Fino al 15 settembre 2026 lo faceva un
+  // update permesso da una policy di aggancio per indirizzo, che vincolava la
+  // riga e non le colonne: un gestore invitato, prima del primo accesso,
+  // poteva impostarsi `is_admin = true` da solo. Risponde se chi e' entrato e'
+  // un gestore attivo.
+  const { data: eGestore, error: erroreGestore } = await supabase.rpc('aggancia_gestore')
+  if (erroreGestore) console.error('Aggancio del gestore fallito:', erroreGestore.message)
+  if (eGestore === true) return { destinazione: '/area-gestori' }
 
   // Tecnico di un corso? L'aggancio lo fa una funzione del database e non un
   // update come per i gestori: una policy di aggancio vincola le righe, non le

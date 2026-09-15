@@ -153,14 +153,24 @@ Deno.serve(async (req: Request) => {
     })
   }
 
-  // Soci con abbonamento pagato nella stagione corrente
+  // Soci con abbonamento pagato nella stagione corrente.
+  //
+  // I periodi di tipo corso non contano (decisione del 15 settembre 2026): il
+  // corso si fa con l'istruttore, e la cassetta e' della sala pesi. Si
+  // filtrano qui e non con un join obbligatorio nella query, cosi' un periodo
+  // senza attivita' collegata continua a valere come prima invece di sparire;
+  // chi ha sia un corso sia la sala pesi entra comunque dalla riga della sala.
   const { data: abbonamenti } = await supabase
     .from('abbonamenti_soci')
-    .select('soci(nome, email, telefono)')
+    .select('soci(nome, email, telefono), catalogo_attivita(tipo)')
     .eq('stato_pagamento', 'pagato')
     .eq('anno_sportivo', annoSportivo)
 
   for (const row of abbonamenti ?? []) {
+    const attivita = row.catalogo_attivita as unknown as { tipo: string } | { tipo: string }[] | null
+    const tipo = Array.isArray(attivita) ? attivita[0]?.tipo : attivita?.tipo
+    if (tipo === 'corso') continue
+
     const s = row.soci as unknown as { nome: string; email: string | null; telefono: string | null } | null
     aggiungi(s?.nome ?? null, s?.email ?? null, s?.telefono ?? null)
   }
