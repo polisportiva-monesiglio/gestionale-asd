@@ -57,12 +57,13 @@ export function metodoAccettabile(metodo: string): boolean {
 /**
  * L'intestatario da scrivere nel bonifico.
  *
- * E' lo stesso nome stampato sulle ricevute. ⚠️ Deve coincidere con
- * l'intestazione del conto in banca: dal 2025 le banche confrontano nome e
- * IBAN prima di eseguire il bonifico (verifica del beneficiario), e se non
- * combaciano avvisano chi paga — che a quel punto si ferma e telefona.
+ * Scritto esattamente come sul conto, confermato dall'associazione il 15
+ * settembre 2026 — con i punti, a differenza delle ricevute che scrivono
+ * "ASD". Qui la forma conta: dal 2025 le banche confrontano nome e IBAN prima
+ * di eseguire il bonifico (verifica del beneficiario), e se non combaciano
+ * avvisano chi paga, che a quel punto si ferma e telefona.
  */
-export const INTESTATARIO_CONTO = 'ASD Polisportiva Monesiglio'
+export const INTESTATARIO_CONTO = 'A.S.D. Polisportiva Monesiglio'
 
 /**
  * L'IBAN del conto dell'associazione.
