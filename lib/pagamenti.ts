@@ -109,30 +109,36 @@ export function causaleBonifico(dati: {
 }
 
 /**
- * Satispay.
+ * Il negozio Satispay dell'associazione.
  *
- * ⚠️ Satispay non ha un indirizzo in cui scrivere l'importo al volo. Il link
- * con importo preimpostato ("richiesta personalizzata") si crea **a mano**
- * dal pannello di Satispay Business, uno per ogni importo; il link del
- * negozio invece e' uno solo e lascia digitare l'importo a chi paga. Qui si
- * possono indicare tutti e due: se c'e' il link esatto per quell'importo si
- * usa quello, se no il link del negozio con l'importo scritto ben in vista.
+ * La documentazione pubblica di Satispay non dice come passare l'importo in un
+ * link, e la prima versione di questo codice partiva dall'idea che non si
+ * potesse: un link creato a mano per ogni cifra. I link veri generati
+ * dall'app il 15 settembre 2026 hanno invece tutti la stessa forma — il
+ * negozio piu' `?amount=` in **centesimi** — quindi l'importo lo scrive il
+ * sito, e il giorno che cambia il listino non c'e' niente da rifare.
  *
- * Finche' sono vuoti, il modulo dice di pagare Satispay in sede invece di
- * mostrare un bottone che non porta da nessuna parte.
+ * ⚠️ Il formato e' quello che produce l'app, non uno documentato: se un giorno
+ * Satispay lo cambia, i link smettono di aprire l'importo giusto. Quando e'
+ * stato scritto, i link generati qui coincidevano al carattere con gli otto
+ * prodotti dall'app (25, 70, 130, 220, 45, 90, 150, 240 euro).
+ *
+ * `null` = nessun negozio: il modulo dice di pagare Satispay a un consigliere
+ * invece di mostrare un bottone che non porta da nessuna parte.
  */
-export const SATISPAY: {
-  linkNegozio: string | null
-  /** Chiave: l'importo in euro, intero. */
-  linkPerImporto: Record<number, string>
-} = {
-  linkNegozio: null,
-  linkPerImporto: {},
-}
+export const ID_NEGOZIO_SATISPAY: string | null = '97af4101-0d80-457e-a555-b07b76dfa40a'
 
-export function linkSatispay(importo: number): { link: string; importoGiaDentro: boolean } | null {
-  const esatto = SATISPAY.linkPerImporto[importo]
-  if (esatto) return { link: esatto, importoGiaDentro: true }
-  if (SATISPAY.linkNegozio) return { link: SATISPAY.linkNegozio, importoGiaDentro: false }
-  return null
+export function linkSatispay(
+  importo: number,
+  idNegozio: string | null = ID_NEGOZIO_SATISPAY
+): { link: string; importoGiaDentro: boolean } | null {
+  if (!idNegozio) return null
+  // Si arrotonda ai centesimi: 45 non deve diventare 4499,999... per un
+  // errore di virgola mobile, e Satispay vuole un intero.
+  const centesimi = Math.round(importo * 100)
+  if (!Number.isFinite(centesimi) || centesimi <= 0) return null
+  return {
+    link: `https://www.satispay.com/app/pay/shops/${encodeURIComponent(idNegozio)}?amount=${centesimi}`,
+    importoGiaDentro: true,
+  }
 }
