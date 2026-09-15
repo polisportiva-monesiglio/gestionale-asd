@@ -32,7 +32,17 @@
  * Resta in attesa il nome del referente per la tutela (Safeguarding Officer):
  * il regolamento cita il ruolo ma non la persona né un recapito, e si aspetta
  * la UISP. Quando arriverà sarà una modifica sostanziale, non un chiarimento.
+ *
+ * Storia dell'informativa privacy:
+ * - `v1.0_2026` — prima stesura.
+ * - `v1.1_2026` — 15 settembre 2026. La sezione "Chi può vedere i tuoi dati"
+ *   aggiunge gli istruttori dei corsi, con un accesso ristretto: per i soli
+ *   iscritti ai propri corsi vedono nome, cognome, stato del certificato
+ *   (valido, in scadenza, non valido) e della quota, e ne confermano i
+ *   pagamenti. La v1.0 prometteva che i dati li vedessero solo le persone
+ *   addette ai tesseramenti: dare accesso agli istruttori senza cambiarla
+ *   avrebbe reso falsa la promessa fatta a chi aveva gia' firmato.
  */
 export const VERSIONE_REGOLAMENTO = 'v1.1_2026'
 export const VERSIONE_STATUTO = 'v1.0_2026'
-export const VERSIONE_PRIVACY = 'v1.0_2026'
+export const VERSIONE_PRIVACY = 'v1.1_2026'

@@ -251,6 +251,55 @@ export async function notificaNuovaRichiesta(dati: {
 }
 
 /**
+ * Ai tecnici di un corso: un socio ha chiesto di pagare un loro corso.
+ *
+ * Il tecnico conferma i pagamenti dei propri corsi, quindi deve saperlo come lo
+ * sa la segreteria. Un'email per tecnico e non una sola con tutti in copia: gli
+ * indirizzi dei tecnici non devono girare fra loro solo perche' tengono lo
+ * stesso corso.
+ */
+export async function notificaRichiestaCorsoAiTecnici(dati: {
+  emailTecnici: string[]
+  nomeSocio: string
+  corso: string
+  importoAttivita: number
+  importoUisp: number
+  metodo: string | null
+  note: string | null
+  annoSportivo: string
+  dataInizio: string | null
+  dataFine: string | null
+}): Promise<void> {
+  const destinatari = [...new Set(dati.emailTecnici.map(e => e.trim().toLowerCase()))]
+  if (destinatari.length === 0) return
+
+  const totale = dati.importoAttivita + dati.importoUisp
+
+  const corpo = `
+    <p style="font-size: 15px;">Un socio ha chiesto di pagare il tuo corso. La richiesta aspetta la tua conferma nell'area tecnico.</p>
+    <table style="border-collapse: collapse; margin: 16px 0;">
+      ${voce('Socio', dati.nomeSocio)}
+      ${voce('Corso', dati.corso)}
+      ${dati.dataInizio ? voce('Periodo richiesto', `dal ${formattaGiorno(dati.dataInizio)} al ${formattaGiorno(dati.dataFine)}`) : ''}
+      ${voce('Stagione', dati.annoSportivo)}
+      ${voce('Totale', euro(totale))}
+      ${dati.importoUisp > 0 ? voce('Di cui quota tesseramento', euro(dati.importoUisp)) : ''}
+      ${voce('Metodo indicato', dati.metodo)}
+      ${voce('Note del socio', dati.note)}
+    </table>
+    <p style="font-size: 14px;"><a href="${SITO}/area-tecnico" style="color: #b89f21;">Conferma il pagamento</a></p>
+  `
+
+  for (const a of destinatari) {
+    await spedisci({
+      a: [a],
+      oggetto: `Richiesta per ${dati.corso}: ${dati.nomeSocio}`,
+      html: guscio('Richiesta per il tuo corso', corpo),
+    })
+  }
+}
+
+/**
  * Al socio: la richiesta è stata rifiutata, ed ecco perché.
  *
  * Senza questa, rifiutare sarebbe un gesto muto: la richiesta sparirebbe

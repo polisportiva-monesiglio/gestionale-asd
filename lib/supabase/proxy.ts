@@ -54,7 +54,8 @@ export async function updateSession(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
 
   const path = request.nextUrl.pathname
-  const isAreaProtetta = path.startsWith('/area-socio') || path.startsWith('/area-gestori')
+  const isAreaProtetta =
+    path.startsWith('/area-socio') || path.startsWith('/area-gestori') || path.startsWith('/area-tecnico')
 
   if (isAreaProtetta && !user) {
     const url = request.nextUrl.clone()

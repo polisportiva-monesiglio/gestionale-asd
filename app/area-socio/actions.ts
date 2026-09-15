@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getAnnoSportivo } from '@/lib/stagione'
 import { revalidatePath } from 'next/cache'
-import { notificaNuovaRichiesta } from '@/lib/notifiche'
+import { notificaNuovaRichiesta, notificaRichiestaCorsoAiTecnici } from '@/lib/notifiche'
 import { periodoAbbonamento, inizioValido, decorrenzeAmmesse } from '@/lib/abbonamento'
 import { metodoAccettabile } from '@/lib/pagamenti'
 
@@ -202,7 +202,7 @@ export async function richiestaAbbonamento(
   // collegata senza ricontrollare nulla.
   const { data: attivita } = await supabase
     .from('catalogo_attivita')
-    .select('id, nome_attivita, prezzo_base, durata_mesi')
+    .select('id, nome_attivita, prezzo_base, durata_mesi, tipo')
     .eq('id', attivitaId)
     .eq('attivo', true)
     .maybeSingle()
@@ -324,6 +324,39 @@ export async function richiestaAbbonamento(
       dataInizio: periodo?.dataInizio ?? null,
       dataFine: periodo?.dataFine ?? null,
     })
+
+    // Un corso lo conferma il suo tecnico: deve saperlo come lo sa la
+    // segreteria. Si leggono solo le email dei tecnici attivi assegnati.
+    if (attivita.tipo === 'corso') {
+      const { data: assegnati, error: erroreTecnici } = await admin
+        .from('corsi_tecnici')
+        .select('tecnici(email, attivo)')
+        .eq('attivita_id', attivita.id)
+
+      if (erroreTecnici) {
+        console.error('Lettura dei tecnici del corso fallita:', erroreTecnici.message)
+        return
+      }
+
+      type RigaTecnico = { tecnici: { email: string; attivo: boolean } | { email: string; attivo: boolean }[] | null }
+      const emailTecnici = ((assegnati ?? []) as unknown as RigaTecnico[]).flatMap(r => {
+        const t = r.tecnici
+        return (Array.isArray(t) ? t : t ? [t] : []).filter(x => x.attivo).map(x => x.email)
+      })
+
+      await notificaRichiestaCorsoAiTecnici({
+        emailTecnici,
+        nomeSocio: `${socio.nome ?? ''} ${socio.cognome ?? ''}`.trim(),
+        corso: attivita.nome_attivita ?? 'Corso',
+        importoAttivita: Number(attivita.prezzo_base ?? 0),
+        importoUisp: uispFee,
+        metodo: metodoPagamento,
+        note,
+        annoSportivo,
+        dataInizio: periodo?.dataInizio ?? null,
+        dataFine: periodo?.dataFine ?? null,
+      })
+    }
   })
 
   revalidatePath('/area-socio')

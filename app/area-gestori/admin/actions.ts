@@ -192,3 +192,131 @@ export async function rimuoviGestore(
   revalidatePath('/area-gestori/admin')
   return { ok: true, message: 'Gestore rimosso.' }
 }
+
+/* ------------------------------------------------------------------ */
+/* Tecnici dei corsi                                                   */
+/* ------------------------------------------------------------------ */
+
+/**
+ * I tecnici li gestisce solo un amministratore, come i gestori: dare a una
+ * persona un accesso ai dati dei soci, anche ristretto, e' la stessa
+ * decisione, e deve prenderla la stessa persona.
+ */
+
+function aggiornaPagineTecnici() {
+  revalidatePath('/area-gestori/admin')
+  revalidatePath('/area-gestori/catalogo')
+}
+
+export async function invitaTecnico(
+  _prev: AdminResult | null,
+  formData: FormData
+): Promise<AdminResult> {
+  const supabase = await createClient()
+  const admin = await getGestoreAdmin(supabase)
+  if (!admin) return { ok: false, error: 'Accesso non autorizzato.' }
+
+  const email = (formData.get('email') as string | null)?.trim().toLowerCase()
+  const nome = (formData.get('nome') as string | null)?.trim() || null
+  const telefonoRaw = (formData.get('telefono') as string | null)?.trim() || ''
+
+  if (!email) return { ok: false, error: 'Inserisci un\'email.' }
+  if (!emailPlausibile(email)) return { ok: false, error: 'Email non valida.' }
+
+  const telefono = normalizzaTelefono(telefonoRaw)
+  if (telefonoRaw && !telefono) return { ok: false, error: 'Numero di telefono non valido.' }
+
+  // Chi e' gia' gestore vede gia' tutto, e al login finirebbe comunque
+  // nell'area gestori: un accesso da tecnico non gli servirebbe e non gli
+  // comparirebbe mai, e resterebbe una riga che fa credere il contrario.
+  const { data: giaGestore } = await supabase.from('gestori').select('id').eq('email', email).maybeSingle()
+  if (giaGestore) {
+    return { ok: false, error: 'Questa email è già di un gestore, che vede già tutto dall’area gestori.' }
+  }
+
+  const { error } = await supabase.from('tecnici').insert({ email, nome, telefono, attivo: true })
+  if (error) {
+    return {
+      ok: false,
+      error: error.code === '23505' ? 'C’è già un tecnico con questa email.' : `Inserimento fallito: ${error.message}`,
+    }
+  }
+
+  aggiornaPagineTecnici()
+  return { ok: true, message: 'Tecnico aggiunto. Ora assegnalo ai suoi corsi dal catalogo.' }
+}
+
+export async function aggiornaTecnico(
+  _prev: AdminResult | null,
+  formData: FormData
+): Promise<AdminResult> {
+  const supabase = await createClient()
+  const admin = await getGestoreAdmin(supabase)
+  if (!admin) return { ok: false, error: 'Accesso non autorizzato.' }
+
+  const id = formData.get('id') as string
+  const attivo = formData.get('valore') === 'true'
+  if (!id) return { ok: false, error: 'Tecnico non indicato.' }
+
+  const { error } = await supabase.from('tecnici').update({ attivo }).eq('id', id)
+  if (error) return { ok: false, error: `Aggiornamento fallito: ${error.message}` }
+
+  aggiornaPagineTecnici()
+  revalidatePath('/area-tecnico')
+  return { ok: true, message: 'Aggiornato.' }
+}
+
+export async function aggiornaDatiTecnico(
+  _prev: AdminResult | null,
+  formData: FormData
+): Promise<AdminResult> {
+  const supabase = await createClient()
+  const admin = await getGestoreAdmin(supabase)
+  if (!admin) return { ok: false, error: 'Accesso non autorizzato.' }
+
+  const id = formData.get('id') as string
+  const nome = (formData.get('nome') as string | null)?.trim() || null
+  const telefonoRaw = (formData.get('telefono') as string | null)?.trim() || ''
+
+  const telefono = normalizzaTelefono(telefonoRaw)
+  if (telefonoRaw && !telefono) return { ok: false, error: 'Numero di telefono non valido.' }
+
+  const update: Record<string, string | null> = { nome, telefono }
+
+  const emailRaw = formData.get('email') as string | null
+  if (emailRaw !== null) {
+    const { data: target } = await supabase.from('tecnici').select('user_id').eq('id', id).maybeSingle()
+    if (target?.user_id) {
+      return { ok: false, error: 'Email non modificabile dopo il primo accesso: rimuovi il tecnico e ricrealo.' }
+    }
+    const email = emailRaw.trim().toLowerCase()
+    if (!emailPlausibile(email)) return { ok: false, error: 'Email non valida.' }
+    update.email = email
+  }
+
+  const { error } = await supabase.from('tecnici').update(update).eq('id', id)
+  if (error) return { ok: false, error: `Aggiornamento fallito: ${error.message}` }
+
+  aggiornaPagineTecnici()
+  return { ok: true, message: 'Dati aggiornati.' }
+}
+
+export async function rimuoviTecnico(
+  _prev: AdminResult | null,
+  formData: FormData
+): Promise<AdminResult> {
+  const supabase = await createClient()
+  const admin = await getGestoreAdmin(supabase)
+  if (!admin) return { ok: false, error: 'Accesso non autorizzato.' }
+
+  const id = formData.get('id') as string
+  if (!id) return { ok: false, error: 'Tecnico non indicato.' }
+
+  // Le assegnazioni ai corsi se ne vanno con lui; le ricevute che ha emesso
+  // restano, col suo nome scritto per esteso in `operatore`.
+  const { error } = await supabase.from('tecnici').delete().eq('id', id)
+  if (error) return { ok: false, error: `Rimozione fallita: ${error.message}` }
+
+  aggiornaPagineTecnici()
+  return { ok: true, message: 'Tecnico rimosso.' }
+}

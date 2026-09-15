@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 // Stessa costante che finisce in `consensi` alla firma: la versione mostrata
 // e quella registrata non possono divergere.
 const VERSIONE = VERSIONE_PRIVACY
-const ULTIMO_AGGIORNAMENTO = '13 agosto 2026'
+const ULTIMO_AGGIORNAMENTO = '15 settembre 2026'
 
 function Sezione({
   numero,
@@ -182,6 +182,15 @@ export default function PrivacyPage() {
             <p>
               All&apos;interno dell&apos;Associazione i dati sono accessibili solo alle persone
               autorizzate alla gestione dei tesseramenti, che accedono con un account personale.
+            </p>
+            <p>
+              Gli <strong className="text-gray-900">istruttori dei corsi</strong> hanno un accesso
+              personale più ristretto. Solo per chi è iscritto ai corsi che tengono vedono nome e
+              cognome, se il certificato medico è valido, in scadenza o non valido (senza vedere il
+              documento né la data di scadenza) e se la quota del corso è in regola. Per i propri
+              corsi possono anche confermare i pagamenti ricevuti, e in quel caso vedono
+              l&apos;importo, il metodo scelto e le note della richiesta. Non vedono il codice
+              fiscale, la data di nascita, i recapiti, i dati del genitore né i certificati.
             </p>
             <p>
               All&apos;esterno i dati sono trattati da fornitori di servizi tecnologici, nominati

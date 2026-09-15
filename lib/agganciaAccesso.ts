@@ -46,6 +46,20 @@ export async function agganciaEDecidiDove(
     return { destinazione: '/area-gestori' }
   }
 
+  // Tecnico di un corso? L'aggancio lo fa una funzione del database e non un
+  // update come per i gestori: una policy di aggancio vincola le righe, non le
+  // colonne, e `aggancia_tecnico()` invece scrive soltanto `user_id`. Risponde
+  // se chi e' entrato e' un tecnico attivo.
+  const { data: eTecnico, error: erroreTecnico } = await supabase.rpc('aggancia_tecnico')
+  if (erroreTecnico) console.error('Aggancio del tecnico fallito:', erroreTecnico.message)
+
+  if (eTecnico === true) {
+    // Un istruttore e' spesso anche socio: le sue righe di socio si agganciano
+    // lo stesso, cosi' dall'area tecnico raggiunge anche la propria area.
+    await supabase.from('soci').update({ user_id: userId }).eq('email', indirizzo).is('user_id', null)
+    return { destinazione: '/area-tecnico' }
+  }
+
   // Socio? Anche più d'uno: un genitore indica la propria email sul modulo di
   // ciascun figlio, quindi allo stesso indirizzo possono corrispondere più
   // soci. Vanno agganciati tutti, e la ricerca non può usare maybeSingle(),

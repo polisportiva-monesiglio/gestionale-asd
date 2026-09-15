@@ -92,8 +92,11 @@ export default function RichiestaAbbonamentoForm({
 
       {/* Dropdown attività */}
       <div>
+        {/* "Attivita'" e non piu' "Durata": dal 15 settembre 2026 nell'elenco
+            ci sono anche i corsi, e la scelta non e' solo per quanto tempo ma
+            per cosa. */}
         <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-          Durata
+          Attività
         </label>
         <select
           name="attivita_id"
@@ -107,7 +110,7 @@ export default function RichiestaAbbonamentoForm({
           }}
           className={inputClass}
         >
-          <option value="">Seleziona una durata…</option>
+          <option value="">Scegli l&apos;attività…</option>
           {attivita.map(a => {
             const disponibile = acquistabile(a.durata_mesi ?? 0, annoSportivo)
             return (

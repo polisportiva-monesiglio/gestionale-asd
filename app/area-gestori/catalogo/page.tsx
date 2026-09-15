@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { AttivitaRow } from './AttivitaRow'
 import { NuovaAttivita } from './NuovaAttivita'
+import type { TecnicoOpzione } from './AttivitaForm'
 
 export default async function CatalogoPage() {
   const supabase = await createClient()
@@ -24,6 +25,18 @@ export default async function CatalogoPage() {
     .order('nome_attivita')
 
   const catalogo = catalogoRaw ?? []
+
+  // I tecnici servono solo ai corsi, ma il modulo li deve avere gia' pronti per
+  // quando si sceglie "Corso": caricarli al volo farebbe aspettare a ogni cambio.
+  const [{ data: tecniciRaw }, { data: assegnazioniRaw }] = await Promise.all([
+    supabase.from('tecnici').select('id, nome, email, attivo').order('nome'),
+    supabase.from('corsi_tecnici').select('attivita_id, tecnico_id'),
+  ])
+  const tecnici = (tecniciRaw ?? []) as TecnicoOpzione[]
+  const tecniciPerCorso = new Map<string, string[]>()
+  for (const r of (assegnazioniRaw ?? []) as { attivita_id: string; tecnico_id: string }[]) {
+    tecniciPerCorso.set(r.attivita_id, [...(tecniciPerCorso.get(r.attivita_id) ?? []), r.tecnico_id])
+  }
 
   return (
     <>
@@ -57,7 +70,7 @@ export default async function CatalogoPage() {
 
           {/* Nuova voce */}
           <div className="bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-3xl border border-gray-100 p-6 sm:p-8">
-            <NuovaAttivita />
+            <NuovaAttivita tecnici={tecnici} />
           </div>
 
           {/* Lista */}
@@ -76,6 +89,8 @@ export default async function CatalogoPage() {
                     durata_mesi={a.durata_mesi ?? 0}
                     quantita_ingressi={a.quantita_ingressi ?? 0}
                     attivo={a.attivo ?? false}
+                    tecnici={tecnici}
+                    tecniciAssegnati={tecniciPerCorso.get(a.id) ?? []}
                   />
                 ))}
               </div>

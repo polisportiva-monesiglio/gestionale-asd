@@ -2,9 +2,9 @@
 
 import { useState } from 'react'
 import { creaAttivita } from './actions'
-import { AttivitaForm } from './AttivitaForm'
+import { AttivitaForm, type TecnicoOpzione } from './AttivitaForm'
 
-export function NuovaAttivita() {
+export function NuovaAttivita({ tecnici }: { tecnici: TecnicoOpzione[] }) {
   const [open, setOpen] = useState(false)
 
   if (!open) {
@@ -20,7 +20,12 @@ export function NuovaAttivita() {
 
   return (
     <div>
-      <AttivitaForm action={creaAttivita} submitLabel="Crea voce" onSuccess={() => setOpen(false)} />
+      <AttivitaForm
+        action={creaAttivita}
+        tecnici={tecnici}
+        submitLabel="Crea voce"
+        onSuccess={() => setOpen(false)}
+      />
       <button
         onClick={() => setOpen(false)}
         className="mt-2 text-xs font-semibold text-gray-400 hover:text-gray-700"

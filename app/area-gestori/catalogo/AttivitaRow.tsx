@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from 'react'
 import { aggiornaAttivita, toggleAttivaAttivita } from './actions'
-import { AttivitaForm } from './AttivitaForm'
+import { AttivitaForm, type TecnicoOpzione } from './AttivitaForm'
 import { Spinner } from '@/app/components/Spinner'
 
 type Props = {
@@ -13,10 +13,13 @@ type Props = {
   durata_mesi: number
   quantita_ingressi: number
   attivo: boolean
+  tecnici: TecnicoOpzione[]
+  tecniciAssegnati: string[]
 }
 
 const TIPO_LABEL: Record<string, string> = {
   abbonamento_mensile: 'A durata',
+  corso: 'Corso',
   pacchetto_ingressi: 'Pacchetto ingressi',
 }
 
@@ -30,7 +33,15 @@ export function AttivitaRow(props: Props) {
         <AttivitaForm
           action={aggiornaAttivita}
           idAttivita={props.id}
-          defaultValues={props}
+          defaultValues={{
+            nome_attivita: props.nome_attivita,
+            tipo: props.tipo,
+            prezzo_base: props.prezzo_base,
+            durata_mesi: props.durata_mesi,
+            quantita_ingressi: props.quantita_ingressi,
+            tecnici: props.tecniciAssegnati,
+          }}
+          tecnici={props.tecnici}
           submitLabel="Salva modifiche"
           onSuccess={() => setEditing(false)}
         />
@@ -44,6 +55,10 @@ export function AttivitaRow(props: Props) {
     )
   }
 
+  const nomiTecnici = props.tecnici
+    .filter(t => props.tecniciAssegnati.includes(t.id))
+    .map(t => t.nome ?? t.email)
+
   return (
     <div className={`flex items-center justify-between gap-3 rounded-2xl border border-gray-100 px-4 py-3 ${props.attivo ? 'bg-gray-50' : 'bg-gray-100 opacity-60'}`}>
       <div className="min-w-0">
@@ -55,7 +70,7 @@ export function AttivitaRow(props: Props) {
           <span className="text-[10px] px-2 py-0.5 bg-white border border-gray-200 rounded-lg text-gray-500">
             € {Number(props.prezzo_base).toFixed(2)}
           </span>
-          {props.tipo === 'abbonamento_mensile' ? (
+          {props.tipo !== 'pacchetto_ingressi' ? (
             <span className="text-[10px] px-2 py-0.5 bg-white border border-gray-200 rounded-lg text-gray-400">
               {props.durata_mesi} {props.durata_mesi === 1 ? 'mese' : 'mesi'}
             </span>
@@ -63,6 +78,17 @@ export function AttivitaRow(props: Props) {
             <span className="text-[10px] px-2 py-0.5 bg-white border border-gray-200 rounded-lg text-gray-400">
               {props.quantita_ingressi} ingressi
             </span>
+          )}
+          {props.tipo === 'corso' && (
+            nomiTecnici.length > 0 ? (
+              <span className="text-[10px] px-2 py-0.5 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-700">
+                Tecnico: {nomiTecnici.join(', ')}
+              </span>
+            ) : (
+              <span className="text-[10px] px-2 py-0.5 bg-orange-50 border border-orange-200 rounded-lg text-orange-700">
+                Nessun tecnico: conferme ai gestori
+              </span>
+            )
           )}
         </div>
       </div>
