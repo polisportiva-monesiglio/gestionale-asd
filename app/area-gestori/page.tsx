@@ -213,130 +213,13 @@ export default async function AreaGestoriPage() {
             </div>
           </div>
 
-          {/* Riquadri affiancati */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
-
-          {/* Richieste pagamento */}
-          <div className="bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-3xl border border-gray-100 border-t-[6px] border-t-blue-600 p-6 sm:p-8">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-bold text-gray-900">Richieste di pagamento</h2>
-              <span className="px-2.5 py-0.5 bg-blue-50 text-blue-700 text-xs font-bold rounded-full">
-                {richieste.length} in attesa
-              </span>
-            </div>
-
-            {richieste.length === 0 ? (
-              <p className="text-sm text-gray-400 text-center py-6">Nessuna richiesta in attesa.</p>
-            ) : (
-              <div className="space-y-4">
-                {richieste.map(r => (
-                  <div key={r.id} className="rounded-2xl border border-gray-100 p-4 bg-gray-50 space-y-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <p className="font-bold text-sm text-gray-900">{r.nomeSocio}</p>
-                        {r.emailSocio && <p className="text-xs text-gray-400">{r.emailSocio}</p>}
-                      </div>
-                      <div className="text-right shrink-0">
-                        <p className="text-lg font-extrabold text-blue-700">
-                          € {(r.prezzoBase + r.uisp).toFixed(2)}
-                        </p>
-                        <p className="text-[10px] text-gray-400">{etichettaMetodo(r.metodo)}</p>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-wrap gap-2 text-xs">
-                      <span className="px-2 py-0.5 bg-white border border-gray-200 rounded-lg text-gray-600">
-                        {r.nomeAttivita}
-                      </span>
-                      {r.uisp > 0 && (
-                        <span className="px-2 py-0.5 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-700">
-                          +€{r.uisp} tesseramento
-                        </span>
-                      )}
-                      <span className="px-2 py-0.5 bg-white border border-gray-200 rounded-lg text-gray-400">
-                        {formatData(r.dataRichiesta)}
-                      </span>
-                    </div>
-
-                    {r.dataInizio ? (
-                      <div className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-blue-500">
-                          Decorrenza scelta dal socio
-                        </p>
-                        <p className="text-sm font-bold text-blue-900 mt-0.5">
-                          {etichettaInizio(r.inizioScelto)} — dal {formattaGiorno(r.dataInizio)} al{' '}
-                          {formattaGiorno(r.dataFine)}
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="rounded-xl border border-gray-200 bg-white px-3 py-2">
-                        <p className="text-xs text-gray-500">
-                          Richiesta inviata prima che la decorrenza fosse una scelta: non ha un
-                          periodo di validità.
-                        </p>
-                      </div>
-                    )}
-
-                    {r.note && (
-                      <p className="text-xs text-gray-500 italic border-l-2 border-gray-200 pl-2">
-                        {r.note}
-                      </p>
-                    )}
-
-                    <AzioniRichiesta abbonamentoId={r.id} />
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Certificati in scadenza */}
-          <div className="bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-3xl border border-gray-100 border-t-[6px] border-t-orange-400 p-6 sm:p-8">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-bold text-gray-900">Certificati medici</h2>
-              {certInScadenza.length > 0 && (
-                <span className="px-2.5 py-0.5 bg-orange-50 text-orange-700 text-xs font-bold rounded-full">
-                  {certInScadenza.length} da controllare
-                </span>
-              )}
-            </div>
-
-            {certInScadenza.length === 0 ? (
-              <p className="text-sm text-gray-400 text-center py-6">
-                Nessun certificato scaduto o in scadenza entro 30 giorni.
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {certInScadenza.map(c => {
-                  const badge = badgeScadenza(c.scadenza)
-                  return (
-                    <div key={c.id} className="flex items-center justify-between rounded-xl border border-gray-100 px-4 py-3 bg-gray-50">
-                      <div>
-                        <p className="text-sm font-semibold text-gray-900">{c.nomeSocio}</p>
-                        {c.emailSocio && <p className="text-xs text-gray-400">{c.emailSocio}</p>}
-                      </div>
-                      <div className="text-right">
-                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${badge.cls}`}>
-                          {badge.label}
-                        </span>
-                        <p className="text-[10px] text-gray-400 mt-0.5">{formatData(c.scadenza)}</p>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-
-          </div>{/* fine grid affiancato */}
-
-          {/* ---------------- Analisi ----------------
-              Sta **sotto** le richieste da confermare e i certificati in
-              scadenza, non sopra: la Dashboard e' prima di tutto l'elenco di
-              cosa c'e' da fare, e mettere i grafici in cima spingerebbe il
-              lavoro sotto la piega dello schermo. */}
+          {/* ---------------- Dashboard ----------------
+              In cima i numeri della stagione, poi le richieste da decidere a
+              tutta larghezza, e in fondo le scadenze chiuse in due righe da
+              aprire. Ordine scelto da Luca il 18 settembre 2026: prima era il
+              contrario, con i grafici in fondo. */}
           <div className="pt-2">
-            <h2 className="text-base font-bold text-gray-900 px-1">Analisi</h2>
+            <h2 className="text-base font-bold text-gray-900 px-1">Dashboard</h2>
             <p className="text-xs text-gray-400 px-1 mt-0.5">
               Stagione {annoSportivo}. I conti si aggiornano da soli a ogni apertura.
             </p>
@@ -395,40 +278,189 @@ export default async function AreaGestoriPage() {
             </SchedaGrafico>
           </div>
 
-          <SchedaGrafico
-            titolo="Frequenze in scadenza"
-            sottotitolo={`Chi va richiamato entro ${GIORNI_DI_PREAVVISO} giorni, dal piu' vicino`}
+          {/* ---------------- Richieste di pagamento ----------------
+              A tutta larghezza e col bordo acceso quando c'e' qualcosa da
+              decidere: e' l'unico riquadro che chiede di fare qualcosa. */}
+          <section
+            id="richieste"
+            className={`bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-3xl border border-t-[6px] border-t-blue-600 p-6 sm:p-8 ${
+              richieste.length > 0 ? 'border-blue-300 ring-4 ring-blue-50' : 'border-gray-100'
+            }`}
           >
-            {inScadenza.length === 0 ? (
-              <p className="text-sm text-gray-400 py-6 text-center">
-                Nessun periodo di frequenza in scadenza nei prossimi {GIORNI_DI_PREAVVISO} giorni.
-              </p>
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-5">
+              <div>
+                <h2 className="text-lg font-extrabold text-gray-900">Richieste di pagamento</h2>
+                <p className="text-xs text-gray-400 mt-0.5">Da confermare o rifiutare, dalla più vecchia.</p>
+              </div>
+              <span
+                className={`px-3 py-1 text-sm font-bold rounded-full ${
+                  richieste.length > 0 ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-700'
+                }`}
+              >
+                {richieste.length} in attesa
+              </span>
+            </div>
+
+            {richieste.length === 0 ? (
+              <p className="text-sm text-gray-400 text-center py-6">Nessuna richiesta in attesa.</p>
             ) : (
-              <ul className="space-y-2">
-                {inScadenza.map(a => (
-                  <li
-                    key={a.id}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-gray-100 bg-gray-50 px-4 py-2.5"
-                  >
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-gray-900 truncate">{a.socio}</p>
-                      <p className="text-xs text-gray-400 truncate">{a.attivita ?? '—'}</p>
+              <div className="grid md:grid-cols-2 gap-4 items-start">
+                {richieste.map(r => (
+                  <div key={r.id} className="rounded-2xl border border-gray-100 p-4 bg-gray-50 space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="font-bold text-sm text-gray-900">{r.nomeSocio}</p>
+                        {r.emailSocio && <p className="text-xs text-gray-400 break-all">{r.emailSocio}</p>}
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-lg font-extrabold text-blue-700">
+                          € {(r.prezzoBase + r.uisp).toFixed(2)}
+                        </p>
+                        <p className="text-[10px] text-gray-400">{etichettaMetodo(r.metodo)}</p>
+                      </div>
                     </div>
-                    <div className="text-right shrink-0">
-                      <span
-                        className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                          a.giorni <= 7 ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-600'
-                        }`}
-                      >
-                        {a.giorni === 0 ? 'Scade oggi' : a.giorni === 1 ? 'Fra 1 giorno' : `Fra ${a.giorni} giorni`}
+
+                    <div className="flex flex-wrap gap-2 text-xs">
+                      <span className="px-2 py-0.5 bg-white border border-gray-200 rounded-lg text-gray-600">
+                        {r.nomeAttivita}
                       </span>
-                      <p className="text-[10px] text-gray-400 mt-0.5">{formatData(a.fine)}</p>
+                      {r.uisp > 0 && (
+                        <span className="px-2 py-0.5 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-700">
+                          +€{r.uisp} tesseramento
+                        </span>
+                      )}
+                      <span className="px-2 py-0.5 bg-white border border-gray-200 rounded-lg text-gray-400">
+                        {formatData(r.dataRichiesta)}
+                      </span>
                     </div>
-                  </li>
+
+                    {r.dataInizio ? (
+                      <div className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-blue-500">
+                          Decorrenza scelta dal socio
+                        </p>
+                        <p className="text-sm font-bold text-blue-900 mt-0.5">
+                          {etichettaInizio(r.inizioScelto)} — dal {formattaGiorno(r.dataInizio)} al{' '}
+                          {formattaGiorno(r.dataFine)}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="rounded-xl border border-gray-200 bg-white px-3 py-2">
+                        <p className="text-xs text-gray-500">
+                          Richiesta inviata prima che la decorrenza fosse una scelta: non ha un
+                          periodo di validità.
+                        </p>
+                      </div>
+                    )}
+
+                    {r.note && (
+                      <p className="text-xs text-gray-500 italic border-l-2 border-gray-200 pl-2">
+                        {r.note}
+                      </p>
+                    )}
+
+                    <AzioniRichiesta abbonamentoId={r.id} />
+                  </div>
                 ))}
-              </ul>
+              </div>
             )}
-          </SchedaGrafico>
+          </section>
+
+          {/* ---------------- Scadenze ----------------
+              Chiuse, con il solo conteggio in vista: si aprono quando serve.
+              `<details>` e non un bottone con stato: funziona senza
+              JavaScript, e la tastiera e i lettori di schermo lo capiscono da
+              soli. */}
+          <div className="pt-2">
+            <h2 className="text-base font-bold text-gray-900 px-1">Scadenze</h2>
+            <p className="text-xs text-gray-400 px-1 mt-0.5">
+              Entro {GIORNI_DI_PREAVVISO} giorni. Tocca una riga per vedere chi.
+            </p>
+          </div>
+
+          <details className="group bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-3xl border border-gray-100 border-l-[6px] border-l-amber-400">
+            <summary className="flex items-center justify-between gap-3 cursor-pointer list-none px-6 py-4 [&::-webkit-details-marker]:hidden">
+              <span className="text-sm font-bold text-gray-900">
+                {inScadenza.length === 0
+                  ? `Nessuna frequenza in scadenza nei prossimi ${GIORNI_DI_PREAVVISO} giorni`
+                  : inScadenza.length === 1
+                    ? "C'è 1 frequenza in scadenza"
+                    : `Ci sono ${inScadenza.length} frequenze in scadenza`}
+              </span>
+              <span className="text-gray-400 text-xs transition-transform group-open:rotate-180" aria-hidden="true">
+                ▼
+              </span>
+            </summary>
+            <div className="px-6 pb-5">
+              {inScadenza.length === 0 ? (
+                <p className="text-sm text-gray-400 py-2">Niente da richiamare per ora.</p>
+              ) : (
+                <ul className="space-y-2">
+                  {inScadenza.map(a => (
+                    <li
+                      key={a.id}
+                      className="flex items-center justify-between gap-3 rounded-xl border border-gray-100 bg-gray-50 px-4 py-2.5"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 truncate">{a.socio}</p>
+                        <p className="text-xs text-gray-400 truncate">{a.attivita ?? '—'}</p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <span
+                          className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                            a.giorni <= 7 ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-600'
+                          }`}
+                        >
+                          {a.giorni === 0 ? 'Scade oggi' : a.giorni === 1 ? 'Fra 1 giorno' : `Fra ${a.giorni} giorni`}
+                        </span>
+                        <p className="text-[10px] text-gray-400 mt-0.5">{formatData(a.fine)}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </details>
+
+          <details className="group bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-3xl border border-gray-100 border-l-[6px] border-l-orange-400">
+            <summary className="flex items-center justify-between gap-3 cursor-pointer list-none px-6 py-4 [&::-webkit-details-marker]:hidden">
+              <span className="text-sm font-bold text-gray-900">
+                {certInScadenza.length === 0
+                  ? `Nessun certificato scaduto o in scadenza entro ${GIORNI_DI_PREAVVISO} giorni`
+                  : certInScadenza.length === 1
+                    ? "C'è 1 certificato scaduto o in scadenza"
+                    : `Ci sono ${certInScadenza.length} certificati scaduti o in scadenza`}
+              </span>
+              <span className="text-gray-400 text-xs transition-transform group-open:rotate-180" aria-hidden="true">
+                ▼
+              </span>
+            </summary>
+            <div className="px-6 pb-5">
+              {certInScadenza.length === 0 ? (
+                <p className="text-sm text-gray-400 py-2">Tutti i certificati sono validi oltre i {GIORNI_DI_PREAVVISO} giorni.</p>
+              ) : (
+                <ul className="space-y-2">
+                  {certInScadenza.map(c => {
+                    const badge = badgeScadenza(c.scadenza)
+                    return (
+                      <li key={c.id} className="flex items-center justify-between gap-3 rounded-xl border border-gray-100 px-4 py-3 bg-gray-50">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-gray-900 truncate">{c.nomeSocio}</p>
+                          {c.emailSocio && <p className="text-xs text-gray-400 truncate">{c.emailSocio}</p>}
+                        </div>
+                        <div className="text-right shrink-0">
+                          <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${badge.cls}`}>
+                            {badge.label}
+                          </span>
+                          <p className="text-[10px] text-gray-400 mt-0.5">{formatData(c.scadenza)}</p>
+                        </div>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+            </div>
+          </details>
 
         </div>
       </main>
