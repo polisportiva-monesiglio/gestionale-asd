@@ -4,6 +4,7 @@ import { useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Spinner } from '@/app/components/Spinner'
 import { permessoDiCaricare, type PermessoRicordato } from '@/lib/caricaCertificato'
+import { CERTIFICATO_ACCETTATI } from '@/lib/certificatoFile'
 
 export type SocioDaRinnovare = {
   id: string
@@ -321,10 +322,10 @@ export default function RinnovoTesseramento({ socio, annoSportivo, certificatoVa
         {!riusaCertificato && (
           <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1">File PDF</label>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">PDF o foto</label>
               <input
                 type="file"
-                accept="application/pdf"
+                accept={CERTIFICATO_ACCETTATI}
                 onChange={e => setFile(e.target.files?.[0] ?? null)}
                 className={inputClass}
               />

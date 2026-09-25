@@ -8,11 +8,9 @@ import { revalidatePath } from 'next/cache'
 import { notificaNuovaRichiesta, notificaRichiestaCorsoAiTecnici } from '@/lib/notifiche'
 import { periodoAbbonamento, inizioValido, decorrenzeAmmesse } from '@/lib/abbonamento'
 import { metodoAccettabile } from '@/lib/pagamenti'
+import { MAX_CERTIFICATO, riconosciCertificato } from '@/lib/certificatoFile'
 
 export type ActionResult = { ok: true } | { ok: false; error: string }
-
-const MAX_DIMENSIONE_CERTIFICATO = 5 * 1024 * 1024 // 5MB, coerente col limite del bucket
-const FIRMA_PDF = '%PDF' // primi byte di un PDF valido
 
 /**
  * Il socio per cui si sta agendo.
@@ -69,14 +67,14 @@ export async function uploadCertificato(
   const file = formData.get('file') as File | null
   const dataCertificato = formData.get('data_certificato') as string | null
 
-  if (!file || file.size === 0) return { ok: false, error: 'Seleziona un file PDF.' }
+  if (!file || file.size === 0) return { ok: false, error: 'Seleziona il file del certificato.' }
   if (!dataCertificato) return { ok: false, error: 'Inserisci la data del certificato.' }
 
-  if (file.type !== 'application/pdf') {
-    return { ok: false, error: 'Il file deve essere in formato PDF.' }
-  }
-  if (file.size > MAX_DIMENSIONE_CERTIFICATO) {
-    return { ok: false, error: 'Il file supera la dimensione massima di 5MB.' }
+  // Il tipo dichiarato dal browser non si guarda nemmeno: conta quello che
+  // dicono i byte, controllati piu' sotto. Qui si ferma solo il file troppo
+  // grande, per non leggerlo tutto in memoria per niente.
+  if (file.size > MAX_CERTIFICATO) {
+    return { ok: false, error: 'Il file supera la dimensione massima di 10MB.' }
   }
 
   // La data si valida PRIMA di caricare. Con una data illeggibile,
@@ -111,18 +109,20 @@ export async function uploadCertificato(
     return { ok: false, error: `Non risulta un tesseramento per la stagione ${annoSportivo}. Contatta la segreteria.` }
   }
 
-  const fileName = `${user.id}/${Date.now()}-certificato.pdf`
   const arrayBuffer = await file.arrayBuffer()
 
-  // Verifica i byte reali (non basta fidarsi del MIME type dichiarato dal client)
-  const intestazione = Buffer.from(arrayBuffer.slice(0, 4)).toString('utf-8')
-  if (intestazione !== FIRMA_PDF) {
-    return { ok: false, error: 'Il file non è un PDF valido.' }
+  // Verifica i byte reali, non il tipo dichiarato dal client. Vale anche per
+  // le foto: il certificato quasi sempre si fotografa col telefono.
+  const tipo = riconosciCertificato(new Uint8Array(arrayBuffer.slice(0, 12)))
+  if (!tipo) {
+    return { ok: false, error: 'Il file deve essere un PDF o una foto (JPG, PNG, WEBP, HEIC).' }
   }
+
+  const fileName = `${user.id}/${Date.now()}-certificato.${tipo.estensione}`
 
   const { data: uploadData, error: uploadError } = await supabase.storage
     .from('certificati-medici')
-    .upload(fileName, arrayBuffer, { contentType: 'application/pdf', upsert: false })
+    .upload(fileName, arrayBuffer, { contentType: tipo.mime, upsert: false })
 
   if (uploadError) return { ok: false, error: `Caricamento fallito: ${uploadError.message}` }
 

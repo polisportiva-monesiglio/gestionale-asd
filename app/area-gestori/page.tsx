@@ -54,6 +54,7 @@ export default async function AreaGestoriPage() {
       .select(`
         id, importo_tesseramento_uisp, metodo_pagamento, data_acquisto, note_socio,
         inizio_scelto, data_inizio_validita, data_fine_validita,
+        contattato_il, contattato_da_nome,
         catalogo_attivita(nome_attivita, prezzo_base),
         soci(nome, cognome, email, telefono, minorenne, genitore_nome, genitore_cognome, genitore_email, genitore_recapito)
       `)
@@ -98,6 +99,8 @@ export default async function AreaGestoriPage() {
     inizio_scelto: string | null
     data_inizio_validita: string | null
     data_fine_validita: string | null
+    contattato_il: string | null
+    contattato_da_nome: string | null
     catalogo_attivita: { nome_attivita: string; prezzo_base: number | null }[] | { nome_attivita: string; prezzo_base: number | null } | null
     soci: DatiSocio[] | DatiSocio | null
   }
@@ -122,6 +125,8 @@ export default async function AreaGestoriPage() {
       inizioScelto: r.inizio_scelto,
       dataInizio: r.data_inizio_validita,
       dataFine: r.data_fine_validita,
+      contattatoIl: r.contattato_il,
+      contattatoDa: r.contattato_da_nome,
     }
   })
 
@@ -368,8 +373,9 @@ export default async function AreaGestoriPage() {
                     {/* Per chiedere un chiarimento prima di decidere. */}
                     <ContattiRichiesta
                       socio={r.socio}
-                      attivita={r.nomeAttivita}
-                      periodo={{ inizio: r.dataInizio, fine: r.dataFine }}
+                      abbonamentoId={r.id}
+                      contattatoDa={r.contattatoDa}
+                      contattatoIl={r.contattatoIl}
                     />
 
                     <AzioniRichiesta abbonamentoId={r.id} />

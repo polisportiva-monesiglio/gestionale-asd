@@ -3,6 +3,7 @@
 import { useActionState } from 'react'
 import { uploadCertificato, type ActionResult } from './actions'
 import { Spinner } from '@/app/components/Spinner'
+import { CERTIFICATO_ACCETTATI } from '@/lib/certificatoFile'
 
 const inputClass = 'w-full p-3.5 rounded-xl border border-gray-200 shadow-sm transition-all focus:outline-none focus:ring-2 bg-white focus:border-yellow-400 focus:ring-yellow-200 text-gray-800 hover:border-gray-300 text-sm'
 
@@ -33,12 +34,12 @@ export default function UploadCertificatoForm({ socioId, hasExisting }: { socioI
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-            Documento (PDF)
+            Documento (PDF o foto)
           </label>
           <input
             name="file"
             type="file"
-            accept="application/pdf"
+            accept={CERTIFICATO_ACCETTATI}
             required
             className="block w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-yellow-400 file:text-gray-900 hover:file:bg-yellow-500 file:transition-colors file:cursor-pointer cursor-pointer"
           />

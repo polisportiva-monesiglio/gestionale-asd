@@ -193,7 +193,7 @@ export default function AreaSocioTabs({
                   </h3>
                 </div>
                 <p className="text-xs text-gray-400 mb-5 pl-4">
-                  Salva il certificato in formato PDF e inserisci la data di emissione
+                  Carica il certificato — va bene un PDF o una foto — e inserisci la data di emissione
                   riportata sul documento. La scadenza viene calcolata automaticamente (+1 anno).
                 </p>
                 <UploadCertificatoForm socioId={socioId} hasExisting={!!tesseramento.url_certificato_pdf} />
