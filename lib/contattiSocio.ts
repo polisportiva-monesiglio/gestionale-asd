@@ -1,4 +1,5 @@
 import { normalizzaTelefono } from './telefono'
+import { formattaGiorno } from './abbonamento'
 
 /**
  * A chi scrive un gestore che ha bisogno di chiarimenti su una richiesta.
@@ -32,15 +33,17 @@ export type DatiSocio = {
 }
 
 export type Contatto = {
-  /** Chi si contatta: il socio, o il genitore se il socio è minorenne. */
+  /** Chi si contatta, nome e cognome: si legge nella scheda. */
   destinatario: string
+  /** Solo il nome di battesimo: è come inizia il messaggio. */
+  nomeBreve: string
   /** Il nome del socio, quando il destinatario è un'altra persona. Null se si scrive al socio. */
   perConto: string | null
   /** Numero in formato internazionale, pronto per `tel:`. */
   telefono: string | null
-  /** Indirizzo, pronto per `mailto:`. */
-  email: string | null
 }
+
+export type Periodo = { inizio: string | null; fine: string | null }
 
 function nomeIntero(nome: string | null, cognome: string | null): string {
   return [nome, cognome].filter(Boolean).join(' ').trim()
@@ -49,52 +52,50 @@ function nomeIntero(nome: string | null, cognome: string | null): string {
 export function contattoDi(s: DatiSocio): Contatto {
   const socio = nomeIntero(s.nome, s.cognome) || 'Socio'
   const recapito = s.genitore_recapito?.trim() || null
-  const recapitoEmail = recapito && recapito.includes('@') ? recapito : null
   const recapitoTelefono = recapito && !recapito.includes('@') ? normalizzaTelefono(recapito) : null
 
   if (s.minorenne) {
     const genitore = nomeIntero(s.genitore_nome, s.genitore_cognome)
-    const email = s.genitore_email?.trim() || recapitoEmail
-    const telefono = recapitoTelefono
-    if (genitore || email || telefono) {
+    if (genitore || recapitoTelefono) {
       return {
         destinatario: genitore || 'Chi ha firmato per il socio',
+        nomeBreve: s.genitore_nome?.trim() || genitore || 'a te',
         perConto: socio,
-        telefono,
-        email: email ?? null,
+        telefono: recapitoTelefono,
       }
     }
   }
 
   return {
     destinatario: socio,
+    nomeBreve: s.nome?.trim() || socio,
     perConto: null,
     telefono: normalizzaTelefono(s.telefono),
-    email: s.email?.trim() || null,
   }
 }
 
 /**
  * Il messaggio già scritto nel link, che il gestore può cambiare prima di
- * mandarlo. Dice chi scrive e perché: un messaggio da un numero sconosciuto
- * che chiede di soldi, senza dire da dove arriva, sembra una truffa.
+ * mandarlo. Dice chi scrive, per quale richiesta e **per quale periodo**: il
+ * socio sceglie la decorrenza al momento della richiesta e settimane dopo può
+ * non ricordare quale mese stia pagando. Un messaggio da un numero
+ * sconosciuto che chiede di soldi, senza dire da dove arriva, sembra una
+ * truffa.
  */
-export function messaggioRichiesta(c: Contatto, attivita: string): string {
-  const chi = c.perConto
-    ? `per la richiesta di ${c.perConto} (${attivita})`
-    : `per la tua richiesta di ${attivita}`
-  return `Ciao ${c.destinatario}, ti scrivo dalla ASD Polisportiva Monesiglio ${chi}.`
+export function messaggioRichiesta(c: Contatto, attivita: string, periodo?: Periodo): string {
+  const quando = periodo?.fine
+    ? periodo.inizio
+      ? `, dal ${formattaGiorno(periodo.inizio)} al ${formattaGiorno(periodo.fine)}`
+      : `, fino al ${formattaGiorno(periodo.fine)}`
+    : ''
+  const cosa = c.perConto
+    ? `per la richiesta di ${c.perConto} (${attivita}${quando})`
+    : `per la tua richiesta di ${attivita}${quando}`
+  return `Ciao ${c.nomeBreve}, ti scrivo dalla ASD Polisportiva Monesiglio ${cosa}.`
 }
 
 /** Il link che apre WhatsApp col messaggio già scritto. Null se non c'è un numero. */
-export function linkWhatsApp(c: Contatto, attivita: string): string | null {
+export function linkWhatsApp(c: Contatto, attivita: string, periodo?: Periodo): string | null {
   if (!c.telefono) return null
-  return `https://wa.me/${c.telefono.replace('+', '')}?text=${encodeURIComponent(messaggioRichiesta(c, attivita))}`
-}
-
-/** Il link che apre la posta con oggetto e testo già scritti. Null se non c'è un indirizzo. */
-export function linkEmail(c: Contatto, attivita: string): string | null {
-  if (!c.email) return null
-  const oggetto = `Richiesta di pagamento — ${attivita}`
-  return `mailto:${c.email}?subject=${encodeURIComponent(oggetto)}&body=${encodeURIComponent(messaggioRichiesta(c, attivita))}`
+  return `https://wa.me/${c.telefono.replace('+', '')}?text=${encodeURIComponent(messaggioRichiesta(c, attivita, periodo))}`
 }

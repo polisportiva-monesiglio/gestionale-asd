@@ -366,7 +366,11 @@ export default async function AreaGestoriPage() {
                     )}
 
                     {/* Per chiedere un chiarimento prima di decidere. */}
-                    <ContattiRichiesta socio={r.socio} attivita={r.nomeAttivita} />
+                    <ContattiRichiesta
+                      socio={r.socio}
+                      attivita={r.nomeAttivita}
+                      periodo={{ inizio: r.dataInizio, fine: r.dataFine }}
+                    />
 
                     <AzioniRichiesta abbonamentoId={r.id} />
                   </div>
