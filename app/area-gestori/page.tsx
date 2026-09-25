@@ -6,6 +6,8 @@ import { etichettaInizio, formattaGiorno } from '@/lib/abbonamento'
 import { MenuDrawer } from './MenuDrawer'
 import { etichettaMetodo } from '@/lib/pagamenti'
 import { contaPer, andamentoIscrizioni, giorniAllaScadenza } from '@/lib/analisi'
+import { ContattiRichiesta } from './ContattiRichiesta'
+import type { DatiSocio } from '@/lib/contattiSocio'
 import { SchedaGrafico, BarreOrizzontali, Colonne, Riquadro } from './Grafici'
 
 function formatData(d: string | null) {
@@ -53,7 +55,7 @@ export default async function AreaGestoriPage() {
         id, importo_tesseramento_uisp, metodo_pagamento, data_acquisto, note_socio,
         inizio_scelto, data_inizio_validita, data_fine_validita,
         catalogo_attivita(nome_attivita, prezzo_base),
-        soci(nome, cognome, email)
+        soci(nome, cognome, email, telefono, minorenne, genitore_nome, genitore_cognome, genitore_email, genitore_recapito)
       `)
       .eq('stato_pagamento', 'da_saldare')
       .eq('anno_sportivo', annoSportivo)
@@ -97,17 +99,21 @@ export default async function AreaGestoriPage() {
     data_inizio_validita: string | null
     data_fine_validita: string | null
     catalogo_attivita: { nome_attivita: string; prezzo_base: number | null }[] | { nome_attivita: string; prezzo_base: number | null } | null
-    soci: { nome: string; cognome: string; email: string | null }[] | { nome: string; cognome: string; email: string | null } | null
+    soci: DatiSocio[] | DatiSocio | null
   }
 
   const richieste = ((richiesteRaw ?? []) as unknown as RawRichiesta[]).map(r => {
     const att = Array.isArray(r.catalogo_attivita) ? r.catalogo_attivita[0] : r.catalogo_attivita
     const s = Array.isArray(r.soci) ? r.soci[0] : r.soci
+    const nomeAttivita = att?.nome_attivita ?? '—'
     return {
       id: r.id,
       nomeSocio: s ? `${s.nome} ${s.cognome}` : '—',
       emailSocio: s?.email ?? null,
-      nomeAttivita: att?.nome_attivita ?? '—',
+      // Grezzo: chi contattare lo decide `ContattiRichiesta`, perche' per un
+      // minorenne non e' il socio.
+      socio: s ?? null,
+      nomeAttivita,
       prezzoBase: Number(att?.prezzo_base ?? 0),
       uisp: Number(r.importo_tesseramento_uisp ?? 0),
       metodo: r.metodo_pagamento,
@@ -358,6 +364,9 @@ export default async function AreaGestoriPage() {
                         {r.note}
                       </p>
                     )}
+
+                    {/* Per chiedere un chiarimento prima di decidere. */}
+                    <ContattiRichiesta socio={r.socio} attivita={r.nomeAttivita} />
 
                     <AzioniRichiesta abbonamentoId={r.id} />
                   </div>
