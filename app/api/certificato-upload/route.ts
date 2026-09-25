@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { createClient } from '@/lib/supabase/server'
 import { ipDellaRichiesta } from '@/lib/ip'
 
 const ARCHIVIO = 'certificati-medici'
@@ -103,7 +104,17 @@ export async function POST(req: NextRequest) {
   // Nome casuale: il percorso di un documento sanitario non deve contenere
   // nome e cognome dell'interessato. Lo compone il server anche perche' il
   // collegamento firmato vale per questo percorso e per nessun altro.
-  const percorso = `iscrizioni/${crypto.randomUUID()}.${estensione}`
+  //
+  // Chi e' gia' entrato carica nella propria cartella, come ha sempre fatto
+  // l'area socio: e' li' che l'azione di registrazione va a cercare il file, e
+  // il fatto che il percorso cominci col suo identificativo e' quello che
+  // impedisce di far registrare a se' il certificato di un altro. Chi non e'
+  // entrato — il modulo pubblico di iscrizione, dove l'account non esiste
+  // ancora — resta in `iscrizioni/`.
+  const { data: { user } } = await (await createClient()).auth.getUser()
+  const percorso = user
+    ? `${user.id}/${Date.now()}-certificato.${estensione}`
+    : `iscrizioni/${crypto.randomUUID()}.${estensione}`
 
   const { data, error } = await admin.storage
     .from(ARCHIVIO)

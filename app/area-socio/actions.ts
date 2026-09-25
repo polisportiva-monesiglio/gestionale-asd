@@ -8,7 +8,7 @@ import { revalidatePath } from 'next/cache'
 import { notificaNuovaRichiesta, notificaRichiestaCorsoAiTecnici } from '@/lib/notifiche'
 import { periodoAbbonamento, inizioValido, decorrenzeAmmesse } from '@/lib/abbonamento'
 import { metodoAccettabile } from '@/lib/pagamenti'
-import { MAX_CERTIFICATO, riconosciCertificato } from '@/lib/certificatoFile'
+import { riconosciCertificato } from '@/lib/certificatoFile'
 
 export type ActionResult = { ok: true } | { ok: false; error: string }
 
@@ -56,7 +56,22 @@ async function socioDellUtente(
   return { id: soci[0].id, nome: soci[0].nome, cognome: soci[0].cognome }
 }
 
-export async function uploadCertificato(
+/**
+ * Registra un certificato gia' caricato nell'archivio.
+ *
+ * ⚠️ Il file **non passa piu' da qui**. Passava, e il 25 settembre 2026 il
+ * caricamento di un PDF ha smesso di funzionare con un «This page couldn't
+ * load» senza messaggio: il corpo di una richiesta al server ha un tetto
+ * (circa 4,5 MB su Vercel), e un certificato scansionato lo supera. La
+ * richiesta moriva prima di arrivare al codice, quindi nessun controllo
+ * poteva accorgersene ne' spiegarlo. Con le foto, piu' pesanti dei PDF,
+ * sarebbe diventata la regola.
+ *
+ * Ora il browser carica diritto nell'archivio con un permesso firmato, come
+ * gia' faceva il rinnovo completo (`lib/caricaCertificato.ts`), e qui arriva
+ * soltanto il percorso del file.
+ */
+export async function registraCertificato(
   _prev: ActionResult | null,
   formData: FormData
 ): Promise<ActionResult> {
@@ -64,25 +79,25 @@ export async function uploadCertificato(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { ok: false, error: 'Sessione scaduta. Effettua di nuovo il login.' }
 
-  const file = formData.get('file') as File | null
+  const percorso = (formData.get('percorso') as string | null)?.trim()
   const dataCertificato = formData.get('data_certificato') as string | null
 
-  if (!file || file.size === 0) return { ok: false, error: 'Seleziona il file del certificato.' }
+  if (!percorso) return { ok: false, error: 'Caricamento non riuscito: riprova.' }
   if (!dataCertificato) return { ok: false, error: 'Inserisci la data del certificato.' }
 
-  // Il tipo dichiarato dal browser non si guarda nemmeno: conta quello che
-  // dicono i byte, controllati piu' sotto. Qui si ferma solo il file troppo
-  // grande, per non leggerlo tutto in memoria per niente.
-  if (file.size > MAX_CERTIFICATO) {
-    return { ok: false, error: 'Il file supera la dimensione massima di 10MB.' }
+  // Il percorso arriva dal browser, quindi non ci si fida: deve stare nella
+  // cartella di chi sta chiedendo. E' la stessa che il permesso firmato ha
+  // imposto, ed e' cio' che impedisce di intestarsi il certificato di un altro.
+  if (!percorso.startsWith(`${user.id}/`) || percorso.includes('..')) {
+    return { ok: false, error: 'Caricamento non riconosciuto: riprova.' }
   }
 
-  // La data si valida PRIMA di caricare. Con una data illeggibile,
-  // `new Date(...).toISOString()` solleva un'eccezione: succedendo dopo il
-  // caricamento, il PDF resterebbe nell'archivio senza che nessuna riga lo
-  // richiami, e la cancellazione automatica dei certificati scaduti lavora
-  // proprio sui riferimenti in tabella. Sarebbe un documento sanitario
-  // conservato per sempre, contro quanto dichiara l'informativa.
+  // La data si valida PRIMA di toccare le tabelle. Con una data illeggibile,
+  // `new Date(...).toISOString()` solleva un'eccezione: il file resterebbe
+  // nell'archivio senza che nessuna riga lo richiami, e la cancellazione
+  // automatica dei certificati scaduti lavora proprio sui riferimenti in
+  // tabella. Sarebbe un documento sanitario conservato per sempre, contro
+  // quanto dichiara l'informativa.
   const emissione = new Date(dataCertificato)
   if (Number.isNaN(emissione.getTime())) {
     return { ok: false, error: 'La data del certificato non è valida.' }
@@ -96,8 +111,6 @@ export async function uploadCertificato(
 
   const annoSportivo = getAnnoSportivo()
 
-  // Anche il tesseramento si cerca prima: se per questa stagione non c'è,
-  // caricare il file non serve a nulla e lascerebbe solo un orfano.
   const { data: tesseramento } = await supabase
     .from('tesseramenti_annuali')
     .select('id')
@@ -109,39 +122,38 @@ export async function uploadCertificato(
     return { ok: false, error: `Non risulta un tesseramento per la stagione ${annoSportivo}. Contatta la segreteria.` }
   }
 
-  const arrayBuffer = await file.arrayBuffer()
+  const admin = createAdminClient()
 
-  // Verifica i byte reali, non il tipo dichiarato dal client. Vale anche per
-  // le foto: il certificato quasi sempre si fotografa col telefono.
-  const tipo = riconosciCertificato(new Uint8Array(arrayBuffer.slice(0, 12)))
-  if (!tipo) {
-    return { ok: false, error: 'Il file deve essere un PDF o una foto (JPG, PNG, WEBP, HEIC).' }
+  // Che cosa sia davvero il file lo dicono i primi byte, non il tipo
+  // dichiarato dal browser. Si leggono con una richiesta parziale: bastano
+  // dodici byte, non serve riportarsi indietro dieci megabyte.
+  const { data: firmato, error: erroreFirma } = await admin.storage
+    .from('certificati-medici')
+    .createSignedUrl(percorso, 60)
+
+  if (erroreFirma || !firmato) {
+    return { ok: false, error: 'Il file caricato non si trova. Riprova.' }
   }
 
-  const fileName = `${user.id}/${Date.now()}-certificato.${tipo.estensione}`
+  const rispostaByte = await fetch(firmato.signedUrl, { headers: { Range: 'bytes=0-11' } })
+  if (!rispostaByte.ok) {
+    return { ok: false, error: 'Il file caricato non si legge. Riprova.' }
+  }
 
-  const { data: uploadData, error: uploadError } = await supabase.storage
-    .from('certificati-medici')
-    .upload(fileName, arrayBuffer, { contentType: tipo.mime, upsert: false })
-
-  if (uploadError) return { ok: false, error: `Caricamento fallito: ${uploadError.message}` }
+  const tipo = riconosciCertificato(new Uint8Array((await rispostaByte.arrayBuffer()).slice(0, 12)))
+  if (!tipo) {
+    await admin.storage.from('certificati-medici').remove([percorso])
+    return { ok: false, error: 'Il file deve essere un PDF o una foto (JPG, PNG, WEBP, HEIC).' }
+  }
 
   // L'aggiornamento lo fa il client di servizio, non quello del socio: al ruolo
   // `authenticated` il permesso di UPDATE su questa tabella non e' mai stato
   // dato, ed e' giusto che non lo sia — e' quello che impedisce a un socio di
   // riscrivere `url_modulo_firmato_pdf` e farsi dare il modulo di un altro.
-  // Ma passando di qui con la chiave pubblica il caricamento falliva sempre,
-  // con \"permission denied for table tesseramenti_annuali\", e il certificato
-  // appena caricato veniva subito ributtato via.
-  //
-  // Che la riga sia sua e' gia' accertato: `socioDellUtente` ha verificato il
-  // socio contro user_id, e il tesseramento e' stato cercato per socio_id e
-  // stagione. Qui non arriva niente scelto dal browser.
-  const admin = createAdminClient()
   const { data: tesseramentoAggiornato, error: updateError } = await admin
     .from('tesseramenti_annuali')
     .update({
-      url_certificato_pdf: uploadData.path,
+      url_certificato_pdf: percorso,
       data_scadenza_certificato: scadenzaCertificato,
     })
     .eq('id', tesseramento.id)
@@ -151,7 +163,7 @@ export async function uploadCertificato(
   if (updateError) {
     // Nessuno punta piu' a questo file: va tolto subito, o resta un documento
     // sanitario che nessuna procedura sapra' mai di dover cancellare.
-    await supabase.storage.from('certificati-medici').remove([uploadData.path])
+    await admin.storage.from('certificati-medici').remove([percorso])
     return { ok: false, error: `Aggiornamento fallito: ${updateError.message}` }
   }
 
@@ -163,7 +175,7 @@ export async function uploadCertificato(
       socio_id: socio.id,
       tesseramento_id: tesseramentoAggiornato.id,
       anno_sportivo: annoSportivo,
-      url_certificato_pdf: uploadData.path,
+      url_certificato_pdf: percorso,
       data_scadenza_certificato: scadenzaCertificato,
     })
 
