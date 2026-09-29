@@ -56,7 +56,7 @@ export default async function AreaSocioPage({
       .maybeSingle(),
     supabase
       .from('abbonamenti_soci')
-      .select('id, stato_pagamento, metodo_pagamento, importo_tesseramento_uisp, note_socio, data_acquisto, inizio_scelto, data_inizio_validita, data_fine_validita, motivo_rifiuto, rifiutato_il, catalogo_attivita(nome_attivita, prezzo_base, tipo), pagamenti_ricevute(id, numero_ricevuta, confermato_il, data_incasso)')
+      .select('id, attivita_id, stato_pagamento, metodo_pagamento, importo_tesseramento_uisp, note_socio, data_acquisto, inizio_scelto, data_inizio_validita, data_fine_validita, motivo_rifiuto, rifiutato_il, catalogo_attivita(nome_attivita, prezzo_base, tipo), pagamenti_ricevute(id, numero_ricevuta, confermato_il, data_incasso)')
       .eq('socio_id', socio?.id ?? '')
       .eq('anno_sportivo', annoSportivo)
       .order('data_acquisto', { ascending: false }),
@@ -123,6 +123,7 @@ export default async function AreaSocioPage({
   // Appiattisce il join catalogo_attivita per passare dati serializzabili al client
   type RawAb = {
     id: string
+    attivita_id: string | null
     stato_pagamento: string
     metodo_pagamento: string | null
     importo_tesseramento_uisp: number | null
@@ -144,6 +145,7 @@ export default async function AreaSocioPage({
     const ricevuta = ab.pagamenti_ricevute?.[0] ?? null
     return {
       id: ab.id,
+      attivita_id: ab.attivita_id,
       stato_pagamento: ab.stato_pagamento,
       metodo_pagamento: ab.metodo_pagamento,
       importo_tesseramento_uisp: ab.importo_tesseramento_uisp,

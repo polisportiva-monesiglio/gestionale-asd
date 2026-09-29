@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getAnnoSportivo } from '@/lib/stagione'
 import { AzioniRichiesta } from './AzioniRichiesta'
-import { etichettaInizio, formattaGiorno } from '@/lib/abbonamento'
+import { etichettaInizio, formattaGiorno, coperturaFinoAl } from '@/lib/abbonamento'
 import { MenuDrawer } from './MenuDrawer'
 import { etichettaMetodo } from '@/lib/pagamenti'
 import { contaPer, andamentoIscrizioni, giorniAllaScadenza } from '@/lib/analisi'
@@ -52,10 +52,10 @@ export default async function AreaGestoriPage() {
     supabase
       .from('abbonamenti_soci')
       .select(`
-        id, importo_tesseramento_uisp, metodo_pagamento, data_acquisto, note_socio,
+        id, socio_id, attivita_id, importo_tesseramento_uisp, metodo_pagamento, data_acquisto, note_socio,
         inizio_scelto, data_inizio_validita, data_fine_validita,
         contattato_il, contattato_da_nome,
-        catalogo_attivita(nome_attivita, prezzo_base),
+        catalogo_attivita(nome_attivita, prezzo_base, tipo),
         soci(nome, cognome, email, telefono, minorenne, genitore_nome, genitore_cognome, genitore_email, genitore_recapito)
       `)
       .eq('stato_pagamento', 'da_saldare')
@@ -83,8 +83,8 @@ export default async function AreaGestoriPage() {
     supabase
       .from('abbonamenti_soci')
       .select(`
-        id, stato_pagamento, metodo_pagamento, data_fine_validita,
-        catalogo_attivita(nome_attivita),
+        id, socio_id, attivita_id, stato_pagamento, metodo_pagamento, data_fine_validita,
+        catalogo_attivita(nome_attivita, tipo),
         soci(nome, cognome)
       `)
       .eq('anno_sportivo', annoSportivo),
@@ -92,6 +92,8 @@ export default async function AreaGestoriPage() {
 
   type RawRichiesta = {
     id: string
+    socio_id: string
+    attivita_id: string | null
     importo_tesseramento_uisp: number | null
     metodo_pagamento: string | null
     data_acquisto: string | null
@@ -101,11 +103,11 @@ export default async function AreaGestoriPage() {
     data_fine_validita: string | null
     contattato_il: string | null
     contattato_da_nome: string | null
-    catalogo_attivita: { nome_attivita: string; prezzo_base: number | null }[] | { nome_attivita: string; prezzo_base: number | null } | null
+    catalogo_attivita: { nome_attivita: string; prezzo_base: number | null; tipo: string | null }[] | { nome_attivita: string; prezzo_base: number | null; tipo: string | null } | null
     soci: DatiSocio[] | DatiSocio | null
   }
 
-  const richieste = ((richiesteRaw ?? []) as unknown as RawRichiesta[]).map(r => {
+  const richiesteGrezze = ((richiesteRaw ?? []) as unknown as RawRichiesta[]).map(r => {
     const att = Array.isArray(r.catalogo_attivita) ? r.catalogo_attivita[0] : r.catalogo_attivita
     const s = Array.isArray(r.soci) ? r.soci[0] : r.soci
     const nomeAttivita = att?.nome_attivita ?? '—'
@@ -127,6 +129,9 @@ export default async function AreaGestoriPage() {
       dataFine: r.data_fine_validita,
       contattatoIl: r.contattato_il,
       contattatoDa: r.contattato_da_nome,
+      socioId: r.socio_id,
+      attivitaId: r.attivita_id,
+      tipo: att?.tipo ?? null,
     }
   })
 
@@ -137,7 +142,9 @@ export default async function AreaGestoriPage() {
     stato_pagamento: string | null
     metodo_pagamento: string | null
     data_fine_validita: string | null
-    catalogo_attivita: { nome_attivita: string }[] | { nome_attivita: string } | null
+    socio_id: string
+    attivita_id: string | null
+    catalogo_attivita: { nome_attivita: string; tipo: string | null }[] | { nome_attivita: string; tipo: string | null } | null
     soci: { nome: string; cognome: string }[] | { nome: string; cognome: string } | null
   }
 
@@ -151,10 +158,31 @@ export default async function AreaGestoriPage() {
       fine: a.data_fine_validita,
       attivita: att?.nome_attivita ?? null,
       socio: s ? `${s.cognome} ${s.nome}` : 'Socio non trovato',
+      socioId: a.socio_id,
+      attivitaId: a.attivita_id,
+      tipo: att?.tipo ?? null,
     }
   })
 
   const pagati = abbonamenti.filter(a => a.stato === 'pagato')
+
+  // Se la richiesta ripaga giorni gia' coperti. Il 29 settembre 2026 una
+  // richiesta cosi' e' stata confermata senza che niente lo facesse notare:
+  // il socio aveva scelto "dal mese in corso" pensando al mese dopo. Il sito
+  // ora non la lascia piu' inviare, ma quelle gia' in coda e quelle fatte a
+  // mano vanno fermate qui, prima che parta una ricevuta.
+  const richieste = richiesteGrezze.map(r => {
+    const copertura = r.attivitaId
+      ? coperturaFinoAl(
+          { id: r.attivitaId, tipo: r.tipo },
+          pagati
+            .filter(p => p.socioId === r.socioId)
+            .map(p => ({ attivitaId: p.attivitaId, tipo: p.tipo, fine: p.fine }))
+        )
+      : null
+    const giaCopertaFinoAl = r.dataInizio && copertura && r.dataInizio <= copertura ? copertura : null
+    return { ...r, giaCopertaFinoAl }
+  })
 
   const andamento = andamentoIscrizioni(
     ((tesseramentiRaw ?? []) as { timestamp_firma: string | null }[]).map(t => t.timestamp_firma)
@@ -360,6 +388,19 @@ export default async function AreaGestoriPage() {
                         <p className="text-xs text-gray-500">
                           Richiesta inviata prima che la decorrenza fosse una scelta: non ha un
                           periodo di validità.
+                        </p>
+                      </div>
+                    )}
+
+                    {r.giaCopertaFinoAl && (
+                      <div className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2">
+                        <p className="text-xs font-bold text-amber-900">
+                          ⚠️ Già pagato fino al {formattaGiorno(r.giaCopertaFinoAl)}
+                        </p>
+                        <p className="text-xs text-amber-800 mt-0.5 leading-relaxed">
+                          Il periodo richiesto si sovrappone a uno già pagato: il socio pagherebbe
+                          due volte gli stessi giorni. Prima di accettare, sentilo: forse voleva
+                          partire dal mese successivo.
                         </p>
                       </div>
                     )}

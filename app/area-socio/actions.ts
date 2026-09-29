@@ -6,7 +6,15 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { getAnnoSportivo } from '@/lib/stagione'
 import { revalidatePath } from 'next/cache'
 import { notificaNuovaRichiesta, notificaRichiestaCorsoAiTecnici } from '@/lib/notifiche'
-import { periodoAbbonamento, inizioValido, decorrenzeAmmesse } from '@/lib/abbonamento'
+import {
+  periodoAbbonamento,
+  inizioValido,
+  decorrenzeAmmesse,
+  decorrenzeLibere,
+  coperturaFinoAl,
+  formattaGiorno,
+  type PeriodoPagato,
+} from '@/lib/abbonamento'
 import { metodoAccettabile } from '@/lib/pagamenti'
 import { riconosciCertificato } from '@/lib/certificatoFile'
 
@@ -255,6 +263,41 @@ export async function richiestaAbbonamento(
   const esito = await socioDellUtente(supabase, user.id, formData.get('socio_id') as string | null)
   if ('errore' in esito) return { ok: false, error: esito.errore }
   const socio = esito
+
+  // Non si ripagano giorni gia' coperti. Il modulo spegne le decorrenze che lo
+  // farebbero, ma come per la stagione e' questo il controllo che conta: il
+  // 29 settembre 2026 una socia pagata fino al 30 ha chiesto "dal mese in
+  // corso" ed e' stata confermata, pagando due volte gli stessi due giorni.
+  if (durata >= 1 && inizioValido(inizioRichiesto)) {
+    const { data: pagatiRaw, error: pagatiErr } = await supabase
+      .from('abbonamenti_soci')
+      .select('attivita_id, data_fine_validita, catalogo_attivita(tipo)')
+      .eq('socio_id', socio.id)
+      .eq('anno_sportivo', annoSportivo)
+      .eq('stato_pagamento', 'pagato')
+
+    if (pagatiErr) {
+      return { ok: false, error: 'Non è stato possibile controllare i periodi già pagati. Riprova.' }
+    }
+
+    type RigaPagata = {
+      attivita_id: string | null
+      data_fine_validita: string | null
+      catalogo_attivita: { tipo: string | null } | { tipo: string | null }[] | null
+    }
+    const pagati: PeriodoPagato[] = ((pagatiRaw ?? []) as unknown as RigaPagata[]).map(r => {
+      const c = Array.isArray(r.catalogo_attivita) ? r.catalogo_attivita[0] : r.catalogo_attivita
+      return { attivitaId: r.attivita_id, tipo: c?.tipo ?? null, fine: r.data_fine_validita }
+    })
+    const copertura = coperturaFinoAl({ id: attivita.id, tipo: attivita.tipo ?? null }, pagati)
+
+    if (!decorrenzeLibere(durata, copertura)[inizioRichiesto]) {
+      return {
+        ok: false,
+        error: `Hai già pagato fino al ${formattaGiorno(copertura)}: con questa decorrenza pagheresti due volte gli stessi giorni. Scegli una decorrenza che parta dopo quella data.`,
+      }
+    }
+  }
 
   // Blocco "soft" lato applicazione (UX immediata); il blocco reale e
   // atomico è il vincolo UNIQUE parziale su (socio_id, anno_sportivo)

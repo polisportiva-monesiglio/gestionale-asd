@@ -7,8 +7,10 @@ import {
   periodoAbbonamento,
   formattaGiorno,
   decorrenzeAmmesse,
-  acquistabile,
+  decorrenzeLibere,
+  coperturaFinoAl,
   type InizioScelto,
+  type PeriodoPagato,
 } from '@/lib/abbonamento'
 import { METODI_PAGAMENTO } from '@/lib/pagamenti'
 
@@ -27,6 +29,8 @@ type Props = {
   uispApplicabile: boolean
   /** Serve a fermare i periodi che sforerebbero nella stagione dopo. */
   annoSportivo: string
+  /** I periodi gia' pagati in stagione: non si ricomprano giorni gia' coperti. */
+  periodiPagati: PeriodoPagato[]
 }
 
 const inputClass =
@@ -37,6 +41,7 @@ export default function RichiestaAbbonamentoForm({
   attivita,
   uispApplicabile,
   annoSportivo,
+  periodiPagati,
 }: Props) {
   const [state, action, pending] = useActionState<ActionResult | null, FormData>(
     richiestaAbbonamento,
@@ -80,6 +85,29 @@ export default function RichiestaAbbonamentoForm({
     ? decorrenzeAmmesse(durata, annoSportivo)
     : { mese_corrente: true, mese_successivo: true }
 
+  // E non puo' ripagare giorni gia' coperti. Il 29 settembre 2026 una socia
+  // pagata fino al 30 ha scelto "dal mese in corso" pensando a ottobre, e ha
+  // pagato due giorni che aveva gia'. Lo stesso controllo lo rifa' il server.
+  const copertura = selected ? coperturaFinoAl(selected, periodiPagati) : null
+  const libere = scegliePeriodo
+    ? decorrenzeLibere(durata, copertura)
+    : { mese_corrente: true, mese_successivo: true }
+  // "Dal mese in corso" parte oggi: se non e' libera, oggi e' gia' pagato.
+  const copertoAncora = !libere.mese_corrente
+
+  // Un'attivita' si puo' chiedere se almeno una decorrenza regge a tutti e due
+  // i controlli.
+  const disponibilita = (a: Attivita): 'si' | 'stagione' | 'coperto' => {
+    const d = a.durata_mesi ?? 0
+    if (d < 1) return 'si'
+    const st = decorrenzeAmmesse(d, annoSportivo)
+    if (!st.mese_corrente && !st.mese_successivo) return 'stagione'
+    const lb = decorrenzeLibere(d, coperturaFinoAl(a, periodiPagati))
+    return (st.mese_corrente && lb.mese_corrente) || (st.mese_successivo && lb.mese_successivo)
+      ? 'si'
+      : 'coperto'
+  }
+
   return (
     <form action={action} className="space-y-5">
       {/* A un accesso possono corrispondere piu' soci: il server deve sapere
@@ -108,12 +136,15 @@ export default function RichiestaAbbonamentoForm({
         >
           <option value="">Scegli l&apos;attività…</option>
           {attivita.map(a => {
-            const disponibile = acquistabile(a.durata_mesi ?? 0, annoSportivo)
+            const disponibile = disponibilita(a)
             return (
-              <option key={a.id} value={a.id} disabled={!disponibile}>
+              <option key={a.id} value={a.id} disabled={disponibile !== 'si'}>
                 {a.nome_attivita}
                 {a.prezzo_base != null ? `  —  €${a.prezzo_base}` : ''}
-                {disponibile ? '' : '  —  non disponibile per questa stagione'}
+                {disponibile === 'stagione' ? '  —  non disponibile per questa stagione' : ''}
+                {disponibile === 'coperto'
+                  ? `  —  già pagato fino al ${formattaGiorno(coperturaFinoAl(a, periodiPagati))}`
+                  : ''}
               </option>
             )
           })}
@@ -128,6 +159,12 @@ export default function RichiestaAbbonamentoForm({
           <label className="block text-sm font-semibold text-gray-700 mb-2">
             Da quando vuoi cominciare
           </label>
+          {copertoAncora && (
+            <p className="text-xs text-blue-800 bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5 mb-2.5 leading-relaxed">
+              Hai già pagato fino al <strong>{formattaGiorno(copertura)}</strong>: il nuovo periodo
+              comincia dopo.
+            </p>
+          )}
           <div className="grid gap-2.5">
             {([
               {
@@ -141,7 +178,9 @@ export default function RichiestaAbbonamentoForm({
                 nota: 'Non puoi venire in palestra fino alla fine di questo mese, ma non perdi giorni.',
               },
             ]).map(opt => {
-              const ammessa = ammesse[opt.value]
+              const fuoriStagione = !ammesse[opt.value]
+              const giaCoperta = !libere[opt.value]
+              const ammessa = !fuoriStagione && !giaCoperta
               return (
                 <label
                   key={opt.value}
@@ -166,7 +205,9 @@ export default function RichiestaAbbonamentoForm({
                     <span className="block text-xs text-gray-500 mt-0.5 leading-relaxed">
                       {ammessa
                         ? opt.nota
-                        : `Non disponibile: finirebbe oltre il 31 agosto ${annoSportivo.split('/')[1]}, cioè nella stagione successiva.`}
+                        : fuoriStagione
+                          ? `Non disponibile: finirebbe oltre il 31 agosto ${annoSportivo.split('/')[1]}, cioè nella stagione successiva.`
+                          : `Non disponibile: fino al ${formattaGiorno(copertura)} hai già pagato, pagheresti due volte gli stessi giorni.`}
                     </span>
                   </span>
                 </label>

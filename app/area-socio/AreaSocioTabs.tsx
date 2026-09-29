@@ -9,6 +9,8 @@ import { quandoLeggibile } from '@/lib/storicoDecisioni'
 
 export type AbbonamentoFlat = {
   id: string
+  attivita_id: string | null
+  tipo: string | null
   stato_pagamento: string
   metodo_pagamento: string | null
   importo_tesseramento_uisp: number | null
@@ -308,6 +310,9 @@ export default function AreaSocioTabs({
                     attivita={attivita}
                     uispApplicabile={uispApplicabile}
                     annoSportivo={annoSportivo}
+                    periodiPagati={abbonamenti
+                      .filter(a => a.stato_pagamento === 'pagato')
+                      .map(a => ({ attivitaId: a.attivita_id, tipo: a.tipo, fine: a.data_fine_validita }))}
                   />
                 </div>
               ) : (
