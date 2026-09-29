@@ -159,6 +159,57 @@ export async function notificaPagamentoConfermato(dati: {
 }
 
 /**
+ * Al socio: una ricevuta gia' mandata e' stata corretta, ecco quella giusta.
+ *
+ * Non riusa la conferma di pagamento: un secondo "pagamento confermato" con lo
+ * stesso numero farebbe pensare a un doppio addebito. Qui si dice cosa e'
+ * cambiato e che la versione precedente non vale piu'.
+ */
+export async function notificaRicevutaRettificata(dati: {
+  emailSocio: string | null | undefined
+  emailGenitore?: string | null
+  nomeSocio: string
+  attivita: string
+  numeroRicevuta: string
+  totale: number
+  prima: { dataInizio: string | null; dataFine: string | null }
+  dopo: { dataInizio: string | null; dataFine: string | null }
+  ricevutaPdf: Buffer
+}): Promise<void> {
+  const unici = [
+    ...new Set(
+      [dati.emailSocio, dati.emailGenitore]
+        .filter((x): x is string => emailPlausibile(x))
+        .map((x) => x.trim().toLowerCase())
+    ),
+  ]
+
+  const periodo = (p: { dataInizio: string | null; dataFine: string | null }) =>
+    `dal ${formattaGiorno(p.dataInizio)} al ${formattaGiorno(p.dataFine)}`
+
+  const corpo = `
+    <p style="font-size: 15px;">Ciao ${testoSicuroHtml(dati.nomeSocio)},</p>
+    <p style="font-size: 15px;">abbiamo corretto il periodo di validità della tua ricevuta: ora copre il periodo che volevi pagare. L'importo non cambia e non devi pagare nulla.</p>
+    <table style="border-collapse: collapse; margin: 16px 0;">
+      ${voce('Ricevuta n.', dati.numeroRicevuta)}
+      ${voce('Attività', dati.attivita)}
+      ${voce('Periodo corretto', periodo(dati.dopo))}
+      ${voce('Al posto di', periodo(dati.prima))}
+      ${voce('Totale pagato', euro(dati.totale))}
+    </table>
+    <p style="font-size: 15px;">In allegato trovi la ricevuta aggiornata: sostituisce quella che ti abbiamo mandato prima.</p>
+    <p style="font-size: 14px;"><a href="${SITO}/area-socio" style="color: #b89f21;">Vai alla tua area personale</a></p>
+  `
+
+  await spedisci({
+    a: unici,
+    oggetto: `Ricevuta ${dati.numeroRicevuta} corretta — periodo ${periodo(dati.dopo)}`,
+    html: guscio('Ricevuta corretta', corpo),
+    allegati: [{ filename: `${dati.numeroRicevuta}.pdf`, content: dati.ricevutaPdf }],
+  })
+}
+
+/**
  * Alla segreteria: si è iscritto qualcuno di nuovo.
  *
  * Volutamente scarna. Codice fiscale, residenza, consensi e modulo firmato
