@@ -5,10 +5,12 @@ import { ListaDecisioni } from '../ListaDecisioni'
 import type { Decisione } from '@/lib/storicoDecisioni'
 import { ordinaSoci, type Colonna, type Verso } from '@/lib/ordinaSoci'
 import {
-  filtraSoci, statoCertificato, quantiFiltriAttivi, FILTRI_VUOTI,
+  filtraSoci, statoCertificato, statoFrequenza, quantiFiltriAttivi, FILTRI_VUOTI,
   VOCI_FREQUENZA, VOCI_CERTIFICATO, VOCI_ISCRITTO, type Filtri,
 } from '@/lib/filtraSoci'
 import { giorniAllaScadenza } from '@/lib/analisi'
+import { formattaGiorno } from '@/lib/abbonamento'
+import { quandoScade } from '@/lib/scadenzeFrequenza'
 import { ModificaSocio, type SocioDaCorreggere } from './ModificaSocio'
 
 type Socio = {
@@ -19,8 +21,9 @@ type Socio = {
   telefono: string | null
   dataRegistrazione: string | null
   scadenzaCert: string | null
-  statoAbbonamento: string | null
-  nomeAttivita: string | null
+  frequenze: { attivita: string; fine: string }[]
+  frequenzaFinoAl: string | null
+  richiestaInAttesa: string | null
   tesseramentoId: string | null
   haModulo: boolean
   haCertificato: boolean
@@ -50,10 +53,19 @@ function badgeScadenza(scadenza: string | null) {
   }
 }
 
-function badgeAbbonamento(stato: string | null) {
-  if (!stato) return { label: 'Nessuno', cls: 'bg-gray-100 text-gray-500' }
-  if (stato === 'pagato') return { label: 'Pagato', cls: 'bg-green-100 text-green-700' }
-  return { label: 'Da saldare', cls: 'bg-yellow-100 text-yellow-700' }
+// Come per il certificato: la pastiglia e il filtro usano `statoFrequenza`,
+// cosi' «Scaduta» nel filtro trova esattamente le righe con scritto «Scaduta».
+function badgeFrequenza(finoAl: string | null) {
+  switch (statoFrequenza(finoAl)) {
+    case 'nessuna':
+      return { label: 'Nessuna', cls: 'bg-gray-100 text-gray-500' }
+    case 'scaduta':
+      return { label: 'Scaduta', cls: 'bg-red-100 text-red-700' }
+    case 'in_scadenza':
+      return { label: quandoScade(giorniAllaScadenza(finoAl as string)), cls: 'bg-yellow-100 text-yellow-700' }
+    default:
+      return { label: 'Attiva', cls: 'bg-green-100 text-green-700' }
+  }
 }
 
 /* Le regole di ordinamento stanno in `lib/ordinaSoci.ts`: hanno due eccezioni
@@ -303,7 +315,7 @@ export function SociList({
                 <tbody>
                   {righe.map(s => {
                     const certBadge = badgeScadenza(s.scadenzaCert)
-                    const abBadge = badgeAbbonamento(s.statoAbbonamento)
+                    const abBadge = badgeFrequenza(s.frequenzaFinoAl)
                     const storico = decisioniPerSocio[s.id] ?? []
                     const apertoQui = aperto === s.id
 
@@ -350,8 +362,16 @@ export function SociList({
                           <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${abBadge.cls}`}>
                             {abBadge.label}
                           </span>
-                          {s.nomeAttivita && (
-                            <p className="text-[10px] text-gray-400 mt-1">{s.nomeAttivita}</p>
+                          {s.frequenze.map(f => (
+                            <p key={f.attivita + f.fine} className="text-[10px] text-gray-500 mt-1">
+                              <span className="font-semibold text-gray-700">fino al {formattaGiorno(f.fine)}</span>
+                              <span className="text-gray-400"> · {f.attivita}</span>
+                            </p>
+                          ))}
+                          {s.richiestaInAttesa && (
+                            <span className="inline-block mt-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-blue-50 text-blue-700">
+                              Richiesta in attesa: {s.richiestaInAttesa}
+                            </span>
                           )}
                         </td>
 

@@ -94,6 +94,30 @@ export function messaggioRichiesta(c: Contatto, attivita: string, periodo?: Peri
   return `Ciao ${c.nomeBreve}, ti scrivo dalla ASD Polisportiva Monesiglio ${cosa}.`
 }
 
+/**
+ * Il messaggio per ricordare che il periodo finisce, o è finito. Dice la
+ * data e non «fra pochi giorni»: il socio può leggerlo una settimana dopo.
+ * `oggi` è il giorno ISO di Monesiglio, per scegliere fra «scade» e «è scaduto».
+ */
+export function messaggioRinnovo(c: Contatto, attivita: string, fine: string, oggi: string): string {
+  const di = c.perConto ? ` di ${c.perConto}` : ''
+  const tuo = c.perConto ? 'il periodo' : 'il tuo periodo'
+  const quando = fine < oggi
+    ? `è scaduto il ${formattaGiorno(fine)}`
+    : fine === oggi
+      ? `scade oggi, ${formattaGiorno(fine)}`
+      : `scade il ${formattaGiorno(fine)}`
+  return (
+    `Ciao ${c.nomeBreve}, ti scrivo dalla ASD Polisportiva Monesiglio: ${tuo} di ${attivita}${di} ${quando}. ` +
+    `Per continuare a venire si può rinnovare dall'area socio sul sito.`
+  )
+}
+
+export function linkWhatsAppRinnovo(c: Contatto, attivita: string, fine: string, oggi: string): string | null {
+  if (!c.telefono) return null
+  return `https://wa.me/${c.telefono.replace('+', '')}?text=${encodeURIComponent(messaggioRinnovo(c, attivita, fine, oggi))}`
+}
+
 /** Il link che apre WhatsApp col messaggio già scritto. Null se non c'è un numero. */
 export function linkWhatsApp(c: Contatto, attivita: string, periodo?: Periodo): string | null {
   if (!c.telefono) return null

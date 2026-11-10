@@ -13,7 +13,7 @@ export type SocioOrdinabile = {
   telefono: string | null
   dataRegistrazione: string | null
   scadenzaCert: string | null
-  statoAbbonamento: string | null
+  frequenzaFinoAl: string | null
 }
 
 export type Colonna = 'socio' | 'frequenza' | 'certificato' | 'iscritto' | 'email' | 'telefono'
@@ -64,13 +64,14 @@ export function chiaveDi(s: SocioOrdinabile, colonna: Colonna): string | number 
       return Number.isNaN(t) ? Number.NEGATIVE_INFINITY : t
     }
 
-    case 'frequenza':
-      // In su = da sistemare per primo. Non alfabetico: "Da saldare" verrebbe
-      // prima di "Pagato" per puro caso, e "Nessuno" finirebbe fra i due
-      // invece che in fondo.
-      if (s.statoAbbonamento === 'da_saldare') return 0
-      if (s.statoAbbonamento === 'pagato') return 1
-      return 2
+    case 'frequenza': {
+      // In su = dalla fine piu' vicina (o gia' passata): in cima chi e'
+      // scaduto o sta per scadere, cioe' a chi va detto di rinnovare. Chi non
+      // ha nessun periodo pagato non scade e va in fondo.
+      if (!s.frequenzaFinoAl) return null
+      const t = new Date(s.frequenzaFinoAl).getTime()
+      return Number.isNaN(t) ? null : t
+    }
   }
 }
 

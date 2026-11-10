@@ -13,7 +13,7 @@ import { FUSO } from '@/lib/dataRoma'
 export type Fetta = { etichetta: string; valore: number }
 
 /** Il giorno a Monesiglio, non quello del server (che gira in UTC). */
-function giornoRomano(istante: string | Date): string {
+export function giornoRomano(istante: string | Date): string {
   const d = typeof istante === 'string' ? new Date(istante) : istante
   if (Number.isNaN(d.getTime())) return ''
   // `sv-SE` è la scorciatoia onesta per avere AAAA-MM-GG.

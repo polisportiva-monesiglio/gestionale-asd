@@ -64,6 +64,10 @@ export default async function AreaSocioPage({
       .from('catalogo_attivita')
       .select('id, nome_attivita, tipo, prezzo_base, durata_mesi')
       .eq('attivo', true)
+      // Per tipo e poi per durata, non per nome: in ordine alfabetico il
+      // bimestrale veniva prima del mensile e l'annuale in cima a tutti.
+      .order('tipo')
+      .order('durata_mesi')
       .order('nome_attivita'),
     supabase
       .from('certificati_medici_storico')

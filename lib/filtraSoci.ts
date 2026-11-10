@@ -1,4 +1,5 @@
 import { giorniAllaScadenza } from '@/lib/analisi'
+import { statoCopertura, GIORNI_FREQUENZA_IN_SCADENZA } from '@/lib/scadenzeFrequenza'
 
 /**
  * I filtri della lista soci.
@@ -13,7 +14,9 @@ import { giorniAllaScadenza } from '@/lib/analisi'
  */
 
 export type StatoCertificato = 'mancante' | 'scaduto' | 'in_scadenza' | 'valido'
-export type StatoFrequenza = 'pagato' | 'da_saldare' | 'nessuno'
+export type StatoFrequenza = 'attiva' | 'in_scadenza' | 'scaduta' | 'nessuna'
+/** Il filtro della frequenza: uno stato, oppure la richiesta in attesa, che è una pastiglia a parte. */
+export type FiltroFrequenza = StatoFrequenza | 'richiesta_in_attesa'
 
 /** Entro quanti giorni un certificato è «in scadenza» e non più «valido». */
 export const GIORNI_IN_SCADENZA = 30
@@ -25,7 +28,10 @@ export type SocioFiltrabile = {
   telefono: string | null
   dataRegistrazione: string | null
   scadenzaCert: string | null
-  statoAbbonamento: string | null
+  /** L'ultimo giorno pagato (il più vicino, se le attività sono più d'una). */
+  frequenzaFinoAl: string | null
+  /** Il nome dell'attivita' chiesta e non ancora confermata, o null. */
+  richiestaInAttesa: string | null
 }
 
 export function statoCertificato(scadenza: string | null, oggi: Date = new Date()): StatoCertificato {
@@ -37,10 +43,14 @@ export function statoCertificato(scadenza: string | null, oggi: Date = new Date(
   return 'valido'
 }
 
-export function statoFrequenza(stato: string | null): StatoFrequenza {
-  if (stato === 'pagato') return 'pagato'
-  if (stato === 'da_saldare') return 'da_saldare'
-  return 'nessuno'
+/**
+ * Dal 10 novembre 2026 la frequenza si legge dalla data di fine, non dallo
+ * stato del pagamento: «Pagato» non diceva fino a quando, ed era proprio
+ * quello che serviva per sapere a chi dire di rinnovare.
+ */
+export function statoFrequenza(finoAl: string | null, oggi: Date = new Date()): StatoFrequenza {
+  if (!finoAl) return 'nessuna'
+  return statoCopertura(finoAl, oggi).stato
 }
 
 export type Filtri = {
@@ -49,7 +59,7 @@ export type Filtri = {
   socio: string
   email: string
   telefono: string
-  frequenza: StatoFrequenza | ''
+  frequenza: FiltroFrequenza | ''
   certificato: StatoCertificato | ''
   /** Giorni: '7', '30', '90'. Vuoto = da sempre. */
   iscritto: string
@@ -99,7 +109,9 @@ export function filtraSoci<T extends SocioFiltrabile>(
       if (cifreCercate !== '' && !cifreSocio.includes(cifreCercate)) return false
     }
 
-    if (f.frequenza !== '' && statoFrequenza(s.statoAbbonamento) !== f.frequenza) return false
+    if (f.frequenza === 'richiesta_in_attesa') {
+      if (!s.richiestaInAttesa) return false
+    } else if (f.frequenza !== '' && statoFrequenza(s.frequenzaFinoAl, oggi) !== f.frequenza) return false
     if (f.certificato !== '' && statoCertificato(s.scadenzaCert, oggi) !== f.certificato) return false
 
     if (f.iscritto !== '') {
@@ -116,10 +128,12 @@ export function filtraSoci<T extends SocioFiltrabile>(
 }
 
 /** Le voci dei due elenchi a tendina, scritte come le pastiglie in tabella. */
-export const VOCI_FREQUENZA: { valore: StatoFrequenza; testo: string }[] = [
-  { valore: 'da_saldare', testo: 'Da saldare' },
-  { valore: 'pagato', testo: 'Pagato' },
-  { valore: 'nessuno', testo: 'Nessuno' },
+export const VOCI_FREQUENZA: { valore: FiltroFrequenza; testo: string }[] = [
+  { valore: 'scaduta', testo: 'Scaduta' },
+  { valore: 'in_scadenza', testo: `In scadenza (entro ${GIORNI_FREQUENZA_IN_SCADENZA}g)` },
+  { valore: 'attiva', testo: 'Attiva' },
+  { valore: 'nessuna', testo: 'Nessuna' },
+  { valore: 'richiesta_in_attesa', testo: 'Richiesta in attesa' },
 ]
 
 export const VOCI_CERTIFICATO: { valore: StatoCertificato; testo: string }[] = [

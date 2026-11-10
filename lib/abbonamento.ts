@@ -165,8 +165,16 @@ export type PeriodoPagato = {
  * e non va fermato.
  */
 function stessoAmbito(attivita: { id: string; tipo: string | null }, p: PeriodoPagato): boolean {
-  if (attivita.tipo === 'corso' || p.tipo === 'corso') return attivita.id === p.attivitaId
-  return attivita.tipo === p.tipo
+  return chiaveAmbito(attivita.id, attivita.tipo) === chiaveAmbito(p.attivitaId, p.tipo)
+}
+
+/**
+ * La stessa regola di `stessoAmbito`, scritta come chiave per raggruppare:
+ * due periodi con la stessa chiave sono la stessa cosa pagata in tempi
+ * diversi, quindi il più recente prende il posto dell'altro.
+ */
+export function chiaveAmbito(attivitaId: string | null, tipo: string | null): string {
+  return tipo === 'corso' ? `corso:${attivitaId}` : `tipo:${tipo}`
 }
 
 /**

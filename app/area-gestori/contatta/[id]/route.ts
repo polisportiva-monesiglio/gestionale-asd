@@ -1,7 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import { contattoDi, linkWhatsApp, type DatiSocio } from '@/lib/contattiSocio'
+import { contattoDi, linkWhatsApp, linkWhatsAppRinnovo, type DatiSocio } from '@/lib/contattiSocio'
+import { giornoRomano } from '@/lib/analisi'
 
 /**
  * Apre WhatsApp verso chi ha fatto la richiesta, lasciando il segno del
@@ -15,9 +16,15 @@ import { contattoDi, linkWhatsApp, type DatiSocio } from '@/lib/contattiSocio'
  *
  * Il messaggio lo compone il server: il numero e le date non passano
  * dall'indirizzo, che porta solo l'identificativo della richiesta.
+ *
+ * Con `?per=rinnovo` (dal 10 novembre 2026) il collegamento parte da un
+ * periodo già pagato che sta finendo: il messaggio ricorda la scadenza e il
+ * segno va in `avvisato_rinnovo_*`, non in `contattato_*`, che parla della
+ * richiesta quando era ancora da decidere.
  */
 export async function GET(_req: NextRequest, ctx: RouteContext<'/area-gestori/contatta/[id]'>) {
   const { id } = await ctx.params
+  const perRinnovo = _req.nextUrl.searchParams.get('per') === 'rinnovo'
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
@@ -49,6 +56,30 @@ export async function GET(_req: NextRequest, ctx: RouteContext<'/area-gestori/co
     ? richiesta.catalogo_attivita[0]
     : richiesta.catalogo_attivita
   const attivita = (attivitaRiga as { nome_attivita?: string } | null)?.nome_attivita ?? 'Periodo di frequenza'
+
+  if (perRinnovo) {
+    const fine = richiesta.data_fine_validita
+    const link = socio && fine
+      ? linkWhatsAppRinnovo(contattoDi(socio), attivita, fine, giornoRomano(new Date()))
+      : null
+    if (!link) return NextResponse.redirect(new URL('/area-gestori', _req.nextUrl))
+
+    if (richiesta.stato_pagamento === 'pagato') {
+      const { error } = await supabase
+        .from('abbonamenti_soci')
+        .update({
+          avvisato_rinnovo_il: new Date().toISOString(),
+          avvisato_rinnovo_da: gestore.id,
+          avvisato_rinnovo_da_nome: gestore.nome ?? user.email ?? 'Un gestore',
+        })
+        .eq('id', id)
+        .eq('stato_pagamento', 'pagato')
+      if (error) console.error("Segno dell'avviso di rinnovo non riuscito:", error.message)
+      else revalidatePath('/area-gestori')
+    }
+
+    return NextResponse.redirect(link)
+  }
 
   const destinazione = socio
     ? linkWhatsApp(contattoDi(socio), attivita, {

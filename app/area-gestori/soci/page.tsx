@@ -5,6 +5,7 @@ import { getAnnoSportivo } from '@/lib/stagione'
 import { SociList } from './SociList'
 import { StagioneSelect } from './StagioneSelect'
 import { leggiDecisioni, type Decisione } from '@/lib/storicoDecisioni'
+import { ultimiPeriodi } from '@/lib/scadenzeFrequenza'
 
 const GIORNI_NUOVO_ISCRITTO = 7
 
@@ -55,7 +56,7 @@ export default async function ListaSociPage({
       luogo_nascita, provincia_nascita, data_nascita, cf,
       indirizzo, cap, citta, provincia_residenza, minorenne,
       tesseramenti_annuali(id, anno_sportivo, data_scadenza_certificato, url_modulo_firmato_pdf, url_certificato_pdf),
-      abbonamenti_soci(anno_sportivo, stato_pagamento, data_acquisto, catalogo_attivita(nome_attivita))
+      abbonamenti_soci(anno_sportivo, stato_pagamento, data_acquisto, attivita_id, data_fine_validita, catalogo_attivita(nome_attivita, tipo))
     `)
     .order('cognome')
 
@@ -80,7 +81,9 @@ export default async function ListaSociPage({
       anno_sportivo: string | null
       stato_pagamento: string | null
       data_acquisto: string | null
-      catalogo_attivita: { nome_attivita: string }[] | { nome_attivita: string } | null
+      attivita_id: string | null
+      data_fine_validita: string | null
+      catalogo_attivita: { nome_attivita: string; tipo: string | null }[] | { nome_attivita: string; tipo: string | null } | null
     }[] | null
   }
 
@@ -88,11 +91,26 @@ export default async function ListaSociPage({
     .map(s => {
       const tess = (s.tesseramenti_annuali ?? []).find(t => t.anno_sportivo === stagioneSelezionata) ?? null
       const absCorrenti = (s.abbonamenti_soci ?? []).filter(a => a.anno_sportivo === stagioneSelezionata)
-      const abPagato = absCorrenti.find(a => a.stato_pagamento === 'pagato')
       const abPending = absCorrenti.find(a => a.stato_pagamento === 'da_saldare')
-      const abCorrente = abPagato ?? abPending ?? null
-      const attivita = abCorrente?.catalogo_attivita
-      const nomeAtt = Array.isArray(attivita) ? attivita[0]?.nome_attivita : (attivita as { nome_attivita: string } | null)?.nome_attivita
+      const unaAttivita = (a: (typeof absCorrenti)[number]) =>
+        Array.isArray(a.catalogo_attivita) ? a.catalogo_attivita[0] ?? null : a.catalogo_attivita
+
+      // Fino a quando e' pagato, per ogni attivita' (la sala pesi una volta
+      // sola anche se ha comprato un mensile dopo l'altro; ogni corso a se').
+      // La pastiglia segue la fine piu' vicina: e' quella da rinnovare prima.
+      const frequenze = ultimiPeriodi(
+        absCorrenti
+          .filter(a => a.stato_pagamento === 'pagato')
+          .map(a => ({
+            socioId: s.id,
+            attivitaId: a.attivita_id,
+            tipo: unaAttivita(a)?.tipo ?? null,
+            fine: a.data_fine_validita,
+            attivita: unaAttivita(a)?.nome_attivita ?? 'Periodo di frequenza',
+          }))
+      )
+        .map(f => ({ attivita: f.attivita, fine: f.fine as string }))
+        .sort((a, b) => a.fine.localeCompare(b.fine))
 
       const nuovoIscritto = !!s.data_registrazione && new Date(s.data_registrazione).getTime() >= sogliaNuovoIscritto
 
@@ -104,13 +122,14 @@ export default async function ListaSociPage({
         telefono: s.telefono,
         dataRegistrazione: s.data_registrazione,
         scadenzaCert: tess?.data_scadenza_certificato ?? null,
-        statoAbbonamento: abCorrente?.stato_pagamento ?? null,
-        nomeAttivita: nomeAtt ?? null,
+        frequenze,
+        frequenzaFinoAl: frequenze[0]?.fine ?? null,
+        richiestaInAttesa: abPending ? unaAttivita(abPending)?.nome_attivita ?? 'Richiesta' : null,
         tesseramentoId: tess?.id ?? null,
         haModulo: !!tess?.url_modulo_firmato_pdf,
         haCertificato: !!tess?.url_certificato_pdf,
         nuovoIscritto,
-        presenteStagione: !!tess || !!abCorrente,
+        presenteStagione: !!tess || absCorrenti.some(a => a.stato_pagamento === 'pagato' || a.stato_pagamento === 'da_saldare'),
         // I campi che il gestore puo' correggere, tenuti a parte dal resto:
         // la tabella ne mostra alcuni, il modulo di correzione ne tocca altri,
         // e mescolarli renderebbe difficile capire quali finiscono dove.

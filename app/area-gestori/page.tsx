@@ -6,6 +6,11 @@ import { etichettaInizio, formattaGiorno, coperturaFinoAl } from '@/lib/abboname
 import { MenuDrawer } from './MenuDrawer'
 import { etichettaMetodo } from '@/lib/pagamenti'
 import { contaPer, andamentoIscrizioni, giorniAllaScadenza } from '@/lib/analisi'
+import { chiaveAmbito } from '@/lib/abbonamento'
+import {
+  ultimiPeriodi, statoCopertura, GIORNI_FREQUENZA_IN_SCADENZA, GIORNI_SCADUTA_DA_RICHIAMARE,
+} from '@/lib/scadenzeFrequenza'
+import { AvvisoRinnovo } from './AvvisoRinnovo'
 import { ContattiRichiesta } from './ContattiRichiesta'
 import type { DatiSocio } from '@/lib/contattiSocio'
 import { SchedaGrafico, BarreOrizzontali, Colonne, Riquadro } from './Grafici'
@@ -41,6 +46,7 @@ export default async function AreaGestoriPage() {
   const annoSportivo = getAnnoSportivo()
   const oggi = new Date()
   const tra30Giorni = new Date(oggi.getTime() + 30 * 86400000).toISOString().slice(0, 10)
+  const limiteRichiamo = new Date(oggi.getTime() - GIORNI_SCADUTA_DA_RICHIAMARE * 86400000).toISOString().slice(0, 10)
 
   const [
     { data: richiesteRaw },
@@ -48,6 +54,7 @@ export default async function AreaGestoriPage() {
     { data: impostazione },
     { data: tesseramentiRaw },
     { data: abbonamentiRaw },
+    { data: recentiRaw },
   ] = await Promise.all([
     supabase
       .from('abbonamenti_soci')
@@ -88,6 +95,18 @@ export default async function AreaGestoriPage() {
         soci(nome, cognome)
       `)
       .eq('anno_sportivo', annoSportivo),
+    // Per le frequenze da rinnovare: senza filtro di stagione, se no il 1°
+    // settembre sparirebbe proprio chi aveva il periodo fino al 31 agosto.
+    supabase
+      .from('abbonamenti_soci')
+      .select(`
+        id, socio_id, attivita_id, data_fine_validita,
+        avvisato_rinnovo_il, avvisato_rinnovo_da_nome,
+        catalogo_attivita(nome_attivita, tipo),
+        soci(nome, cognome, email, telefono, minorenne, genitore_nome, genitore_cognome, genitore_email, genitore_recapito)
+      `)
+      .eq('stato_pagamento', 'pagato')
+      .gte('data_fine_validita', limiteRichiamo),
   ])
 
   type RawRichiesta = {
@@ -198,16 +217,72 @@ export default async function AreaGestoriPage() {
 
   const GIORNI_DI_PREAVVISO = 30
 
-  // Quelli gia' finiti non sono "in scadenza": sono finiti, e chi li aveva o
-  // ha gia' rinnovato o non e' piu' in palestra. Qui interessa chi va
-  // richiamato prima che scada.
-  const inScadenza = pagati
-    .filter(a => a.fine !== null)
-    .map(a => ({ ...a, giorni: giorniAllaScadenza(a.fine as string) }))
-    .filter(a => a.giorni >= 0 && a.giorni <= GIORNI_DI_PREAVVISO)
-    .sort((a, b) => a.giorni - b.giorni)
-
   const attiviOggi = pagati.filter(a => a.fine !== null && giorniAllaScadenza(a.fine as string) >= 0).length
+
+  /* ---------------- Frequenze da rinnovare ----------------
+     L'ultimo giorno pagato per socio e per ambito: chi ha gia' rinnovato ha
+     una fine piu' avanti e non compare. Restano quelli che finiscono entro
+     una settimana e quelli finiti da meno di un mese senza un periodo dopo —
+     cioe' quelli a cui va detto. Vedi `lib/scadenzeFrequenza.ts`. */
+
+  type RawRecente = {
+    id: string
+    socio_id: string
+    attivita_id: string | null
+    data_fine_validita: string | null
+    avvisato_rinnovo_il: string | null
+    avvisato_rinnovo_da_nome: string | null
+    catalogo_attivita: { nome_attivita: string; tipo: string | null }[] | { nome_attivita: string; tipo: string | null } | null
+    soci: DatiSocio[] | DatiSocio | null
+  }
+
+  const recenti = ((recentiRaw ?? []) as unknown as RawRecente[]).map(r => {
+    const att = Array.isArray(r.catalogo_attivita) ? r.catalogo_attivita[0] : r.catalogo_attivita
+    const s = Array.isArray(r.soci) ? r.soci[0] : r.soci
+    return {
+      id: r.id,
+      socioId: r.socio_id,
+      attivitaId: r.attivita_id,
+      tipo: att?.tipo ?? null,
+      fine: r.data_fine_validita,
+      attivita: att?.nome_attivita ?? 'Periodo di frequenza',
+      socio: s ?? null,
+      nomeSocio: s ? `${s.cognome ?? ''} ${s.nome ?? ''}`.trim() : 'Socio non trovato',
+      avvisatoIl: r.avvisato_rinnovo_il,
+      avvisatoDa: r.avvisato_rinnovo_da_nome,
+    }
+  })
+
+  // Chi ha gia' una richiesta di rinnovo in attesa non va inseguito: va
+  // confermato, e lo si fa nel riquadro delle richieste.
+  const rinnoviChiesti = new Set(
+    richieste.map(r => `${r.socioId}|${chiaveAmbito(r.attivitaId, r.tipo)}`)
+  )
+
+  const daRinnovareSenzaEmail = ultimiPeriodi(recenti)
+    .map(p => ({ ...p, ...statoCopertura(p.fine as string, oggi) }))
+    .filter(p => p.stato !== 'attiva' && p.giorni >= -GIORNI_SCADUTA_DA_RICHIAMARE)
+    .map(p => ({ ...p, rinnovoChiesto: rinnoviChiesti.has(`${p.socioId}|${chiaveAmbito(p.attivitaId, p.tipo)}`) }))
+    // Prima chi va ancora sentito, poi in ordine di data: dal piu' vecchio.
+    .sort((a, b) => Number(a.rinnovoChiesto) - Number(b.rinnovoChiesto) || a.giorni - b.giorni)
+
+  // Se l'email automatica e' partita: chi l'ha ricevuta e non ha rinnovato
+  // e' esattamente quello per cui "la mail non basta".
+  const { data: emailRaw } = daRinnovareSenzaEmail.length
+    ? await supabase
+        .from('invii_promemoria_frequenza')
+        .select('abbonamento_id, aggiornato_il')
+        .eq('esito', 'inviato')
+        .in('abbonamento_id', daRinnovareSenzaEmail.map(p => p.id))
+    : { data: [] }
+  const emailInviata = new Map(
+    ((emailRaw ?? []) as { abbonamento_id: string; aggiornato_il: string }[]).map(e => [e.abbonamento_id, e.aggiornato_il])
+  )
+  const daRinnovare = daRinnovareSenzaEmail.map(p => ({ ...p, emailIl: emailInviata.get(p.id) ?? null }))
+
+  const daSentire = daRinnovare.filter(p => !p.rinnovoChiesto)
+  const scaduteDaSentire = daSentire.filter(p => p.stato === 'scaduta').length
+  const inScadenzaDaSentire = daSentire.length - scaduteDaSentire
 
   type RawCert = {
     id: string
@@ -276,10 +351,10 @@ export default async function AreaGestoriPage() {
               nota="Periodi pagati e non ancora finiti"
             />
             <Riquadro
-              etichetta="In scadenza"
-              valore={inScadenza.length}
-              nota={`Periodi che finiscono entro ${GIORNI_DI_PREAVVISO} giorni`}
-              tono={inScadenza.length > 0 ? 'attenzione' : 'neutro'}
+              etichetta="Da rinnovare"
+              valore={daSentire.length}
+              nota={`Scadono entro ${GIORNI_FREQUENZA_IN_SCADENZA} giorni o scaduti, e non ancora rinnovati`}
+              tono={daSentire.length > 0 ? 'attenzione' : 'neutro'}
             />
             <Riquadro
               etichetta="Da confermare"
@@ -434,48 +509,39 @@ export default async function AreaGestoriPage() {
           <div className="pt-2">
             <h2 className="text-base font-bold text-gray-900 px-1">Scadenze</h2>
             <p className="text-xs text-gray-400 px-1 mt-0.5">
-              Entro {GIORNI_DI_PREAVVISO} giorni. Tocca una riga per vedere chi.
+              Tocca una riga per vedere chi.
             </p>
           </div>
 
           <details className="group bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-3xl border border-gray-100 border-l-[6px] border-l-amber-400">
             <summary className="flex items-center justify-between gap-3 cursor-pointer list-none px-6 py-4 [&::-webkit-details-marker]:hidden">
               <span className="text-sm font-bold text-gray-900">
-                {inScadenza.length === 0
-                  ? `Nessuna frequenza in scadenza nei prossimi ${GIORNI_DI_PREAVVISO} giorni`
-                  : inScadenza.length === 1
-                    ? "C'è 1 frequenza in scadenza"
-                    : `Ci sono ${inScadenza.length} frequenze in scadenza`}
+                {daSentire.length === 0
+                  ? 'Nessuna frequenza da rinnovare'
+                  : [
+                      scaduteDaSentire > 0
+                        ? `${scaduteDaSentire} ${scaduteDaSentire === 1 ? 'frequenza scaduta' : 'frequenze scadute'} e non ${scaduteDaSentire === 1 ? 'rinnovata' : 'rinnovate'}`
+                        : null,
+                      inScadenzaDaSentire > 0
+                        ? `${inScadenzaDaSentire} in scadenza entro ${GIORNI_FREQUENZA_IN_SCADENZA} giorni`
+                        : null,
+                    ].filter(Boolean).join(' · ')}
               </span>
               <span className="text-gray-400 text-xs transition-transform group-open:rotate-180" aria-hidden="true">
                 ▼
               </span>
             </summary>
-            <div className="px-6 pb-5">
-              {inScadenza.length === 0 ? (
+            <div className="px-6 pb-5 space-y-2">
+              <p className="text-xs text-gray-400">
+                L&apos;ultimo periodo pagato di ogni socio: chi ha già rinnovato non compare. Chi è
+                scaduto resta qui per {GIORNI_SCADUTA_DA_RICHIAMARE} giorni.
+              </p>
+              {daRinnovare.length === 0 ? (
                 <p className="text-sm text-gray-400 py-2">Niente da richiamare per ora.</p>
               ) : (
                 <ul className="space-y-2">
-                  {inScadenza.map(a => (
-                    <li
-                      key={a.id}
-                      className="flex items-center justify-between gap-3 rounded-xl border border-gray-100 bg-gray-50 px-4 py-2.5"
-                    >
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-gray-900 truncate">{a.socio}</p>
-                        <p className="text-xs text-gray-400 truncate">{a.attivita ?? '—'}</p>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <span
-                          className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                            a.giorni <= 7 ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-600'
-                          }`}
-                        >
-                          {a.giorni === 0 ? 'Scade oggi' : a.giorni === 1 ? 'Fra 1 giorno' : `Fra ${a.giorni} giorni`}
-                        </span>
-                        <p className="text-[10px] text-gray-400 mt-0.5">{formatData(a.fine)}</p>
-                      </div>
-                    </li>
+                  {daRinnovare.map(p => (
+                    <AvvisoRinnovo key={p.id} periodo={p} />
                   ))}
                 </ul>
               )}
